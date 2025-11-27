@@ -78,3 +78,4 @@ api/dist/
 api/build/
 api/coverage/
 
+qdrant_storage/ 
