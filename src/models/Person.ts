@@ -6,6 +6,11 @@ export interface IPerson extends Document {
   bio?: string;
   mediaLinks?: MediaLink[];
   businessIds: mongoose.Types.ObjectId[];
+  episodeIds: mongoose.Types.ObjectId[];
+}
+
+export interface PersonModel extends Model<IPerson> {
+  syncPersonsForEpisodes(personId: mongoose.Types.ObjectId): Promise<void>;
 }
 
 const PersonSchema = new Schema<IPerson>(
@@ -15,9 +20,36 @@ const PersonSchema = new Schema<IPerson>(
     bio: { type: String },
     mediaLinks: [MediaLinkSchema],
     businessIds: [{ type: Schema.Types.ObjectId, ref: "Business" }],
+    episodeIds: [{ type: Schema.Types.ObjectId, ref: "Episode" }],
   },
   { timestamps: true }
 );
 
-export const Person: Model<IPerson> =
-  mongoose.models.Person || mongoose.model<IPerson>("Person", PersonSchema);
+PersonSchema.statics.syncPersonsForEpisodes = async function (
+  personId: mongoose.Types.ObjectId
+): Promise<void> {
+  const { Episode } = await import("./Episode");
+  const episodes = await Episode.find({ guestIds: personId }).select("_id");
+  const episodeIds = episodes.map((e) => e._id);
+  await this.findByIdAndUpdate(
+    personId,
+    { guestEpisodeIds: episodeIds },
+    { new: false }
+  );
+};
+
+PersonSchema.post("findOneAndDelete", async function (doc) {
+  if (!doc) return;
+  const personId = doc._id;
+
+  const { Episode } = await import("./Episode");
+
+  await Episode.updateMany(
+    { guestIds: personId },
+    { $pull: { guestIds: personId } }
+  );
+});
+
+export const Person: PersonModel =
+  (mongoose.models.Person as PersonModel) ||
+  mongoose.model<IPerson, PersonModel>("Person", PersonSchema);

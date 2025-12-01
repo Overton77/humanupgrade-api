@@ -32,9 +32,7 @@ async function validateEntitiesExist<T extends mongoose.Document>(
     .select("_id")
     .lean();
 
-  const existingIds = new Set(
-    existingEntities.map((e: any) => e._id.toString())
-  );
+  const existingIds = new Set(existingEntities.map((e) => e._id.toString()));
 
   // Check if any IDs are missing
   for (const id of ids) {
@@ -55,13 +53,6 @@ function mergeAndDedupeIds(
   newIds.forEach((id) => merged.add(id));
   return toObjectIds(Array.from(merged));
 }
-
-/**
- * Simple create: scalars + optional owner/product IDs.
- * - Does NOT do any nested upsert.
- * - Relies on Business.syncPersonLinks + Product.syncProductsForBusiness
- *   to keep reverse relations in sync.
- */
 
 function mapExecutivesInput(
   executives: BusinessExecutiveRelationInput[] | undefined
@@ -84,6 +75,28 @@ function mapExecutivesInput(
 
   return result;
 }
+
+/**
+ * Create a Business and optionally connect owners, products, episodes, and executives.
+ *
+ * Relationship rules:
+ *
+ * - Owners / Executives:
+ *   - Business.ownerIds + Business.executives.personId are canonical.
+ *   - Person.businessIds is a mirror, maintained by Business.syncPersonLinks()
+ *     and/or Business middleware.
+ *
+ * - Products:
+ *   - Product.businessId is canonical.
+ *   - Business.productIds is a mirror, maintained by Product.syncProductsForBusiness()
+ *     and/or Product middleware.
+ *
+ * - Episodes (sponsors):
+ *   - Episode.sponsorBusinessIds is canonical.
+ *   - Business.sponsorEpisodeIds is a mirror, maintained by
+ *     Business.syncSponsorEpisodesForBusiness(businessId) and/or Episode middleware.
+ */
+
 export async function createBusinessWithOptionalIds(
   input: BusinessCreateWithOptionalIdsInput
 ): Promise<IBusiness> {
@@ -91,6 +104,7 @@ export async function createBusinessWithOptionalIds(
     name,
     description,
     website,
+    biography,
     mediaLinks,
     ownerIds,
     productIds,
@@ -98,64 +112,102 @@ export async function createBusinessWithOptionalIds(
     sponsorEpisodeIds,
   } = input;
 
-  // Validate all referenced entities exist before creating
+  // --- 1) Validate all referenced entities exist up front -------------------
+
   if (ownerIds && ownerIds.length > 0) {
     await validateEntitiesExist(Person, ownerIds, "Owner");
   }
+
   if (productIds && productIds.length > 0) {
     await validateEntitiesExist(Product, productIds, "Product");
   }
+
   if (executives && executives.length > 0) {
     const executivePersonIds = executives.map((e) => e.personId);
     await validateEntitiesExist(Person, executivePersonIds, "Executive Person");
   }
+
   if (sponsorEpisodeIds && sponsorEpisodeIds.length > 0) {
     await validateEntitiesExist(Episode, sponsorEpisodeIds, "Episode");
   }
 
+  // --- 2) Create the Business (canonical owner/executive side) -------------
+
   const ownerObjectIds = ownerIds ? toObjectIds(ownerIds) : [];
-  const productObjectIds = productIds ? toObjectIds(productIds) : [];
-  const episodeObjectIds = sponsorEpisodeIds
-    ? toObjectIds(sponsorEpisodeIds)
-    : [];
   const executiveSubdocs: IBusinessExecutive[] = mapExecutivesInput(executives);
 
+  // We do NOT rely on productIds / sponsorEpisodeIds here as canonical.
+  // They will be recomputed from Product.businessId and Episode.sponsorBusinessIds.
   const business = await Business.create({
     name,
     description,
     website,
+    biography,
     mediaLinks,
     ownerIds: ownerObjectIds,
-    productIds: productObjectIds,
+    productIds: [],
     executives: executiveSubdocs,
-    sponsorEpisodeIds: episodeObjectIds,
+    sponsorEpisodeIds: [],
   });
 
-  // Sync Person.businessIds
-  await Business.syncPersonLinks(business);
+  const businessId = business._id;
 
-  // Sync Business.productIds based on Products that reference it
-  await Product.syncProductsForBusiness(business._id);
+  // --- 3) Attach Products to this Business (Product is canonical) ----------
 
-  // Sync Episodes
-  if (sponsorEpisodeIds && sponsorEpisodeIds.length > 0) {
-    for (const eid of sponsorEpisodeIds) {
-      await Episode.syncSponsorBusinessesForEpisode(
-        new mongoose.Types.ObjectId(eid)
-      );
-    }
+  if (productIds && productIds.length > 0) {
+    // Set Product.businessId for the given products.
+    await Product.updateMany(
+      { _id: { $in: productIds } },
+      { $set: { businessId } }
+    );
+
+    // Recompute Business.productIds from all products pointing at this business.
+    await Product.syncProductsForBusiness(businessId);
   }
+
+  // --- 4) Attach this Business as sponsor on Episodes (Episode is canonical) -
+
+  if (sponsorEpisodeIds && sponsorEpisodeIds.length > 0) {
+    await Episode.updateMany(
+      { _id: { $in: sponsorEpisodeIds } },
+      { $addToSet: { sponsorBusinessIds: businessId } }
+    );
+
+    // Recompute Business.sponsorEpisodeIds from all episodes that reference it.
+    await Business.syncSponsorEpisodesForBusiness(businessId);
+  }
+
+  // --- 5) Sync Person.businessIds based on owners + executives -------------
+
+  await Business.syncPersonLinks(business);
 
   return business;
 }
 
+// ============================================================================
+//  SIMPLE UPDATE: SCALARS + OPTIONAL OWNER / PRODUCT / EPISODE IDS
+// ============================================================================
+
 /**
- * Simple update: scalars + optional owner/product IDs.
+ * Simple update: scalar fields + optional owners/products/episodes.
  *
  * Semantics:
- * - ownerIds: treated as "add these owners" (merge + dedupe, no removals).
- * - productIds: treated as "attach these products to this business"
- *   (merge + dedupe) and then we call Product.syncProductsForBusiness.
+ *
+ * - ownerIds:
+ *   - Merge + dedupe into Business.ownerIds (canonical).
+ *   - Person.businessIds is updated via Business.syncPersonLinks(business).
+ *
+ * - productIds:
+ *   - Treated as "attach these products to this business".
+ *   - We update Product.businessId (canonical).
+ *   - Then Product.syncProductsForBusiness(businessId) recomputes
+ *     Business.productIds as a mirror.
+ *
+ * - sponsorEpisodeIds:
+ *   - Treated as "attach this business as sponsor to these episodes".
+ *   - We update Episode.sponsorBusinessIds (canonical).
+ *   - Then Business.syncSponsorEpisodesForBusiness(businessId) recomputes
+ *     Business.sponsorEpisodeIds as a mirror.
  */
 export async function updateBusinessWithOptionalIds(
   input: BusinessUpdateWithOptionalIdsInput
@@ -165,6 +217,7 @@ export async function updateBusinessWithOptionalIds(
     name,
     description,
     website,
+    biography,
     mediaLinks,
     ownerIds,
     productIds,
@@ -177,64 +230,52 @@ export async function updateBusinessWithOptionalIds(
   if (name !== undefined) business.name = name;
   if (description !== undefined) business.description = description;
   if (website !== undefined) business.website = website;
+  if (biography !== undefined) business.biography = biography;
   if (mediaLinks !== undefined) business.mediaLinks = mediaLinks;
 
   const businessId = business._id;
 
-  // --- Owners: merge, dedupe, no removals here ---
+  // --- Owners: merge + dedupe (canonical: Business.ownerIds) ---------------
 
-  if (ownerIds !== undefined && ownerIds.length > 0) {
-    // Batch validate all owners exist (more efficient than one-by-one)
+  if (ownerIds && ownerIds.length > 0) {
     await validateEntitiesExist(Person, ownerIds, "Owner");
     business.ownerIds = mergeAndDedupeIds(business.ownerIds, ownerIds);
   }
 
-  // --- Products: merge, dedupe, then sync from Product side ---
+  // --- Products: attach via Product.businessId (canonical) ------------------
 
-  if (productIds !== undefined && productIds.length > 0) {
-    // Batch validate all products exist (more efficient than one-by-one)
+  if (productIds && productIds.length > 0) {
     await validateEntitiesExist(Product, productIds, "Product");
 
-    const mergedIds = Array.from(
-      new Set([
-        ...business.productIds.map((id) => id.toString()),
-        ...productIds,
-      ])
-    );
-    business.productIds = toObjectIds(mergedIds);
-
-    // Ensure these products are pointing to this business
+    // Attach these products to this business (no implicit removals).
     await Product.updateMany(
       { _id: { $in: productIds } },
       { $set: { businessId } }
     );
 
-    // And now recompute Business.productIds from Products
+    // Recompute Business.productIds from Product.businessId.
     await Product.syncProductsForBusiness(businessId);
   }
 
-  // --- Episodes: merge, dedupe, then sync from Episode side ---
+  // --- Episodes: attach via Episode.sponsorBusinessIds (canonical) ---------
 
-  if (sponsorEpisodeIds !== undefined && sponsorEpisodeIds.length > 0) {
+  if (sponsorEpisodeIds && sponsorEpisodeIds.length > 0) {
     await validateEntitiesExist(Episode, sponsorEpisodeIds, "Episode");
-    business.sponsorEpisodeIds = mergeAndDedupeIds(
-      business.sponsorEpisodeIds,
-      sponsorEpisodeIds
+
+    await Episode.updateMany(
+      { _id: { $in: sponsorEpisodeIds } },
+      { $addToSet: { sponsorBusinessIds: businessId } }
     );
 
-    // Sync each affected episode
-    for (const eid of sponsorEpisodeIds) {
-      await Episode.syncSponsorBusinessesForEpisode(
-        new mongoose.Types.ObjectId(eid)
-      );
-    }
+    // Recompute Business.sponsorEpisodeIds from Episode.sponsorBusinessIds.
+    await Business.syncSponsorEpisodesForBusiness(businessId);
   }
 
+  // Persist scalar + owner changes.
   await business.save();
-  await Business.syncPersonLinks(business);
 
-  // Recompute from reverse side for consistency
-  await Business.syncSponsorEpisodesForBusiness(businessId);
+  // Update Person.businessIds mirror.
+  await Business.syncPersonLinks(business);
 
   return business;
 }
@@ -247,6 +288,23 @@ export async function updateBusinessWithOptionalIds(
  * - Else if name is provided: find Person by name (unique),
  *   update if exists, otherwise create.
  * - Returns list of resulting ObjectIds.
+ */
+// ============================================================================
+//  NESTED UPSERT HELPERS
+// ============================================================================
+
+/**
+ * Nested upsert for owners (Person).
+ *
+ * Rules:
+ * - If id is provided: update Person by id.
+ * - Else if name is provided: find Person by unique name,
+ *   update if exists, otherwise create.
+ *
+ * Note:
+ * - When creating new Person, we can pre-seed businessIds: [businessId],
+ *   but the *canonical* link is Business.ownerIds / executives.
+ *   Business.syncPersonLinks() will keep Person.businessIds correct.
  */
 async function upsertOwnersNested(
   ownersNested: BusinessOwnerNestedInput[] | undefined,
@@ -263,25 +321,20 @@ async function upsertOwnersNested(
 
     if (id) {
       person = await Person.findById(id);
-      if (!person) {
-        // Fallback: if name is provided, try by unique name
-        if (name) {
-          person = await Person.findOne({ name });
-        }
+      if (!person && name) {
+        person = await Person.findOne({ name });
       }
     } else if (name) {
       person = await Person.findOne({ name });
     }
 
     if (person) {
-      // update existing
       if (name !== undefined) person.name = name;
       if (role !== undefined) person.role = role;
       if (bio !== undefined) person.bio = bio;
       if (mediaLinks !== undefined) person.mediaLinks = mediaLinks;
       await person.save();
     } else {
-      // create new
       if (!name) {
         throw new Error(
           "ownersNested entry requires 'name' when neither 'id' nor an existing person by name is found"
@@ -293,7 +346,7 @@ async function upsertOwnersNested(
         role,
         bio,
         mediaLinks,
-        businessIds: [businessId],
+        businessIds: [businessId], // convenience; Business.syncPersonLinks is still the canonical maintainer
       });
     }
 
@@ -308,10 +361,9 @@ async function upsertOwnersNested(
  *
  * Rules:
  * - If id is provided: update Product by id.
- * - Else if name is provided: find Product by name (unique),
+ * - Else if name is provided: find Product by unique name,
  *   update if exists, otherwise create.
- * - Always sets product.businessId to the businessId.
- * - Returns list of resulting ObjectIds.
+ * - Always sets product.businessId to the given businessId (canonical side).
  */
 async function upsertProductsNested(
   productsNested: BusinessProductNestedInput[] | undefined,
@@ -330,7 +382,6 @@ async function upsertProductsNested(
     if (id) {
       product = await Product.findById(id);
       if (!product && name) {
-        // Fallback to unique name
         product = await Product.findOne({ name });
       }
     } else if (name) {
@@ -343,8 +394,7 @@ async function upsertProductsNested(
       if (ingredients !== undefined) product.ingredients = ingredients;
       if (mediaLinks !== undefined) product.mediaLinks = mediaLinks;
       if (sourceUrl !== undefined) product.sourceUrl = sourceUrl;
-
-      product.businessId = businessId;
+      product.businessId = businessId; // canonical link
       await product.save();
     } else {
       if (!name) {
@@ -358,10 +408,9 @@ async function upsertProductsNested(
         description,
         ingredients: ingredients ?? [],
         mediaLinks,
-        sponsorEpisodes: [],
         sourceUrl,
         compoundIds: [],
-        businessId,
+        businessId, // canonical link
       });
     }
 
@@ -371,15 +420,6 @@ async function upsertProductsNested(
   return productIds;
 }
 
-/**
- * Nested upsert for episodes.
- *
- * Rules:
- * - If id is provided: update Episode by id.
- * - Else if number is provided: find Episode by number (unique),
- *   update if exists, otherwise create.
- * - Returns list of resulting ObjectIds.
- */
 async function upsertEpisodesNested(
   episodesNested: BusinessEpisodeNestedInput[] | undefined,
   businessId: mongoose.Types.ObjectId
@@ -389,50 +429,127 @@ async function upsertEpisodesNested(
   const episodeIds: mongoose.Types.ObjectId[] = [];
 
   for (const episodeInput of episodesNested) {
-    const { id, number, title, publishedAt, mediaLinks } = episodeInput;
+    const {
+      id, // optional: upsert by id if present
+      channelName,
+      episodeNumber,
+      episodeTitle,
+      summaryShort,
+      webPageSummary,
+      publishedAt,
+      mediaLinks,
+      summaryDetailed,
+      youtubeEmbedUrl,
+      youtubeVideoId,
+      youtubeWatchUrl,
+      takeaways,
+      s3TranscriptKey,
+      s3TranscriptUrl,
+      sponsorLinkObjects,
+      webPageTimelines, // NOTE: input name; schema field is webPagTimelines
+      episodePageUrl,
+      episodeTranscriptUrl,
+    } = episodeInput;
 
-    let episode: any | null = null;
+    let episode: IEpisode | null = null;
 
+    // 1) Try by id (if provided)
     if (id) {
       episode = await Episode.findById(id);
-      if (!episode && number !== undefined) {
-        episode = await Episode.findOne({ number });
-      }
-    } else if (number !== undefined) {
-      episode = await Episode.findOne({ number });
+    }
+
+    // 2) If not found and we have channelName + episodeNumber, try that combo
+    if (!episode && channelName && episodeNumber !== undefined) {
+      episode = await Episode.findOne({ channelName, episodeNumber });
+    }
+
+    // 3) As a weaker fallback, try just episodeNumber if present
+    if (!episode && episodeNumber !== undefined) {
+      episode = await Episode.findOne({ episodeNumber });
     }
 
     if (episode) {
-      // Update existing
-      if (title !== undefined) episode.title = title;
+      // ---------------- UPDATE EXISTING EPISODE ----------------
+      if (channelName !== undefined) episode.channelName = channelName;
+      if (episodeNumber !== undefined) episode.episodeNumber = episodeNumber;
+      if (episodeTitle !== undefined) episode.episodeTitle = episodeTitle;
+      if (episodePageUrl !== undefined) episode.episodePageUrl = episodePageUrl;
+      if (episodeTranscriptUrl !== undefined)
+        episode.episodeTranscriptUrl = episodeTranscriptUrl;
       if (publishedAt !== undefined) episode.publishedAt = publishedAt;
+
+      if (summaryShort !== undefined) episode.summaryShort = summaryShort;
+      if (webPageSummary !== undefined) episode.webPageSummary = webPageSummary;
+      if (summaryDetailed !== undefined)
+        episode.summaryDetailed = summaryDetailed;
+
       if (mediaLinks !== undefined) episode.mediaLinks = mediaLinks;
 
-      // Add this business to episode's sponsors
+      if (webPageTimelines !== undefined) {
+        // schema field is webPagTimelines (typo), so map to that
+        (episode as any).webPagTimelines = webPageTimelines;
+      }
+
+      if (sponsorLinkObjects !== undefined) {
+        episode.sponsorLinkObjects = sponsorLinkObjects;
+      }
+
+      if (youtubeVideoId !== undefined) episode.youtubeVideoId = youtubeVideoId;
+      if (youtubeWatchUrl !== undefined)
+        episode.youtubeWatchUrl = youtubeWatchUrl;
+      if (youtubeEmbedUrl !== undefined)
+        episode.youtubeEmbedUrl = youtubeEmbedUrl;
+
+      if (takeaways !== undefined) episode.takeaways = takeaways;
+      if (s3TranscriptKey !== undefined)
+        episode.s3TranscriptKey = s3TranscriptKey;
+      if (s3TranscriptUrl !== undefined)
+        episode.s3TranscriptUrl = s3TranscriptUrl;
+
+      // Ensure this business is in sponsorBusinessIds (canonical link)
       if (
-        !episode.sponsorBusinessIds.some((bid: any) => bid.equals(businessId))
+        !episode.sponsorBusinessIds.some((bid) => bid.equals(businessId as any))
       ) {
         episode.sponsorBusinessIds.push(businessId);
       }
 
       await episode.save();
     } else {
-      // Create new
-      if (number === undefined || !title) {
+      // ---------------- CREATE NEW EPISODE ----------------
+      // For a brand new episode we require at least:
+      //   - channelName (required by schema)
+      //   - episodeNumber (for uniqueness + lookup)
+      //   - episodeTitle (sane minimum for content)
+      if (!channelName || episodeNumber === undefined || !episodeTitle) {
         throw new Error(
-          "episodesNested entry requires 'number' and 'title' when neither 'id' nor an existing episode by number is found"
+          "episodesNested entry requires 'channelName', 'episodeNumber', and 'episodeTitle' when neither 'id' nor an existing episode can be found"
         );
       }
 
-      episode = await Episode.create({
-        number,
-        title,
+      const episodeDoc = await Episode.create({
+        channelName,
+        episodeNumber,
+        episodeTitle,
+        episodePageUrl,
+        episodeTranscriptUrl,
         publishedAt,
+        summaryShort,
+        webPageSummary,
         mediaLinks,
-        guestIds: [],
-        takeaways: [],
-        sponsorBusinessIds: [businessId],
+        webPagTimelines: webPageTimelines, // map input → schema field
+        sponsorLinkObjects,
+        summaryDetailed,
+        youtubeVideoId,
+        youtubeWatchUrl,
+        youtubeEmbedUrl,
+        takeaways: takeaways ?? [],
+        s3TranscriptKey,
+        s3TranscriptUrl,
+        guestIds: [], // guests are independent; you can wire later
+        sponsorBusinessIds: [businessId], // canonical sponsor link
       });
+
+      episode = episodeDoc;
     }
 
     episodeIds.push(episode._id);
@@ -460,6 +577,29 @@ async function upsertEpisodesNested(
  * - Product.syncProductsForBusiness(businessId) recomputes Business.productIds
  *   from the product side.
  */
+// ============================================================================
+//  RICH RELATION UPDATE (NESTED INPUTS)
+// ============================================================================
+
+/**
+ * Rich relation update:
+ *
+ * Handles:
+ * - ownerIds / ownersNested
+ * - productIds / productsNested
+ * - executives
+ * - sponsorEpisodeIds / sponsorEpisodesNested
+ *
+ * Canonical sides:
+ * - Owners/executives: Business.ownerIds + Business.executives.personId
+ * - Products: Product.businessId
+ * - Episodes: Episode.sponsorBusinessIds
+ *
+ * Mirrors:
+ * - Person.businessIds    <- Business.syncPersonLinks(business)
+ * - Business.productIds   <- Product.syncProductsForBusiness(businessId)
+ * - Business.sponsorEpisodeIds <- Business.syncSponsorEpisodesForBusiness(businessId)
+ */
 export async function updateBusinessWithRelationFields(
   input: BusinessUpdateRelationFieldsInput
 ): Promise<IBusiness | null> {
@@ -479,14 +619,14 @@ export async function updateBusinessWithRelationFields(
 
   const businessId = business._id;
 
-  // --- Owners: merge & dedupe with existing set ---
+  // --- Owners: merge + dedupe (canonical: Business.ownerIds) ---------------
 
-  if (ownerIds !== undefined && ownerIds.length > 0) {
+  if (ownerIds && ownerIds.length > 0) {
     await validateEntitiesExist(Person, ownerIds, "Owner");
     business.ownerIds = mergeAndDedupeIds(business.ownerIds, ownerIds);
   }
 
-  if (ownersNested !== undefined) {
+  if (ownersNested) {
     const nestedOwnerIds = await upsertOwnersNested(ownersNested, businessId);
     business.ownerIds = mergeAndDedupeIds(
       business.ownerIds,
@@ -494,17 +634,10 @@ export async function updateBusinessWithRelationFields(
     );
   }
 
-  // --- Products: merge & dedupe with existing set, then sync from Product side ---
+  // --- Products: via Product.businessId (canonical) -------------------------
 
-  if (productIds !== undefined && productIds.length > 0) {
+  if (productIds && productIds.length > 0) {
     await validateEntitiesExist(Product, productIds, "Product");
-    const mergedIds = Array.from(
-      new Set([
-        ...business.productIds.map((id) => id.toString()),
-        ...productIds,
-      ])
-    );
-    business.productIds = toObjectIds(mergedIds);
 
     await Product.updateMany(
       { _id: { $in: productIds } },
@@ -512,68 +645,72 @@ export async function updateBusinessWithRelationFields(
     );
   }
 
-  if (productsNested !== undefined) {
+  if (productsNested) {
     const nestedProductIds = await upsertProductsNested(
       productsNested,
       businessId
     );
-    business.productIds = mergeAndDedupeIds(
-      business.productIds,
-      nestedProductIds.map((id) => id.toString())
-    );
-  }
-
-  // Recompute Business.productIds based on Products that reference this business
-  await Product.syncProductsForBusiness(businessId);
-
-  // --- Episodes: merge & dedupe with existing set, then sync from Episode side ---
-
-  if (sponsorEpisodeIds !== undefined && sponsorEpisodeIds.length > 0) {
-    await validateEntitiesExist(Episode, sponsorEpisodeIds, "Episode");
-    business.sponsorEpisodeIds = mergeAndDedupeIds(
-      business.sponsorEpisodeIds,
-      sponsorEpisodeIds
-    );
-
-    // Sync affected episodes
-    for (const eid of sponsorEpisodeIds) {
-      await Episode.syncSponsorBusinessesForEpisode(
-        new mongoose.Types.ObjectId(eid)
+    // no need to set business.productIds directly; we'll recompute from Products
+    if (nestedProductIds.length > 0) {
+      await Product.updateMany(
+        { _id: { $in: nestedProductIds } },
+        { $set: { businessId } }
       );
     }
   }
 
-  if (sponsorEpisodesNested !== undefined) {
+  // Recompute Business.productIds mirror.
+  await Product.syncProductsForBusiness(businessId);
+
+  // --- Episodes: via Episode.sponsorBusinessIds (canonical) -----------------
+
+  if (sponsorEpisodeIds && sponsorEpisodeIds.length > 0) {
+    await validateEntitiesExist(Episode, sponsorEpisodeIds, "Episode");
+
+    await Episode.updateMany(
+      { _id: { $in: sponsorEpisodeIds } },
+      { $addToSet: { sponsorBusinessIds: businessId } }
+    );
+  }
+
+  if (sponsorEpisodesNested) {
     const nestedEpisodeIds = await upsertEpisodesNested(
       sponsorEpisodesNested,
       businessId
     );
-    business.sponsorEpisodeIds = mergeAndDedupeIds(
-      business.sponsorEpisodeIds,
-      nestedEpisodeIds.map((id) => id.toString())
-    );
 
-    // Sync affected episodes
-    for (const eid of nestedEpisodeIds) {
-      await Episode.syncSponsorBusinessesForEpisode(eid);
+    if (nestedEpisodeIds.length > 0) {
+      await Episode.updateMany(
+        { _id: { $in: nestedEpisodeIds } },
+        { $addToSet: { sponsorBusinessIds: businessId } }
+      );
     }
   }
 
-  // Recompute Business.sponsorEpisodeIds based on Episodes that reference this business
+  // Recompute Business.sponsorEpisodeIds mirror.
   await Business.syncSponsorEpisodesForBusiness(businessId);
 
-  // --- Executives (explicit list; overwrite makes sense here) ---
+  // --- Executives: explicit list (canonical: Business.executives) ----------
 
-  if (executives !== undefined && executives.length > 0) {
-    const executivePersonIds = executives.map((e) => e.personId);
-    await validateEntitiesExist(Person, executivePersonIds, "Executive Person");
-    business.executives = mapExecutivesInput(executives);
-  } else if (executives !== undefined && executives.length === 0) {
-    // Explicitly clearing executives
-    business.executives = [];
+  if (executives !== undefined) {
+    if (executives.length > 0) {
+      const executivePersonIds = executives.map((e) => e.personId);
+      await validateEntitiesExist(
+        Person,
+        executivePersonIds,
+        "Executive Person"
+      );
+      business.executives = mapExecutivesInput(executives);
+    } else {
+      // Explicitly clear executives when an empty array is provided.
+      business.executives = [];
+    }
   }
 
+  // Persist changes to business (owners + executives).
   await business.save();
+
+  // Sync Person.businessIds mirror from owners + executives.
   await Business.syncPersonLinks(business);
 
   return business;

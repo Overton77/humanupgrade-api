@@ -46,8 +46,8 @@ export const resolvers = {
   Episode: {
     guests: async (parent: IEpisode) =>
       await Person.find({ _id: { $in: parent.guestIds || [] } }),
-    sponsorProducts: async (parent: IEpisode) =>
-      await Product.find({ _id: { $in: parent.sponsorProductIds || [] } }),
+    sponsorBusinesses: async (parent: IEpisode) =>
+      await Business.find({ _id: { $in: parent.sponsorBusinessIds || [] } }),
   },
 
   Person: {

@@ -27,6 +27,7 @@ const BusinessExecutiveSchema = new Schema<IBusinessExecutive>(
 export interface IBusiness {
   name: string;
   description?: string;
+  biography?: string;
   website?: string;
   mediaLinks?: MediaLink[];
   ownerIds: mongoose.Types.ObjectId[];
@@ -44,12 +45,14 @@ export interface BusinessModel extends Model<IBusiness> {
   syncSponsorEpisodesForBusiness(
     businessId: mongoose.Types.ObjectId
   ): Promise<void>;
+  syncProductsForBusiness(businessId: mongoose.Types.ObjectId): Promise<void>;
 }
 
 const BusinessSchema = new Schema<IBusiness, BusinessModel>(
   {
     name: { type: String, unique: true, required: true },
     description: { type: String },
+    biography: { type: String },
     website: { type: String },
     mediaLinks: [MediaLinkSchema],
     ownerIds: [{ type: Schema.Types.ObjectId, ref: "Person" }],
@@ -62,22 +65,37 @@ const BusinessSchema = new Schema<IBusiness, BusinessModel>(
 
 // --- Static: keep Person.businessIds in sync with Business.ownerIds + executives ---
 
+BusinessSchema.statics.syncProductsForBusiness = async function (
+  business: BusinessDoc
+): Promise<void> {
+  const { Product } = await import("./Product");
+
+  const products = await Product.find({ businessId: business._id }).select(
+    "_id"
+  );
+
+  const productIds = products.map((p) => p._id);
+
+  await Product.updateMany(
+    { _id: { $in: productIds } },
+
+    { $set: { businessId: business._id } }
+  );
+};
+
 BusinessSchema.statics.syncPersonLinks = async function (
   business: BusinessDoc
 ): Promise<void> {
   const businessId = business._id;
   const { Person } = await import("./Person");
 
-  // 1) Compute the set of people who should be linked to this business:
-  //    owners U executives
   const ownerIds = business.ownerIds?.map((id) => id.toString()) ?? [];
   const execPersonIds =
     business.executives?.map((exec) => exec.personId.toString()) ?? [];
 
-  const keepSet = new Set<string>([...ownerIds, ...execPersonIds]);
+  const keepSet = new Set([...ownerIds, ...execPersonIds]);
   const keepIds = Array.from(keepSet);
 
-  // 2) Ensure these people have the business in their businessIds
   if (keepIds.length > 0) {
     await Person.updateMany(
       { _id: { $in: keepIds } },
@@ -85,8 +103,6 @@ BusinessSchema.statics.syncPersonLinks = async function (
     );
   }
 
-  // 3) Detach the business from any Person who no longer appears
-  //    as owner or executive.
   await Person.updateMany(
     {
       businessIds: businessId,
@@ -96,52 +112,32 @@ BusinessSchema.statics.syncPersonLinks = async function (
   );
 };
 
-/**
- * Sync Business.sponsorEpisodeIds based on Episodes that reference this business
- */
 BusinessSchema.statics.syncSponsorEpisodesForBusiness = async function (
   businessId: mongoose.Types.ObjectId
 ): Promise<void> {
   const { Episode } = await import("./Episode");
 
-  // Find all episodes that reference this business as sponsor
   const episodes = await Episode.find({
     sponsorBusinessIds: businessId,
   }).select("_id");
+
   const episodeIds = episodes.map(
     (e: { _id: mongoose.Types.ObjectId }) => e._id
   );
 
   await this.findByIdAndUpdate(
     businessId,
-    { sponsorEpisodeIds: episodeIds },
+    { $set: { sponsorEpisodeIds: episodeIds } },
     { new: false }
   );
 };
 
-// --- Query Middleware (Safety Net) ---
-
-/**
- * Post-save hook: Auto-sync person links if ownership/executives changed
- * This is a safety net in case service layer forgets to call syncPersonLinks
- */
 BusinessSchema.post("save", async function (doc) {
   const businessDoc = doc as BusinessDoc;
 
-  // Only sync if ownership or executives changed
   if (this.isModified("ownerIds") || this.isModified("executives")) {
-    // Check for skipSync flag to prevent infinite loops
-    if (!this.$locals.skipSync) {
+    if (!this.$locals?.skipSync) {
       await Business.syncPersonLinks(businessDoc);
-    }
-  }
-
-  // Sync episodes when sponsorEpisodeIds change
-  if (this.isModified("sponsorEpisodeIds")) {
-    const { Episode } = await import("./Episode");
-    // Sync all affected episodes
-    for (const episodeId of businessDoc.sponsorEpisodeIds) {
-      await Episode.syncSponsorBusinessesForEpisode(episodeId);
     }
   }
 });
@@ -150,27 +146,34 @@ BusinessSchema.post("save", async function (doc) {
  * Post-delete hook: Clean up person links and episode relationships when business is deleted
  */
 BusinessSchema.post("findOneAndDelete", async function (doc) {
-  if (doc) {
-    const businessDoc = doc as BusinessDoc;
+  if (!doc) return;
+  const businessDoc = doc as BusinessDoc;
 
-    // Remove this business from all people
-    const { Person } = await import("./Person");
-    await Person.updateMany(
-      { businessIds: businessDoc._id },
-      { $pull: { businessIds: businessDoc._id } }
-    );
+  const { Person } = await import("./Person");
+  const { Episode } = await import("./Episode");
+  const { User } = await import("./User");
 
-    // Clean up episode references
-    if (
-      businessDoc.sponsorEpisodeIds &&
-      businessDoc.sponsorEpisodeIds.length > 0
-    ) {
-      const { Episode } = await import("./Episode");
-      for (const episodeId of businessDoc.sponsorEpisodeIds) {
-        await Episode.syncSponsorBusinessesForEpisode(episodeId);
-      }
+  // 1) Remove this business from all people (mirror cleanup)
+  await Person.updateMany(
+    { businessIds: businessDoc._id },
+    { $pull: { businessIds: businessDoc._id } }
+  );
+
+  // 2) For sponsor episodes, resync their Business.sponsorEpisodeIds mirror
+  if (
+    businessDoc.sponsorEpisodeIds &&
+    businessDoc.sponsorEpisodeIds.length > 0
+  ) {
+    for (const episodeId of businessDoc.sponsorEpisodeIds) {
+      await Episode.syncSponsorBusinessesForEpisode(episodeId);
     }
   }
+
+  // 3) Remove from all users' savedBusinesses
+  await User.updateMany(
+    { savedBusinesses: businessDoc._id },
+    { $pull: { savedBusinesses: businessDoc._id } }
+  );
 });
 
 export const Business: BusinessModel =

@@ -1,4 +1,5 @@
 import { MediaLink } from "../../models/MediaLink";
+import { IWebPageTimeline, ISponsorLinkObject } from "../../models/Episode";
 
 export interface BusinessExecutiveRelationInput {
   personId: string;
@@ -11,6 +12,7 @@ export interface BusinessScalarFields {
   name: string;
   description?: string;
   website?: string;
+  biography?: string;
   mediaLinks?: MediaLink[];
 }
 
@@ -19,6 +21,7 @@ export interface BusinessScalarUpdateFields {
   name?: string;
   description?: string;
   website?: string;
+  biography?: string;
   mediaLinks?: MediaLink[];
 }
 
@@ -60,11 +63,22 @@ export interface BusinessProductNestedInput {
 
 /** Nested episode input */
 export interface BusinessEpisodeNestedInput {
-  id?: string;
-  number?: number;
-  title?: string;
+  channelName: string;
+  episodeNumber?: number;
+  episodeTitle?: string;
   publishedAt?: Date;
+  summaryShort?: string;
+  webPageSummary?: string;
+  summaryDetailed?: string;
+  youtubeVideoId?: string;
+  youtubeWatchUrl?: string;
+  youtubeEmbedUrl?: string;
+  takeaways?: string[];
+  s3TranscriptKey?: string;
+  s3TranscriptUrl?: string;
   mediaLinks?: MediaLink[];
+  sponsorLinkObjects?: ISponsorLinkObject[];
+  webPageTimelines?: IWebPageTimeline[];
 }
 
 /** Executive relation input */

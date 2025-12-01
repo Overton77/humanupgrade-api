@@ -1,6 +1,5 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 import { MediaLinkSchema, MediaLink } from "./MediaLink";
-import { Business } from "./Business"; // used in static
 
 export interface IProduct extends Document {
   name: string;
@@ -11,15 +10,13 @@ export interface IProduct extends Document {
   sponsorEpisodes: mongoose.Types.ObjectId[];
   sourceUrl?: string;
   compoundIds: mongoose.Types.ObjectId[];
+  episodeIds: mongoose.Types.ObjectId[];
 }
 
 // Extend the model interface with our static methods
 export interface ProductModel extends Model<IProduct> {
   syncProductsForBusiness(businessId: mongoose.Types.ObjectId): Promise<void>;
   syncCompoundsForProduct(productId: mongoose.Types.ObjectId): Promise<void>;
-  syncSponsorEpisodesForProduct(
-    productId: mongoose.Types.ObjectId
-  ): Promise<void>;
 }
 
 const ProductSchema = new Schema<IProduct>(
@@ -42,10 +39,17 @@ const ProductSchema = new Schema<IProduct>(
 ProductSchema.statics.syncProductsForBusiness = async function (
   businessId: mongoose.Types.ObjectId
 ): Promise<void> {
+  const { Business } = await import("./Business");
+  if (!businessId) return;
+
   const products = await this.find({ businessId }).select("_id");
   const productIds = products.map((p: IProduct) => p._id);
 
-  await Business.findByIdAndUpdate(businessId, { productIds }, { new: false });
+  await Business.findByIdAndUpdate(
+    businessId,
+    { $set: { productIds } },
+    { new: false }
+  );
 };
 
 /**
@@ -65,44 +69,70 @@ ProductSchema.statics.syncCompoundsForProduct = async function (
   await this.findByIdAndUpdate(productId, { compoundIds }, { new: false });
 };
 
-ProductSchema.post("save", async function (doc) {
-  // Sync business when businessId changes
+ProductSchema.pre("save", function (next) {
   if (this.isModified("businessId")) {
-    await Product.syncProductsForBusiness(this.businessId);
+    this.$locals = this.$locals || {};
+    this.$locals.previousBusinessId = this.getModifiedPaths().includes(
+      "businessId"
+    )
+      ? (this as any).get("businessId", null, { getters: false }) // old value
+      : undefined;
   }
-
-  // Sync compounds when compoundIds change
-  if (this.isModified("compoundIds")) {
-    const { Compound } = await import("./Compound");
-    // Sync all affected compounds
-    for (const compoundId of this.compoundIds) {
-      await Compound.syncProductsForCompound(compoundId);
-    }
-  }
-
-  // Sync episodes when sponsorEpisodes change
+  next();
 });
 
-/**
- * Post-delete hook: Clean up relationships when product is deleted
- */
-ProductSchema.post("findOneAndDelete", async function (doc) {
-  if (doc) {
-    // Clean up business reference
-    if (doc.businessId) {
-      await Product.syncProductsForBusiness(doc.businessId);
-    }
+ProductSchema.post("save", async function (doc: IProduct) {
+  const oldBusinessId = this.$locals?.previousBusinessId;
+  const newBusinessId = doc.businessId;
 
-    // Clean up compound references
-    if (doc.compoundIds && doc.compoundIds.length > 0) {
-      const { Compound } = await import("./Compound");
-      for (const compoundId of doc.compoundIds) {
-        await Compound.syncProductsForCompound(compoundId);
-      }
-    }
+  if (!this.isModified("businessId")) return;
 
-    // Clean up episode references
+  // If it moved from A → B, resync both
+  if (oldBusinessId && !oldBusinessId.equals(newBusinessId)) {
+    await (this.constructor as typeof Product).syncProductsForBusiness(
+      oldBusinessId
+    );
   }
+
+  if (newBusinessId) {
+    await (this.constructor as typeof Product).syncProductsForBusiness(
+      newBusinessId
+    );
+  }
+});
+
+// TODO: combine the middlewares
+
+ProductSchema.post("findOneAndDelete", async function (doc: IProduct | null) {
+  if (doc?.businessId) {
+    await (this.model as typeof Product).syncProductsForBusiness(
+      doc.businessId
+    );
+  }
+});
+
+ProductSchema.post("findOneAndDelete", async function (doc: IProduct | null) {
+  if (!doc) return;
+
+  const { User } = await import("./User");
+
+  await User.updateMany(
+    { savedProducts: doc._id },
+    { $pull: { savedProducts: doc._id } }
+  );
+});
+
+ProductSchema.post("findOneAndDelete", async function (doc: IProduct | null) {
+  if (!doc?.compoundIds?.length) return;
+
+  const { Compound } = await import("./Compound");
+
+  for (const compoundId of doc.compoundIds) {
+    await Compound.syncProductsForCompound(compoundId);
+  }
+
+  // NOTE: you can also keep your existing Business/User cleanup here
+  // (e.g., sync Business.productIds, remove from User.savedProducts, etc.)
 });
 
 export const Product: ProductModel =

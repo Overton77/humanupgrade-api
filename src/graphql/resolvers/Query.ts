@@ -12,7 +12,7 @@ export const Query = {
     args: { limit?: number; offset?: number }
   ) => {
     const { limit = 20, offset = 0 } = args;
-    return Episode.find().sort({ number: 1 }).skip(offset).limit(limit).exec();
+    return await Episode.find({}).skip(offset).limit(limit);
   },
 
   episode: async (_parent: unknown, args: { id: string }) => {

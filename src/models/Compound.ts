@@ -33,43 +33,42 @@ CompoundSchema.statics.syncProductsForCompound = async function (
 ): Promise<void> {
   const { Product } = await import("./Product");
 
-  // Find all products that reference this compound
+  // Find all products that reference this compound as canonical
   const products = await Product.find({ compoundIds: compoundId }).select(
     "_id"
   );
   const productIds = products.map((p: any) => p._id);
 
-  await this.findByIdAndUpdate(compoundId, { productIds }, { new: false });
+  // Update the mirror field on Compound
+  await this.findByIdAndUpdate(
+    compoundId,
+    { $set: { productIds } },
+    { new: false }
+  );
 };
 
-// --- Query Middleware (Safety Net) ---
+CompoundSchema.post("findOneAndDelete", async function (doc: ICompound | null) {
+  if (!doc) return;
 
-/**
- * Post-save hook: Auto-sync product relationships when productIds change
- * This is a safety net in case service layer forgets to call sync methods
- */
-CompoundSchema.post("save", async function (doc) {
-  // Sync products when productIds change
-  if (this.isModified("productIds")) {
-    const { Product } = await import("./Product");
-    // Sync all affected products
-    for (const productId of this.productIds) {
-      await Product.syncCompoundsForProduct(productId);
-    }
-  }
-});
+  const compoundId = doc._id;
+  const { Product } = await import("./Product");
+  const { CaseStudy } = await import("./CaseStudy");
 
-/**
- * Post-delete hook: Clean up product relationships when compound is deleted
- */
-CompoundSchema.post("findOneAndDelete", async function (doc) {
-  if (doc && doc.productIds && doc.productIds.length > 0) {
-    const { Product } = await import("./Product");
-    // Clean up references in all products
-    for (const productId of doc.productIds) {
-      await Product.syncCompoundsForProduct(productId);
-    }
-  }
+  // 1) Remove this compound from all products' canonical compoundIds
+  await Product.updateMany(
+    { compoundIds: compoundId },
+    { $pull: { compoundIds: compoundId } }
+  );
+
+  // 2) Recompute mirrors for all affected compounds if you want them perfect
+  //    (Not strictly necessary since this compound is gone, but other compounds
+  //     may still be fine; we skip this to avoid extra work.)
+
+  // 3) Remove this compound from all CaseStudy.compoundIds
+  await CaseStudy.updateMany(
+    { compoundIds: compoundId },
+    { $pull: { compoundIds: compoundId } }
+  );
 });
 
 export const Compound: CompoundModel =

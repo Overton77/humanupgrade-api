@@ -78,4 +78,9 @@ api/dist/
 api/build/
 api/coverage/
 
-qdrant_storage/ 
+qdrant_storage/  
+
+scripts/oneoffs/*  
+
+**/personal_docs/**
+
