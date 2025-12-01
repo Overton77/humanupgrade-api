@@ -10,57 +10,15 @@ import {
   ProductCompoundNestedInput,
 } from "../graphql/inputs/productInputs";
 
-// ========== UTILITY FUNCTIONS ==========
+import { validateEntitiesExist } from "./utils/validation";
+import { toObjectIds } from "./utils/general";
+import {
+  mergeAndDedupeIds,
+  mergeUniqueBy,
+  mergeUniqueStrings,
+} from "./utils/merging";
+import { MediaLink } from "../models/MediaLink";
 
-function toObjectIds(ids: string[]): mongoose.Types.ObjectId[] {
-  return ids.map((id) => new mongoose.Types.ObjectId(id));
-}
-
-/**
- * Batch check if multiple entities exist. Throws error if any are missing.
- */
-async function validateEntitiesExist<T extends mongoose.Document>(
-  model: mongoose.Model<T>,
-  ids: string[],
-  entityType: string
-): Promise<void> {
-  if (!ids || ids.length === 0) return;
-
-  const existingEntities = await model
-    .find({ _id: { $in: ids } })
-    .select("_id")
-    .lean();
-
-  const existingIds = new Set(
-    existingEntities.map((e: any) => e._id.toString())
-  );
-
-  for (const id of ids) {
-    if (!existingIds.has(id)) {
-      throw new Error(`${entityType} with id ${id} does not exist`);
-    }
-  }
-}
-
-/**
- * Merge and deduplicate IDs: combines existing with new IDs
- */
-function mergeAndDedupeIds(
-  existingIds: mongoose.Types.ObjectId[],
-  newIds: string[]
-): mongoose.Types.ObjectId[] {
-  const merged = new Set<string>(existingIds.map((id) => id.toString()));
-  newIds.forEach((id) => merged.add(id));
-  return toObjectIds(Array.from(merged));
-}
-
-// ========== CREATE ==========
-
-/**
- * Simple create: scalars + required businessId + optional compound/episode IDs.
- * - Does NOT do any nested upsert.
- * - Relies on sync methods to keep bidirectional relations in sync.
- */
 export async function createProductWithOptionalIds(
   input: ProductCreateWithOptionalIdsInput
 ): Promise<IProduct> {
@@ -94,7 +52,6 @@ export async function createProductWithOptionalIds(
     compoundIds: compoundObjectIds,
   });
 
-  // Sync all bidirectional relationships
   await Product.syncProductsForBusiness(businessObjectId);
 
   if (compoundIds && compoundIds.length > 0) {
@@ -134,32 +91,35 @@ export async function updateProductWithOptionalIds(
   // Update scalar fields
   if (name !== undefined) product.name = name;
   if (description !== undefined) product.description = description;
-  if (ingredients !== undefined) product.ingredients = ingredients;
-  if (mediaLinks !== undefined) product.mediaLinks = mediaLinks;
-  if (sourceUrl !== undefined) product.sourceUrl = sourceUrl;
+  if (ingredients !== undefined && ingredients.length > 0) {
+    product.ingredients = mergeUniqueStrings(
+      product.ingredients ?? [],
+      ingredients
+    );
+  }
+  if (mediaLinks !== undefined && mediaLinks.length > 0) {
+    product.mediaLinks = mergeUniqueBy(
+      product.mediaLinks ?? [],
+      mediaLinks,
+      (m: MediaLink) => m.url
+    );
+    if (sourceUrl !== undefined) product.sourceUrl = sourceUrl;
 
-  const productId = product._id;
+    // --- Compounds: merge, dedupe, then sync from Compound side ---
 
-  // --- Compounds: merge, dedupe, then sync from Compound side ---
+    if (compoundIds !== undefined && compoundIds.length > 0) {
+      await validateEntitiesExist(Compound, compoundIds, "Compound");
+      product.compoundIds = mergeAndDedupeIds(product.compoundIds, compoundIds);
 
-  if (compoundIds !== undefined && compoundIds.length > 0) {
-    await validateEntitiesExist(Compound, compoundIds, "Compound");
-    product.compoundIds = mergeAndDedupeIds(product.compoundIds, compoundIds);
-
-    // Sync each affected compound
-    for (const cid of compoundIds) {
-      await Compound.syncProductsForCompound(new mongoose.Types.ObjectId(cid));
+      // Sync each affected compound
+      for (const cid of compoundIds) {
+        await Compound.syncProductsForCompound(
+          new mongoose.Types.ObjectId(cid)
+        );
+      }
     }
   }
-
-  // --- Episodes: merge, dedupe, then sync from Episode side ---
-
   await product.save();
-
-  // Recompute from reverse sides for consistency
-  await Product.syncCompoundsForProduct(productId);
-  await Product.syncSponsorEpisodesForProduct(productId);
-
   return product;
 }
 

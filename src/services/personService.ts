@@ -1,56 +1,22 @@
 import mongoose from "mongoose";
 import { Person, IPerson } from "../models/Person";
-import { Business } from "../models/Business";
+import { Episode } from "../models/Episode";
+import { Business, BusinessDoc } from "../models/Business";
+import { MediaLink } from "../models/MediaLink";
 import {
   PersonCreateWithOptionalIdsInput,
   PersonUpdateWithOptionalIdsInput,
   PersonUpdateRelationFieldsInput,
   PersonBusinessNestedInput,
+  PersonEpisodeNestedInput,
 } from "../graphql/inputs/personInputs";
 
+import { validateEntitiesExist } from "./utils/validation";
+import { toObjectIds } from "./utils/general";
+
+import { mergeAndDedupeIds, mergeUniqueBy } from "./utils/merging";
+
 // ========== UTILITY FUNCTIONS ==========
-
-function toObjectIds(ids: string[]): mongoose.Types.ObjectId[] {
-  return ids.map((id) => new mongoose.Types.ObjectId(id));
-}
-
-/**
- * Batch check if multiple entities exist. Throws error if any are missing.
- */
-async function validateEntitiesExist<T extends mongoose.Document>(
-  model: mongoose.Model<T>,
-  ids: string[],
-  entityType: string
-): Promise<void> {
-  if (!ids || ids.length === 0) return;
-
-  const existingEntities = await model
-    .find({ _id: { $in: ids } })
-    .select("_id")
-    .lean();
-
-  const existingIds = new Set(
-    existingEntities.map((e: any) => e._id.toString())
-  );
-
-  for (const id of ids) {
-    if (!existingIds.has(id)) {
-      throw new Error(`${entityType} with id ${id} does not exist`);
-    }
-  }
-}
-
-/**
- * Merge and deduplicate IDs: combines existing with new IDs
- */
-function mergeAndDedupeIds(
-  existingIds: mongoose.Types.ObjectId[],
-  newIds: string[]
-): mongoose.Types.ObjectId[] {
-  const merged = new Set<string>(existingIds.map((id) => id.toString()));
-  newIds.forEach((id) => merged.add(id));
-  return toObjectIds(Array.from(merged));
-}
 
 // ========== CREATE ==========
 
@@ -64,7 +30,7 @@ function mergeAndDedupeIds(
 export async function createPersonWithOptionalIds(
   input: PersonCreateWithOptionalIdsInput
 ): Promise<IPerson> {
-  const { name, role, bio, mediaLinks, businessIds } = input;
+  const { name, role, bio, mediaLinks, businessIds, episodeIds } = input;
 
   // Validate all referenced businesses exist before creating
   if (businessIds && businessIds.length > 0) {
@@ -73,12 +39,19 @@ export async function createPersonWithOptionalIds(
 
   const businessObjectIds = businessIds ? toObjectIds(businessIds) : [];
 
+  if (episodeIds && episodeIds.length > 0) {
+    await validateEntitiesExist(Episode, episodeIds, "Episode");
+  }
+
+  const episodeObjectIds = episodeIds ? toObjectIds(episodeIds) : [];
+
   const person = await Person.create({
     name,
     role,
     bio,
     mediaLinks,
     businessIds: businessObjectIds,
+    episodeIds: episodeObjectIds,
   });
 
   // Note: No need to call Business.syncPersonLinks here because we're not
@@ -102,7 +75,7 @@ export async function createPersonWithOptionalIds(
 export async function updatePersonWithOptionalIds(
   input: PersonUpdateWithOptionalIdsInput
 ): Promise<IPerson | null> {
-  const { id, name, role, bio, mediaLinks, businessIds } = input;
+  const { id, name, role, bio, mediaLinks, businessIds, episodeIds } = input;
 
   const person = await Person.findById(id);
   if (!person) return null;
@@ -111,13 +84,23 @@ export async function updatePersonWithOptionalIds(
   if (name !== undefined) person.name = name;
   if (role !== undefined) person.role = role;
   if (bio !== undefined) person.bio = bio;
-  if (mediaLinks !== undefined) person.mediaLinks = mediaLinks;
+  if (mediaLinks !== undefined)
+    person.mediaLinks = mergeUniqueBy(
+      person.mediaLinks ?? [],
+      mediaLinks,
+      (m: MediaLink) => m.url
+    );
 
   // --- Businesses: merge, dedupe, no removals here ---
 
   if (businessIds !== undefined && businessIds.length > 0) {
     await validateEntitiesExist(Business, businessIds, "Business");
     person.businessIds = mergeAndDedupeIds(person.businessIds, businessIds);
+  }
+
+  if (episodeIds !== undefined && episodeIds.length > 0) {
+    await validateEntitiesExist(Episode, episodeIds, "Episode");
+    person.episodeIds = mergeAndDedupeIds(person.episodeIds, episodeIds);
   }
 
   await person.save();

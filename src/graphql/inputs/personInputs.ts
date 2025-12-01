@@ -1,4 +1,5 @@
 import { MediaLink } from "../../models/MediaLink";
+import { ISponsorLinkObject, IWebPageTimeline } from "../../models/Episode";
 
 /** Scalar fields (no relations) */
 export interface PersonScalarFields {
@@ -23,6 +24,7 @@ export interface PersonScalarUpdateFields {
  */
 export interface PersonCreateWithOptionalIdsInput extends PersonScalarFields {
   businessIds?: string[];
+  episodeIds?: string[];
 }
 
 /**
@@ -33,6 +35,7 @@ export interface PersonUpdateWithOptionalIdsInput
   extends PersonScalarUpdateFields {
   id: string;
   businessIds?: string[];
+  episodeIds?: string[];
 }
 
 /** Nested business input (for upsert by name or id) */
@@ -42,6 +45,28 @@ export interface PersonBusinessNestedInput {
   description?: string;
   website?: string;
   mediaLinks?: MediaLink[];
+}
+
+export interface PersonEpisodeNestedInput {
+  id?: string;
+  channelName: string;
+  episodeNumber?: number;
+  episodePageUrl?: string;
+  episodeTranscriptUrl?: string;
+  episodeTitle?: string;
+  publishedAt?: Date;
+  summaryShort?: string;
+  webPageSummary?: string;
+  summaryDetailed?: string;
+  youtubeVideoId?: string;
+  youtubeWatchUrl?: string;
+  youtubeEmbedUrl?: string;
+  takeaways?: string[];
+  s3TranscriptKey?: string;
+  s3TranscriptUrl?: string;
+  mediaLinks?: MediaLink[];
+  sponsorLinkObjects?: ISponsorLinkObject[];
+  webPageTimelines?: IWebPageTimeline[];
 }
 
 /**
@@ -54,4 +79,7 @@ export interface PersonUpdateRelationFieldsInput {
 
   businessIds?: string[];
   businessesNested?: PersonBusinessNestedInput[];
+
+  episodeIds?: string[];
+  episodesNested?: PersonEpisodeNestedInput[];
 }

@@ -63,8 +63,11 @@ export interface BusinessProductNestedInput {
 
 /** Nested episode input */
 export interface BusinessEpisodeNestedInput {
+  id?: string;
   channelName: string;
   episodeNumber?: number;
+  episodePageUrl?: string;
+  episodeTranscriptUrl?: string;
   episodeTitle?: string;
   publishedAt?: Date;
   summaryShort?: string;

@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import { Business, IBusiness, IBusinessExecutive } from "../models/Business";
 import { Person } from "../models/Person";
 import { Product } from "../models/Product";
-import { Episode } from "../models/Episode";
+import { Episode, EpisodeDoc } from "../models/Episode";
 import {
   BusinessCreateWithOptionalIdsInput,
   BusinessUpdateWithOptionalIdsInput,
@@ -10,71 +10,15 @@ import {
   BusinessOwnerNestedInput,
   BusinessProductNestedInput,
   BusinessEpisodeNestedInput,
-  BusinessExecutiveRelationInput,
 } from "../graphql/inputs/businessInputs";
-
-// ========== UTILITY FUNCTIONS ==========
-
-function toObjectIds(ids: string[]): mongoose.Types.ObjectId[] {
-  return ids.map((id) => new mongoose.Types.ObjectId(id));
-}
-
-async function validateEntitiesExist<T extends mongoose.Document>(
-  model: mongoose.Model<T>,
-  ids: string[],
-  entityType: string
-): Promise<void> {
-  if (!ids || ids.length === 0) return;
-
-  // Batch query for all IDs at once (more efficient than individual queries)
-  const existingEntities = await model
-    .find({ _id: { $in: ids } })
-    .select("_id")
-    .lean();
-
-  const existingIds = new Set(existingEntities.map((e) => e._id.toString()));
-
-  // Check if any IDs are missing
-  for (const id of ids) {
-    if (!existingIds.has(id)) {
-      throw new Error(`${entityType} with id ${id} does not exist`);
-    }
-  }
-}
-
-/**
- * Merge and deduplicate IDs: combines existing with new IDs
- */
-function mergeAndDedupeIds(
-  existingIds: mongoose.Types.ObjectId[],
-  newIds: string[]
-): mongoose.Types.ObjectId[] {
-  const merged = new Set<string>(existingIds.map((id) => id.toString()));
-  newIds.forEach((id) => merged.add(id));
-  return toObjectIds(Array.from(merged));
-}
-
-function mapExecutivesInput(
-  executives: BusinessExecutiveRelationInput[] | undefined
-): IBusinessExecutive[] {
-  if (!executives) return [];
-  const seen = new Set<string>();
-  const result: IBusinessExecutive[] = [];
-
-  for (const exec of executives) {
-    const key = exec.personId;
-    if (seen.has(key)) continue;
-    seen.add(key);
-
-    result.push({
-      personId: new mongoose.Types.ObjectId(exec.personId),
-      title: exec.title,
-      role: exec.role,
-    });
-  }
-
-  return result;
-}
+import { mapExecutivesInput } from "./utils/mapping";
+import { toObjectIds } from "./utils/general";
+import {
+  mergeAndDedupeIds,
+  mergeUniqueStrings,
+  mergeUniqueBy,
+} from "./utils/merging";
+import { validateEntitiesExist } from "./utils/validation";
 
 /**
  * Create a Business and optionally connect owners, products, episodes, and executives.
@@ -391,8 +335,19 @@ async function upsertProductsNested(
     if (product) {
       if (name !== undefined) product.name = name;
       if (description !== undefined) product.description = description;
-      if (ingredients !== undefined) product.ingredients = ingredients;
-      if (mediaLinks !== undefined) product.mediaLinks = mediaLinks;
+      if (ingredients !== undefined && ingredients.length > 0) {
+        product.ingredients = mergeUniqueStrings(
+          product.ingredients ?? [],
+          ingredients
+        );
+      }
+      if (mediaLinks !== undefined && mediaLinks.length > 0) {
+        product.mediaLinks = mergeUniqueBy(
+          product.mediaLinks ?? [],
+          mediaLinks,
+          (m) => m.url // assume url uniquely identifies a MediaLink
+        );
+      }
       if (sourceUrl !== undefined) product.sourceUrl = sourceUrl;
       product.businessId = businessId; // canonical link
       await product.save();
@@ -446,12 +401,12 @@ async function upsertEpisodesNested(
       s3TranscriptKey,
       s3TranscriptUrl,
       sponsorLinkObjects,
-      webPageTimelines, // NOTE: input name; schema field is webPagTimelines
+      webPageTimelines,
       episodePageUrl,
       episodeTranscriptUrl,
     } = episodeInput;
 
-    let episode: IEpisode | null = null;
+    let episode: EpisodeDoc | null = null;
 
     // 1) Try by id (if provided)
     if (id) {
@@ -463,7 +418,7 @@ async function upsertEpisodesNested(
       episode = await Episode.findOne({ channelName, episodeNumber });
     }
 
-    // 3) As a weaker fallback, try just episodeNumber if present
+    // 3) Fallback: just episodeNumber
     if (!episode && episodeNumber !== undefined) {
       episode = await Episode.findOne({ episodeNumber });
     }
@@ -473,42 +428,75 @@ async function upsertEpisodesNested(
       if (channelName !== undefined) episode.channelName = channelName;
       if (episodeNumber !== undefined) episode.episodeNumber = episodeNumber;
       if (episodeTitle !== undefined) episode.episodeTitle = episodeTitle;
+
       if (episodePageUrl !== undefined) episode.episodePageUrl = episodePageUrl;
-      if (episodeTranscriptUrl !== undefined)
+      if (episodeTranscriptUrl !== undefined) {
         episode.episodeTranscriptUrl = episodeTranscriptUrl;
+      }
+
       if (publishedAt !== undefined) episode.publishedAt = publishedAt;
 
       if (summaryShort !== undefined) episode.summaryShort = summaryShort;
       if (webPageSummary !== undefined) episode.webPageSummary = webPageSummary;
-      if (summaryDetailed !== undefined)
+      if (summaryDetailed !== undefined) {
         episode.summaryDetailed = summaryDetailed;
-
-      if (mediaLinks !== undefined) episode.mediaLinks = mediaLinks;
-
-      if (webPageTimelines !== undefined) {
-        // schema field is webPagTimelines (typo), so map to that
-        (episode as any).webPagTimelines = webPageTimelines;
       }
 
-      if (sponsorLinkObjects !== undefined) {
-        episode.sponsorLinkObjects = sponsorLinkObjects;
+      // --- merge + dedupe arrays (addToSet semantics) ----------------------
+
+      if (mediaLinks !== undefined && mediaLinks.length > 0) {
+        episode.mediaLinks = mergeUniqueBy(
+          episode.mediaLinks ?? [],
+          mediaLinks,
+          (m) => m.url // assume url uniquely identifies a MediaLink
+        );
       }
+
+      if (webPageTimelines !== undefined && webPageTimelines.length > 0) {
+        episode.webPageTimelines = mergeUniqueBy(
+          episode.webPageTimelines ?? [],
+          webPageTimelines,
+          (t) => `${t.from}-${t.to}-${t.title ?? ""}`
+        );
+      }
+
+      if (sponsorLinkObjects !== undefined && sponsorLinkObjects.length > 0) {
+        episode.sponsorLinkObjects = mergeUniqueBy(
+          episode.sponsorLinkObjects ?? [],
+          sponsorLinkObjects,
+          (s) => `${s.brand ?? ""}-${s.code ?? ""}-${s.text ?? ""}`
+        );
+      }
+
+      if (takeaways !== undefined && takeaways.length > 0) {
+        episode.takeaways = mergeUniqueStrings(
+          episode.takeaways ?? [],
+          takeaways
+        );
+      }
+
+      // --- scalars / misc --------------------------------------------------
 
       if (youtubeVideoId !== undefined) episode.youtubeVideoId = youtubeVideoId;
-      if (youtubeWatchUrl !== undefined)
+      if (youtubeWatchUrl !== undefined) {
         episode.youtubeWatchUrl = youtubeWatchUrl;
-      if (youtubeEmbedUrl !== undefined)
+      }
+      if (youtubeEmbedUrl !== undefined) {
         episode.youtubeEmbedUrl = youtubeEmbedUrl;
+      }
 
-      if (takeaways !== undefined) episode.takeaways = takeaways;
-      if (s3TranscriptKey !== undefined)
+      if (s3TranscriptKey !== undefined) {
         episode.s3TranscriptKey = s3TranscriptKey;
-      if (s3TranscriptUrl !== undefined)
+      }
+      if (s3TranscriptUrl !== undefined) {
         episode.s3TranscriptUrl = s3TranscriptUrl;
+      }
 
       // Ensure this business is in sponsorBusinessIds (canonical link)
       if (
-        !episode.sponsorBusinessIds.some((bid) => bid.equals(businessId as any))
+        !episode.sponsorBusinessIds.some((bid: mongoose.Types.ObjectId) =>
+          bid.equals(businessId)
+        )
       ) {
         episode.sponsorBusinessIds.push(businessId);
       }
@@ -535,9 +523,9 @@ async function upsertEpisodesNested(
         publishedAt,
         summaryShort,
         webPageSummary,
-        mediaLinks,
-        webPagTimelines: webPageTimelines, // map input → schema field
-        sponsorLinkObjects,
+        mediaLinks: mediaLinks ?? [],
+        webPageTimelines: webPageTimelines ?? [],
+        sponsorLinkObjects: sponsorLinkObjects ?? [],
         summaryDetailed,
         youtubeVideoId,
         youtubeWatchUrl,

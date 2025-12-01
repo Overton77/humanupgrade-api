@@ -178,6 +178,116 @@ input PersonUpdateRelationFieldsInput {
   businessesNested: [PersonBusinessNestedInput!]
 }
 
+# --- Episode Inputs ---
+
+input EpisodeCreateWithIdsInput {
+  channelName: String!
+  episodeNumber: Int
+  episodeTitle: String
+  episodePageUrl: String
+  episodeTranscriptUrl: String
+  publishedAt: DateTime
+  summaryShort: String
+  webPageSummary: String
+  summaryDetailed: String
+  youtubeVideoId: String
+  youtubeWatchUrl: String
+  youtubeEmbedUrl: String
+  takeaways: [String!]
+  s3TranscriptKey: String
+  s3TranscriptUrl: String
+  mediaLinks: [MediaLinkInput!]
+  sponsorLinkObjects: [SponsorLinkObjectInput!]
+  webPageTimelines: [WebPageTimelineInput!]
+  guestIds: [ID!]
+  sponsorBusinessIds: [ID!]
+}
+
+input EpisodeUpdateWithIdsInput {
+  id: ID!
+  channelName: String
+  episodeNumber: Int
+  episodeTitle: String
+  episodePageUrl: String
+  episodeTranscriptUrl: String
+  publishedAt: DateTime
+  summaryShort: String
+  webPageSummary: String
+  summaryDetailed: String
+  youtubeVideoId: String
+  youtubeWatchUrl: String
+  youtubeEmbedUrl: String
+  takeaways: [String!]
+  s3TranscriptKey: String
+  s3TranscriptUrl: String
+  mediaLinks: [MediaLinkInput!]
+  sponsorLinkObjects: [SponsorLinkObjectInput!]
+  webPageTimelines: [WebPageTimelineInput!]
+  guestIds: [ID!]
+  sponsorBusinessIds: [ID!]
+}
+
+input EpisodeGuestNestedInput {
+  id: ID
+  name: String
+  role: String
+  bio: String
+  mediaLinks: [MediaLinkInput!]
+}
+
+input EpisodeSponsorBusinessNestedInput {
+  id: ID
+  name: String
+  description: String
+  website: String
+  mediaLinks: [MediaLinkInput!]
+}
+
+input EpisodeUpdateRelationFieldsInput {
+  id: ID!
+
+  guestIds: [ID!]
+  guestsNested: [EpisodeGuestNestedInput!]
+
+  sponsorBusinessIds: [ID!]
+  sponsorBusinessesNested: [EpisodeSponsorBusinessNestedInput!]
+}
+
+# --- Compound Inputs ---
+
+input CompoundCreateWithIdsInput {
+  name: String!
+  description: String
+  aliases: [String!]
+  mediaLinks: [MediaLinkInput!]
+  productIds: [ID!]
+}
+
+input CompoundUpdateWithIdsInput {
+  id: ID!
+  name: String
+  description: String
+  aliases: [String!]
+  mediaLinks: [MediaLinkInput!]
+  productIds: [ID!]
+}
+
+input CompoundProductNestedInput {
+  id: ID
+  name: String
+  description: String
+  ingredients: [String!]
+  mediaLinks: [MediaLinkInput!]
+  sourceUrl: String
+}
+
+input CompoundUpdateRelationFieldsInput {
+  id: ID!
+
+  productIds: [ID!]
+  productsNested: [CompoundProductNestedInput!]
+}
+
 type User {
   id: ID!
   email: String!
@@ -325,4 +435,16 @@ type Mutation {
   createPerson(input: PersonCreateWithIdsInput!): Person!
   updatePerson(input: PersonUpdateWithIdsInput!): Person
   updatePersonRelations(input: PersonUpdateRelationFieldsInput!): Person
+
+  # --- Episode management ---
+
+  createEpisode(input: EpisodeCreateWithIdsInput!): Episode!
+  updateEpisode(input: EpisodeUpdateWithIdsInput!): Episode
+  updateEpisodeRelations(input: EpisodeUpdateRelationFieldsInput!): Episode
+
+  # --- Compound management ---
+
+  createCompound(input: CompoundCreateWithIdsInput!): Compound!
+  updateCompound(input: CompoundUpdateWithIdsInput!): Compound
+  updateCompoundRelations(input: CompoundUpdateRelationFieldsInput!): Compound
 }

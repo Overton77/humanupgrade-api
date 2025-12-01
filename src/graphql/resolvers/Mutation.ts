@@ -4,6 +4,7 @@ import { Episode } from "../../models/Episode";
 import { Product } from "../../models/Product";
 import { Business } from "../../models/Business";
 import { Person } from "../../models/Person";
+import { Compound } from "../../models/Compound";
 import { signAuthToken } from "../../services/auth";
 import {
   createBusinessWithOptionalIds,
@@ -35,6 +36,26 @@ import {
   PersonUpdateWithOptionalIdsInput,
   PersonUpdateRelationFieldsInput,
 } from "../inputs/personInputs";
+import {
+  createEpisodeWithOptionalIds,
+  updateEpisodeWithOptionalIds,
+  updateEpisodeWithRelationFields,
+} from "../../services/episodeService";
+import {
+  EpisodeCreateWithOptionalIdsInput,
+  EpisodeUpdateWithOptionalIdsInput,
+  EpisodeUpdateRelationFieldsInput,
+} from "../inputs/episodeInputs";
+import {
+  createCompoundWithOptionalIds,
+  updateCompoundWithOptionalIds,
+  updateCompoundWithRelationFields,
+} from "../../services/compoundService";
+import {
+  CompoundCreateWithOptionalIdsInput,
+  CompoundUpdateWithOptionalIdsInput,
+  CompoundUpdateRelationFieldsInput,
+} from "../inputs/compoundInputs";
 
 const SALT_ROUNDS = 10;
 
@@ -235,5 +256,63 @@ export const Mutation = {
   ) => {
     const person = await updatePersonWithRelationFields(args.input);
     return person;
+  },
+
+  // --- Episode mutations ---
+
+  createEpisode: async (
+    _parent: unknown,
+    args: { input: EpisodeCreateWithOptionalIdsInput },
+    _ctx: any
+  ) => {
+    const episode = await createEpisodeWithOptionalIds(args.input);
+    return episode;
+  },
+
+  updateEpisode: async (
+    _parent: unknown,
+    args: { input: EpisodeUpdateWithOptionalIdsInput },
+    _ctx: any
+  ) => {
+    const episode = await updateEpisodeWithOptionalIds(args.input);
+    return episode;
+  },
+
+  updateEpisodeRelations: async (
+    _parent: unknown,
+    args: { input: EpisodeUpdateRelationFieldsInput },
+    _ctx: any
+  ) => {
+    const episode = await updateEpisodeWithRelationFields(args.input);
+    return episode;
+  },
+
+  // --- Compound mutations ---
+
+  createCompound: async (
+    _parent: unknown,
+    args: { input: CompoundCreateWithOptionalIdsInput },
+    _ctx: any
+  ) => {
+    const compound = await createCompoundWithOptionalIds(args.input);
+    return compound;
+  },
+
+  updateCompound: async (
+    _parent: unknown,
+    args: { input: CompoundUpdateWithOptionalIdsInput },
+    _ctx: any
+  ) => {
+    const compound = await updateCompoundWithOptionalIds(args.input);
+    return compound;
+  },
+
+  updateCompoundRelations: async (
+    _parent: unknown,
+    args: { input: CompoundUpdateRelationFieldsInput },
+    _ctx: any
+  ) => {
+    const compound = await updateCompoundWithRelationFields(args.input);
+    return compound;
   },
 };
