@@ -53,6 +53,8 @@ export const resolvers = {
   Person: {
     businesses: async (parent: IPerson) =>
       await Business.find({ _id: { $in: parent.businessIds || [] } }),
+    episodes: async (parent: IPerson) =>
+      await Episode.find({ _id: { $in: parent.episodeIds || [] } }),
   },
 
   Business: {
@@ -63,8 +65,6 @@ export const resolvers = {
   Product: {
     business: async (parent: IProduct) =>
       await Business.findById(parent.businessId),
-    sponsorEpisodes: async (parent: IProduct) =>
-      await Episode.find({ _id: { $in: parent.sponsorEpisodes || [] } }),
     compounds: async (parent: IProduct) =>
       await Compound.find({ _id: { $in: parent.compoundIds || [] } }),
   },

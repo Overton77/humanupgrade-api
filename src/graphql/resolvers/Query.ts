@@ -1,10 +1,22 @@
 import { Episode } from "../../models/Episode";
 import { Product } from "../../models/Product";
 import { Compound } from "../../models/Compound";
+import { CaseStudy } from "../../models/CaseStudy";
+import { User } from "../../models/User";
+import { Person } from "../../models/Person";
+import { Business } from "../../models/Business";
 
 export const Query = {
   me: (_parent: unknown, _args: unknown, ctx: any) => {
     return ctx.user || null;
+  },
+
+  allUsers: async (
+    _parent: unknown,
+    args: { limit?: number; offset?: number }
+  ) => {
+    const { limit = 20, offset = 0 } = args;
+    return await User.find({}).skip(offset).limit(limit);
   },
 
   episodes: async (
@@ -16,7 +28,7 @@ export const Query = {
   },
 
   episode: async (_parent: unknown, args: { id: string }) => {
-    return Episode.findById(args.id).exec();
+    return await Episode.findById(args.id);
   },
 
   products: async (
@@ -24,11 +36,11 @@ export const Query = {
     args: { limit?: number; offset?: number }
   ) => {
     const { limit = 20, offset = 0 } = args;
-    return Product.find().skip(offset).limit(limit).exec();
+    return await Product.find({}).skip(offset).limit(limit);
   },
 
   product: async (_parent: unknown, args: { id: string }) => {
-    return Product.findById(args.id).exec();
+    return await Product.findById(args.id);
   },
 
   compounds: async (
@@ -36,10 +48,44 @@ export const Query = {
     args: { limit?: number; offset?: number }
   ) => {
     const { limit = 20, offset = 0 } = args;
-    return Compound.find().skip(offset).limit(limit).exec();
+    return await Compound.find({}).skip(offset).limit(limit);
   },
 
   compound: async (_parent: unknown, args: { id: string }) => {
-    return Compound.findById(args.id).exec();
+    return await Compound.findById(args.id);
+  },
+
+  person: async (_parent: unknown, args: { id: string }) => {
+    return await Person.findById(args.id);
+  },
+
+  business: async (_parent: unknown, args: { id: string }) => {
+    return await Business.findById(args.id);
+  },
+
+  caseStudy: async (_parent: unknown, args: { id: string }) => {
+    return await CaseStudy.findById(args.id);
+  },
+
+  people: async (
+    _parent: unknown,
+    args: { limit?: number; offset?: number }
+  ) => {
+    const { limit = 20, offset = 0 } = args;
+    return await Person.find({}).skip(offset).limit(limit);
+  },
+  businesses: async (
+    _parent: unknown,
+    args: { limit?: number; offset?: number }
+  ) => {
+    const { limit = 20, offset = 0 } = args;
+    return await Business.find({}).skip(offset).limit(limit);
+  },
+  caseStudies: async (
+    _parent: unknown,
+    args: { limit?: number; offset?: number }
+  ) => {
+    const { limit = 20, offset = 0 } = args;
+    return await CaseStudy.find({}).skip(offset).limit(limit);
   },
 };
