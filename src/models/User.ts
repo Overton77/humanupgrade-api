@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { MediaLinkSchema, MediaLink } from "./MediaLink";
 
 export interface IUser extends Document {
@@ -8,6 +8,7 @@ export interface IUser extends Document {
   provider: "local" | "google" | "github" | "apple";
   providerId?: string;
   name?: string;
+  role?: "admin" | "user";
   mediaLinks?: MediaLink[];
   savedEpisodes: mongoose.Types.ObjectId[];
   savedProducts: mongoose.Types.ObjectId[];
@@ -23,6 +24,11 @@ const UserSchema = new Schema<IUser>(
       type: String,
       enum: ["local", "google", "github", "apple"],
       default: "local",
+    },
+    role: {
+      type: String,
+      enum: ["admin", "user"],
+      default: "user",
     },
     providerId: { type: String },
     name: { type: String },

@@ -6,6 +6,7 @@ import { Business } from "../../models/Business";
 import { Person } from "../../models/Person";
 import { Compound } from "../../models/Compound";
 import { signAuthToken } from "../../services/auth";
+import { Context } from "../../services/auth";
 import {
   createBusinessWithOptionalIds,
   updateBusinessWithOptionalIds,
@@ -57,12 +58,37 @@ import {
   CompoundUpdateRelationFieldsInput,
 } from "../inputs/compoundInputs";
 
+import {
+  createCaseStudyWithOptionalIds,
+  updateCaseStudyWithOptionalIds,
+} from "../../services/caseStudyService";
+import {
+  CaseStudyCreateWithOptionalIdsInput,
+  CaseStudyUpdateWithOptionalIdsInput,
+} from "../inputs/caseStudyInputs";
+
+import { requireAuth, requireAdmin } from "../../services/auth";
+import {
+  addSavedItemsToUser,
+  removeSavedItemsFromUser,
+  upsertUser,
+  toggleSavedBusinessForUser,
+  toggleSavedEpisodeForUser,
+  toggleSavedProductForUser,
+} from "../../services/userService";
+import { UserMassSaveInput, UserUpsertInput } from "../inputs/userInputs";
+
 const SALT_ROUNDS = 10;
 
 export const Mutation = {
   register: async (
     _parent: unknown,
-    args: { email: string; password: string; name?: string }
+    args: {
+      email: string;
+      password: string;
+      name?: string;
+      role?: "admin" | "user";
+    }
   ) => {
     const existing = await User.findOne({ email: args.email });
     if (existing) {
@@ -76,11 +102,24 @@ export const Mutation = {
       passwordHash,
       provider: "local",
       name: args.name,
+      role: args.role || "user",
     });
 
-    const token = signAuthToken({ userId: user._id.toString() });
+    const token = signAuthToken({
+      userId: user._id.toString(),
+      role: user.role || "user",
+    });
 
     return { token, user };
+  },
+
+  upsertUser: async (
+    _p: unknown,
+    args: { input: UserUpsertInput },
+    ctx: Context
+  ) => {
+    requireAdmin(ctx);
+    return upsertUser(args.input);
   },
 
   login: async (
@@ -97,8 +136,28 @@ export const Mutation = {
       throw new Error("Invalid credentials");
     }
 
-    const token = signAuthToken({ userId: user._id.toString() });
+    const token = signAuthToken({
+      userId: user._id.toString(),
+      role: user.role || "user",
+    });
     return { token, user };
+  },
+  addSavedItemsToUser: async (
+    _p: unknown,
+    args: { input: UserMassSaveInput },
+    ctx: Context
+  ) => {
+    requireAuth(ctx); // probably only owner or admin in real life
+    return addSavedItemsToUser(args.input);
+  },
+
+  removeSavedItemsFromUser: async (
+    _p: unknown,
+    args: { input: UserMassSaveInput },
+    ctx: Context
+  ) => {
+    requireAuth(ctx);
+    return removeSavedItemsFromUser(args.input);
   },
 
   toggleSaveEpisode: async (
@@ -106,47 +165,23 @@ export const Mutation = {
     args: { episodeId: string },
     ctx: any
   ) => {
-    if (!ctx.user) {
-      throw new Error("Not authenticated");
-    }
-    const episode = await Episode.findById(args.episodeId);
-    if (!episode) throw new Error("Episode not found");
-
-    const user = ctx.user;
-    const idx = user.savedEpisodes.findIndex(
-      (id: any) => id.toString() === args.episodeId
+    requireAuth(ctx);
+    return await toggleSavedEpisodeForUser(
+      ctx.user!._id.toString(),
+      args.episodeId
     );
-    if (idx >= 0) {
-      user.savedEpisodes.splice(idx, 1);
-    } else {
-      user.savedEpisodes.push(episode._id);
-    }
-    await user.save();
-    return user;
   },
 
   toggleSaveProduct: async (
     _parent: unknown,
     args: { productId: string },
-    ctx: any
+    ctx: Context
   ) => {
-    if (!ctx.user) {
-      throw new Error("Not authenticated");
-    }
-    const product = await Product.findById(args.productId);
-    if (!product) throw new Error("Product not found");
-
-    const user = ctx.user;
-    const idx = user.savedProducts.findIndex(
-      (id: any) => id.toString() === args.productId
+    requireAuth(ctx);
+    return await toggleSavedProductForUser(
+      ctx.user!._id.toString(),
+      args.productId
     );
-    if (idx >= 0) {
-      user.savedProducts.splice(idx, 1);
-    } else {
-      user.savedProducts.push(product._id);
-    }
-    await user.save();
-    return user;
   },
 
   toggleSaveBusiness: async (
@@ -154,23 +189,11 @@ export const Mutation = {
     args: { businessId: string },
     ctx: any
   ) => {
-    if (!ctx.user) {
-      throw new Error("Not authenticated");
-    }
-    const business = await Business.findById(args.businessId);
-    if (!business) throw new Error("Business not found");
-
-    const user = ctx.user;
-    const idx = user.savedBusinesses.findIndex(
-      (id: any) => id.toString() === args.businessId
+    requireAuth(ctx);
+    return await toggleSavedBusinessForUser(
+      ctx.user!._id.toString(),
+      args.businessId
     );
-    if (idx >= 0) {
-      user.savedBusinesses.splice(idx, 1);
-    } else {
-      user.savedBusinesses.push(business._id);
-    }
-    await user.save();
-    return user;
   },
   createBusiness: async (
     _parent: unknown,
@@ -314,5 +337,23 @@ export const Mutation = {
   ) => {
     const compound = await updateCompoundWithRelationFields(args.input);
     return compound;
+  },
+
+  createCaseStudy: async (
+    _parent: unknown,
+    args: { input: CaseStudyCreateWithOptionalIdsInput },
+    _ctx: Context
+  ) => {
+    const caseStudy = await createCaseStudyWithOptionalIds(args.input);
+    return caseStudy;
+  },
+
+  updateCaseStudy: async (
+    _parent: unknown,
+    args: { input: CaseStudyUpdateWithOptionalIdsInput },
+    _ctx: Context
+  ) => {
+    const caseStudy = await updateCaseStudyWithOptionalIds(args.input);
+    return caseStudy;
   },
 };

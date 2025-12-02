@@ -6,10 +6,42 @@ type MediaLink {
   type: String
 }
 
+enum UserProvider {
+  LOCAL
+  GOOGLE
+  GITHUB
+  APPLE
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
 input MediaLinkInput {
   label: String
   url: String!
   type: String
+}
+
+input UserUpsertInput {
+  email: String!
+  password: String
+  provider: UserProvider
+  providerId: String
+  name: String
+  role: UserRole
+  mediaLinks: [MediaLinkInput!]
+}
+
+input UserCreateInput {
+  email: String!
+  password: String
+  provider: UserProvider
+  providerId: String
+  name: String
+  role: UserRole
+  mediaLinks: [MediaLinkInput!]
 }
 
 input BusinessCreateWithIdsInput {
@@ -295,6 +327,7 @@ type User {
   savedEpisodes: [Episode!]!
   savedProducts: [Product!]!
   savedBusinesses: [Business!]!
+  role: String!
 }
 
 type WebPageTimeline {
@@ -384,6 +417,13 @@ type Compound {
   caseStudies: [CaseStudy!]!
 }
 
+enum CaseStudySourceType {
+  PUBMED
+  CLINICAL_TRIAL
+  ARTICLE
+  OTHER
+}
+
 type CaseStudy {
   id: ID!
   title: String!
@@ -393,6 +433,26 @@ type CaseStudy {
   sourceType: String!
   episodes: [Episode!]!
   compounds: [Compound!]!
+}
+
+input CaseStudyCreateWithOptionalIdsInput {
+  title: String!
+  summary: String!
+  url: String
+  sourceType: CaseStudySourceType
+  episodeIds: [ID!]
+  compoundIds: [ID!]
+}
+
+input CaseStudyUpdateWithOptionalIdsInput {
+  id: ID!
+  title: String
+  summary: String
+  url: String
+  sourceType: CaseStudySourceType
+  # These are *additional* IDs to merge and dedupe with existing ones
+  episodeIds: [ID!]
+  compoundIds: [ID!]
 }
 
 type Query {
@@ -408,6 +468,13 @@ type Query {
 type AuthPayload {
   token: String!
   user: User!
+}
+
+input UserMassSaveInput {
+  userId: ID!
+  episodeIds: [ID!]
+  productIds: [ID!]
+  businessIds: [ID!]
 }
 
 type Mutation {
@@ -447,4 +514,13 @@ type Mutation {
   createCompound(input: CompoundCreateWithIdsInput!): Compound!
   updateCompound(input: CompoundUpdateWithIdsInput!): Compound
   updateCompoundRelations(input: CompoundUpdateRelationFieldsInput!): Compound
+
+  createCaseStudy(input: CaseStudyCreateWithOptionalIdsInput!): CaseStudy!
+
+  updateCaseStudy(input: CaseStudyUpdateWithOptionalIdsInput!): CaseStudy!
+
+  upsertUser(input: UserUpsertInput!): User!
+
+  addSavedItemsToUser(input: UserMassSaveInput!): User!
+  removeSavedItemsFromUser(input: UserMassSaveInput!): User!
 }

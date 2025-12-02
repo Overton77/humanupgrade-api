@@ -7,9 +7,7 @@ import { env } from "./config/env";
 import { resolvers } from "./graphql/resolvers";
 import { getUserFromAuthHeader } from "./services/auth";
 
-interface Context {
-  user: any | null;
-}
+import { Context, Role } from "./services/auth";
 
 // Create and configure Apollo Server
 function createApolloServer(): ApolloServer<Context> {
@@ -40,7 +38,7 @@ async function startServer() {
     context: async ({ req }): Promise<Context> => {
       const authHeader = req.headers.authorization;
       const user = await getUserFromAuthHeader(authHeader);
-      return { user };
+      return { user, role: user?.role || null };
     },
   });
 
