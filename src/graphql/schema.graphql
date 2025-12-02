@@ -375,7 +375,8 @@ type Person {
   mediaLinks: [MediaLink!]
   role: String
   bio: String
-  businesses: [Business!]!
+  businesses: [Business!]
+  episodes: [Episode!]
 }
 
 type BusinessExecutive {
@@ -391,8 +392,8 @@ type Business {
   description: String
   website: String
   products: [Product!]!
-  executives: [BusinessExecutive!]!
-  sponsorEpisodes: [Episode!]!
+  executives: [BusinessExecutive!]
+  sponsorEpisodes: [Episode!]
 }
 
 type Product {
@@ -402,9 +403,9 @@ type Product {
   business: Business!
   description: String
   ingredients: [String!]!
-  sponsorEpisodes: [Episode!]!
+  sponsorEpisodes: [Episode!]
   sourceUrl: String
-  compounds: [Compound!]!
+  compounds: [Compound!]
 }
 
 type Compound {
@@ -463,6 +464,13 @@ type Query {
   product(id: ID!): Product
   compounds(limit: Int = 20, offset: Int = 0): [Compound!]!
   compound(id: ID!): Compound
+  people(limit: Int = 20, offset: Int = 0): [Person!]!
+  person(id: ID!): Person
+  businesses(limit: Int = 20, offset: Int = 0): [Business!]!
+  business(id: ID!): Business
+  caseStudies(limit: Int = 20, offset: Int = 0): [CaseStudy!]!
+  caseStudy(id: ID!): CaseStudy
+  allUsers(limit: Int = 20, offset: Int = 0): [User!]!
 }
 
 type AuthPayload {
