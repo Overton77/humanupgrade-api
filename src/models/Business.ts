@@ -1,5 +1,10 @@
-import mongoose, { Schema, type Model, type HydratedDocument } from "mongoose";
-import { MediaLinkSchema, type MediaLink } from "./MediaLink";
+import mongoose, {
+  Schema,
+  type Model,
+  type HydratedDocument,
+  type Document,
+} from "mongoose";
+import { MediaLinkSchema, type MediaLink } from "./MediaLink.js";
 
 // --- Executive subdocument ---
 
@@ -24,7 +29,8 @@ const BusinessExecutiveSchema = new Schema<IBusinessExecutive>(
 
 // --- Business document (plain data shape) ---
 
-export interface IBusiness {
+export interface IBusiness extends Document {
+  id: string; // <- now available because of virtual
   name: string;
   description?: string;
   biography?: string;
@@ -63,12 +69,22 @@ const BusinessSchema = new Schema<IBusiness, BusinessModel>(
   { timestamps: true }
 );
 
+// -----------------------------------------------------
+// 🔥 Add this virtual so id = _id
+// -----------------------------------------------------
+BusinessSchema.virtual("id").get(function () {
+  return this._id.toHexString();
+});
+
+BusinessSchema.set("toJSON", { virtuals: true });
+BusinessSchema.set("toObject", { virtuals: true });
+
 // --- Static: keep Person.businessIds in sync with Business.ownerIds + executives ---
 
 BusinessSchema.statics.syncProductsForBusiness = async function (
   business: BusinessDoc
 ): Promise<void> {
-  const { Product } = await import("./Product");
+  const { Product } = await import("./Product.js");
 
   const products = await Product.find({ businessId: business._id }).select(
     "_id"
@@ -87,7 +103,7 @@ BusinessSchema.statics.syncPersonLinks = async function (
   business: BusinessDoc
 ): Promise<void> {
   const businessId = business._id;
-  const { Person } = await import("./Person");
+  const { Person } = await import("./Person.js");
 
   const ownerIds = business.ownerIds?.map((id) => id.toString()) ?? [];
   const execPersonIds =
@@ -115,7 +131,7 @@ BusinessSchema.statics.syncPersonLinks = async function (
 BusinessSchema.statics.syncSponsorEpisodesForBusiness = async function (
   businessId: mongoose.Types.ObjectId
 ): Promise<void> {
-  const { Episode } = await import("./Episode");
+  const { Episode } = await import("./Episode.js");
 
   const episodes = await Episode.find({
     sponsorBusinessIds: businessId,
@@ -149,9 +165,9 @@ BusinessSchema.post("findOneAndDelete", async function (doc) {
   if (!doc) return;
   const businessDoc = doc as BusinessDoc;
 
-  const { Person } = await import("./Person");
-  const { Episode } = await import("./Episode");
-  const { User } = await import("./User");
+  const { Person } = await import("./Person.js");
+  const { Episode } = await import("./Episode.js");
+  const { User } = await import("./User.js");
 
   // 1) Remove this business from all people (mirror cleanup)
   await Person.updateMany(

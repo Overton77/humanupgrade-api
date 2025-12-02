@@ -1,73 +1,73 @@
 import bcrypt from "bcrypt";
-import { User } from "../../models/User";
-import { Episode } from "../../models/Episode";
-import { Product } from "../../models/Product";
-import { Business } from "../../models/Business";
-import { Person } from "../../models/Person";
-import { Compound } from "../../models/Compound";
-import { signAuthToken } from "../../services/auth";
-import { Context } from "../../services/auth";
+import { User } from "../../models/User.js";
+import { Episode } from "../../models/Episode.js";
+import { Product } from "../../models/Product.js";
+import { Business } from "../../models/Business.js";
+import { Person } from "../../models/Person.js";
+import { Compound } from "../../models/Compound.js";
+import { signAuthToken } from "../../services/auth.js";
+import { Context } from "../../services/auth.js";
 import {
   createBusinessWithOptionalIds,
   updateBusinessWithOptionalIds,
   updateBusinessWithRelationFields,
-} from "../../services/businessService";
+} from "../../services/businessService.js";
 import {
   BusinessCreateWithOptionalIdsInput,
   BusinessUpdateWithOptionalIdsInput,
   BusinessUpdateRelationFieldsInput,
-} from "../inputs/businessInputs";
+} from "../inputs/businessInputs.js";
 import {
   createProductWithOptionalIds,
   updateProductWithOptionalIds,
   updateProductWithRelationFields,
-} from "../../services/productService";
+} from "../../services/productService.js";
 import {
   ProductCreateWithOptionalIdsInput,
   ProductUpdateWithOptionalIdsInput,
   ProductUpdateRelationFieldsInput,
-} from "../inputs/productInputs";
+} from "../inputs/productInputs.js";
 import {
   createPersonWithOptionalIds,
   updatePersonWithOptionalIds,
   updatePersonWithRelationFields,
-} from "../../services/personService";
+} from "../../services/personService.js";
 import {
   PersonCreateWithOptionalIdsInput,
   PersonUpdateWithOptionalIdsInput,
   PersonUpdateRelationFieldsInput,
-} from "../inputs/personInputs";
+} from "../inputs/personInputs.js";
 import {
   createEpisodeWithOptionalIds,
   updateEpisodeWithOptionalIds,
   updateEpisodeWithRelationFields,
-} from "../../services/episodeService";
+} from "../../services/episodeService.js";
 import {
   EpisodeCreateWithOptionalIdsInput,
   EpisodeUpdateWithOptionalIdsInput,
   EpisodeUpdateRelationFieldsInput,
-} from "../inputs/episodeInputs";
+} from "../inputs/episodeInputs.js";
 import {
   createCompoundWithOptionalIds,
   updateCompoundWithOptionalIds,
   updateCompoundWithRelationFields,
-} from "../../services/compoundService";
+} from "../../services/compoundService.js";
 import {
   CompoundCreateWithOptionalIdsInput,
   CompoundUpdateWithOptionalIdsInput,
   CompoundUpdateRelationFieldsInput,
-} from "../inputs/compoundInputs";
+} from "../inputs/compoundInputs.js";
 
 import {
   createCaseStudyWithOptionalIds,
   updateCaseStudyWithOptionalIds,
-} from "../../services/caseStudyService";
+} from "../../services/caseStudyService.js";
 import {
   CaseStudyCreateWithOptionalIdsInput,
   CaseStudyUpdateWithOptionalIdsInput,
-} from "../inputs/caseStudyInputs";
+} from "../inputs/caseStudyInputs.js";
 
-import { requireAuth, requireAdmin } from "../../services/auth";
+import { requireAuth, requireAdmin } from "../../services/auth.js";
 import {
   addSavedItemsToUser,
   removeSavedItemsFromUser,
@@ -75,8 +75,8 @@ import {
   toggleSavedBusinessForUser,
   toggleSavedEpisodeForUser,
   toggleSavedProductForUser,
-} from "../../services/userService";
-import { UserMassSaveInput, UserUpsertInput } from "../inputs/userInputs";
+} from "../../services/userService.js";
+import { UserMassSaveInput, UserUpsertInput } from "../inputs/userInputs.js";
 
 const SALT_ROUNDS = 10;
 

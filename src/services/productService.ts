@@ -1,23 +1,23 @@
 import mongoose from "mongoose";
-import { Product, IProduct } from "../models/Product";
-import { Business } from "../models/Business";
-import { Compound } from "../models/Compound";
-import { Episode } from "../models/Episode";
+import { Product, IProduct } from "../models/Product.js";
+import { Business } from "../models/Business.js";
+import { Compound } from "../models/Compound.js";
+import { Episode } from "../models/Episode.js";
 import {
   ProductCreateWithOptionalIdsInput,
   ProductUpdateWithOptionalIdsInput,
   ProductUpdateRelationFieldsInput,
   ProductCompoundNestedInput,
-} from "../graphql/inputs/productInputs";
+} from "../graphql/inputs/productInputs.js";
 
-import { validateEntitiesExist } from "./utils/validation";
-import { toObjectIds } from "./utils/general";
+import { validateEntitiesExist } from "./utils/validation.js";
+import { toObjectIds } from "./utils/general.js";
 import {
   mergeAndDedupeIds,
   mergeUniqueBy,
   mergeUniqueStrings,
-} from "./utils/merging";
-import { MediaLink } from "../models/MediaLink";
+} from "./utils/merging.js";
+import { MediaLink } from "../models/MediaLink.js";
 
 export async function createProductWithOptionalIds(
   input: ProductCreateWithOptionalIdsInput

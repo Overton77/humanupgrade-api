@@ -1,18 +1,22 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
-import { User, IUser } from "../models/User";
-import { MediaLink } from "../models/MediaLink";
-import { mergeAndDedupeIds } from "./utils/merging";
-import { toObjectIds, removeIds, toggleObjectIdInArray } from "./utils/general";
+import { User, IUser } from "../models/User.js";
+import { MediaLink } from "../models/MediaLink.js";
+import { mergeAndDedupeIds } from "./utils/merging.js";
+import {
+  toObjectIds,
+  removeIds,
+  toggleObjectIdInArray,
+} from "./utils/general.js";
 import { GraphQLError } from "graphql";
 import {
   UserUpsertInput,
   UserMassSaveInput,
-} from "../graphql/inputs/userInputs";
-import { mergeUniqueBy } from "./utils/merging";
-import { Episode } from "../models/Episode";
-import { Product } from "../models/Product";
-import { Business } from "../models/Business";
+} from "../graphql/inputs/userInputs.js";
+import { mergeUniqueBy } from "./utils/merging.js";
+import { Episode } from "../models/Episode.js";
+import { Product } from "../models/Product.js";
+import { Business } from "../models/Business.js";
 
 const SALT_ROUNDS = 10; // CONSTANT
 

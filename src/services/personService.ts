@@ -1,20 +1,20 @@
 import mongoose from "mongoose";
-import { Person, IPerson } from "../models/Person";
-import { Episode } from "../models/Episode";
-import { Business, BusinessDoc } from "../models/Business";
-import { MediaLink } from "../models/MediaLink";
+import { Person, IPerson } from "../models/Person.js";
+import { Episode } from "../models/Episode.js";
+import { Business, BusinessDoc } from "../models/Business.js";
+import { MediaLink } from "../models/MediaLink.js";
 import {
   PersonCreateWithOptionalIdsInput,
   PersonUpdateWithOptionalIdsInput,
   PersonUpdateRelationFieldsInput,
   PersonBusinessNestedInput,
   PersonEpisodeNestedInput,
-} from "../graphql/inputs/personInputs";
+} from "../graphql/inputs/personInputs.js";
 
-import { validateEntitiesExist } from "./utils/validation";
-import { toObjectIds } from "./utils/general";
+import { validateEntitiesExist } from "./utils/validation.js";
+import { toObjectIds } from "./utils/general.js";
 
-import { mergeAndDedupeIds, mergeUniqueBy } from "./utils/merging";
+import { mergeAndDedupeIds, mergeUniqueBy } from "./utils/merging.js";
 
 // ========== UTILITY FUNCTIONS ==========
 

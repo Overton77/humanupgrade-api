@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface ICaseStudy extends Document {
+  id: string; // <- now available because of virtual
   title: string;
   summary: string;
   url?: string;
@@ -24,6 +25,16 @@ const CaseStudySchema = new Schema<ICaseStudy>(
   },
   { timestamps: true }
 );
+
+// -----------------------------------------------------
+// 🔥 Add this virtual so id = _id
+// -----------------------------------------------------
+CaseStudySchema.virtual("id").get(function () {
+  return this._id.toHexString();
+});
+
+CaseStudySchema.set("toJSON", { virtuals: true });
+CaseStudySchema.set("toObject", { virtuals: true });
 
 export const CaseStudy: Model<ICaseStudy> =
   mongoose.models.CaseStudy ||

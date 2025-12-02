@@ -1,21 +1,21 @@
 import mongoose from "mongoose";
-import { Episode, IEpisode, EpisodeDoc } from "../models/Episode";
-import { Person } from "../models/Person";
-import { Business } from "../models/Business";
+import { Episode, IEpisode, EpisodeDoc } from "../models/Episode.js";
+import { Person } from "../models/Person.js";
+import { Business } from "../models/Business.js";
 import {
   EpisodeCreateWithOptionalIdsInput,
   EpisodeUpdateWithOptionalIdsInput,
   EpisodeUpdateRelationFieldsInput,
   EpisodeGuestNestedInput,
   EpisodeSponsorBusinessNestedInput,
-} from "../graphql/inputs/episodeInputs";
-import { toObjectIds } from "./utils/general";
+} from "../graphql/inputs/episodeInputs.js";
+import { toObjectIds } from "./utils/general.js";
 import {
   mergeAndDedupeIds,
   mergeUniqueStrings,
   mergeUniqueBy,
-} from "./utils/merging";
-import { validateEntitiesExist } from "./utils/validation";
+} from "./utils/merging.js";
+import { validateEntitiesExist } from "./utils/validation.js";
 
 /**
  * Create an Episode and optionally connect guests and sponsor businesses.

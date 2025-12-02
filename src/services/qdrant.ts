@@ -1,5 +1,5 @@
 import { QdrantClient } from "@qdrant/qdrant-js";
-import { env } from "../config/env";
+import { env } from "../config/env.js";
 
 /**
  * Payload stored alongside vectors in Qdrant.

@@ -1,19 +1,19 @@
 import mongoose from "mongoose";
-import { Compound, ICompound } from "../models/Compound";
-import { Product } from "../models/Product";
+import { Compound, ICompound } from "../models/Compound.js";
+import { Product } from "../models/Product.js";
 import {
   CompoundCreateWithOptionalIdsInput,
   CompoundUpdateWithOptionalIdsInput,
   CompoundUpdateRelationFieldsInput,
   CompoundProductNestedInput,
-} from "../graphql/inputs/compoundInputs";
-import { toObjectIds } from "./utils/general";
+} from "../graphql/inputs/compoundInputs.js";
+import { toObjectIds } from "./utils/general.js";
 import {
   mergeAndDedupeIds,
   mergeUniqueStrings,
   mergeUniqueBy,
-} from "./utils/merging";
-import { validateEntitiesExist } from "./utils/validation";
+} from "./utils/merging.js";
+import { validateEntitiesExist } from "./utils/validation.js";
 
 /**
  * Create a Compound and optionally connect products.

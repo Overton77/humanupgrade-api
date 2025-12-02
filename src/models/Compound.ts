@@ -1,7 +1,8 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
-import { MediaLinkSchema, MediaLink } from "./MediaLink";
+import { MediaLinkSchema, MediaLink } from "./MediaLink.js";
 
 export interface ICompound extends Document {
+  id: string; // <- now available because of virtual
   name: string;
   description?: string;
   aliases: string[];
@@ -25,13 +26,23 @@ const CompoundSchema = new Schema<ICompound>(
   { timestamps: true }
 );
 
+// -----------------------------------------------------
+// 🔥 Add this virtual so id = _id
+// -----------------------------------------------------
+CompoundSchema.virtual("id").get(function () {
+  return this._id.toHexString();
+});
+
+CompoundSchema.set("toJSON", { virtuals: true });
+CompoundSchema.set("toObject", { virtuals: true });
+
 /**
  * Sync Compound.productIds based on Products that reference this compound
  */
 CompoundSchema.statics.syncProductsForCompound = async function (
   compoundId: mongoose.Types.ObjectId
 ): Promise<void> {
-  const { Product } = await import("./Product");
+  const { Product } = await import("./Product.js");
 
   // Find all products that reference this compound as canonical
   const products = await Product.find({ compoundIds: compoundId }).select(
@@ -51,8 +62,8 @@ CompoundSchema.post("findOneAndDelete", async function (doc: ICompound | null) {
   if (!doc) return;
 
   const compoundId = doc._id;
-  const { Product } = await import("./Product");
-  const { CaseStudy } = await import("./CaseStudy");
+  const { Product } = await import("./Product.js");
+  const { CaseStudy } = await import("./CaseStudy.js");
 
   // 1) Remove this compound from all products' canonical compoundIds
   await Product.updateMany(

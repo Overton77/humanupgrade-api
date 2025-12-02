@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
-import { Business, IBusiness, IBusinessExecutive } from "../models/Business";
-import { Person } from "../models/Person";
-import { Product } from "../models/Product";
-import { Episode, EpisodeDoc } from "../models/Episode";
+import { Business, IBusiness, IBusinessExecutive } from "../models/Business.js";
+import { Person } from "../models/Person.js";
+import { Product } from "../models/Product.js";
+import { Episode, EpisodeDoc } from "../models/Episode.js";
 import {
   BusinessCreateWithOptionalIdsInput,
   BusinessUpdateWithOptionalIdsInput,
@@ -10,15 +10,15 @@ import {
   BusinessOwnerNestedInput,
   BusinessProductNestedInput,
   BusinessEpisodeNestedInput,
-} from "../graphql/inputs/businessInputs";
-import { mapExecutivesInput } from "./utils/mapping";
-import { toObjectIds } from "./utils/general";
+} from "../graphql/inputs/businessInputs.js";
+import { mapExecutivesInput } from "./utils/mapping.js";
+import { toObjectIds } from "./utils/general.js";
 import {
   mergeAndDedupeIds,
   mergeUniqueStrings,
   mergeUniqueBy,
-} from "./utils/merging";
-import { validateEntitiesExist } from "./utils/validation";
+} from "./utils/merging.js";
+import { validateEntitiesExist } from "./utils/validation.js";
 
 /**
  * Create a Business and optionally connect owners, products, episodes, and executives.

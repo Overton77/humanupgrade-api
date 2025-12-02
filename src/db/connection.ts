@@ -1,14 +1,14 @@
 import mongoose from "mongoose";
-import { env } from "../config/env";
+import { env } from "../config/env.js";
 
 let isConnected = false;
 
-export async function connectToDatabase(): Promise<void> {
+export async function connectToDatabase(dbName: string): Promise<void> {
   if (isConnected) return;
 
   try {
     await mongoose.connect(env.mongoUri, {
-      dbName: "humanupgrade", // 👈 force this DB
+      dbName: dbName,
     });
 
     isConnected = true;

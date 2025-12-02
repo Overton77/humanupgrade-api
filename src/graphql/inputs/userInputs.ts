@@ -1,4 +1,4 @@
-import { MediaLink } from "../../models/MediaLink";
+import { MediaLink } from "../../models/MediaLink.js";
 
 export interface MediaLinkInput extends MediaLink {}
 

@@ -1,5 +1,5 @@
-import { MediaLink } from "../../models/MediaLink";
-import { ISponsorLinkObject, IWebPageTimeline } from "../../models/Episode";
+import { MediaLink } from "../../models/MediaLink.js";
+import { ISponsorLinkObject, IWebPageTimeline } from "../../models/Episode.js";
 
 export interface EpisodeCreateWithOptionalIdsInput {
   channelName: string;

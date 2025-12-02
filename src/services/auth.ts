@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
-import { env } from "../config/env";
-import { User, IUser } from "../models/User";
+import { env } from "../config/env.js";
+import { User, IUser } from "../models/User.js";
 import { GraphQLError } from "graphql";
 
 export type Role = "admin" | "user";

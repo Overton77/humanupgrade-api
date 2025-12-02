@@ -391,9 +391,10 @@ type Business {
   mediaLinks: [MediaLink!]
   description: String
   website: String
-  products: [Product!]!
+  products: [Product!]
+  owners: [Person!]
   executives: [BusinessExecutive!]
-  sponsorEpisodes: [Episode!]
+  sponsoredEpisodes: [Episode!]
 }
 
 type Product {

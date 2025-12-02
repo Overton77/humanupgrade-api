@@ -1,8 +1,9 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 import bcrypt from "bcryptjs";
-import { MediaLinkSchema, MediaLink } from "./MediaLink";
+import { MediaLinkSchema, MediaLink } from "./MediaLink.js";
 
 export interface IUser extends Document {
+  id: string; // <- now available because of virtual
   email: string;
   passwordHash?: string;
   provider: "local" | "google" | "github" | "apple";
@@ -39,6 +40,16 @@ const UserSchema = new Schema<IUser>(
   },
   { timestamps: true }
 );
+
+// -----------------------------------------------------
+// 🔥 Add this virtual so id = _id
+// -----------------------------------------------------
+UserSchema.virtual("id").get(function () {
+  return this._id.toHexString();
+});
+
+UserSchema.set("toJSON", { virtuals: true });
+UserSchema.set("toObject", { virtuals: true });
 
 // For local auth
 UserSchema.methods.comparePassword = async function (plain: string) {

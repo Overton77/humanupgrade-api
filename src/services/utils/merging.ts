@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { toObjectIds } from "./general";
+import { toObjectIds } from "./general.js";
 
 export function mergeAndDedupeIds(
   existingIds: mongoose.Types.ObjectId[],

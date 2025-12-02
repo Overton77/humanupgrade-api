@@ -1,10 +1,10 @@
-import { Episode } from "../../models/Episode";
-import { Product } from "../../models/Product";
-import { Compound } from "../../models/Compound";
-import { CaseStudy } from "../../models/CaseStudy";
-import { User } from "../../models/User";
-import { Person } from "../../models/Person";
-import { Business } from "../../models/Business";
+import { Episode } from "../../models/Episode.js";
+import { Product } from "../../models/Product.js";
+import { Compound } from "../../models/Compound.js";
+import { CaseStudy } from "../../models/CaseStudy.js";
+import { User } from "../../models/User.js";
+import { Person } from "../../models/Person.js";
+import { Business } from "../../models/Business.js";
 
 export const Query = {
   me: (_parent: unknown, _args: unknown, ctx: any) => {

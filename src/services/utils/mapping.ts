@@ -1,5 +1,5 @@
-import { IBusinessExecutive } from "../../models/Business";
-import { BusinessExecutiveRelationInput } from "../../graphql/inputs/businessInputs";
+import { IBusinessExecutive } from "../../models/Business.js";
+import { BusinessExecutiveRelationInput } from "../../graphql/inputs/businessInputs.js";
 import mongoose from "mongoose";
 
 export function mapExecutivesInput(

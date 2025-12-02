@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document, Model, HydratedDocument } from "mongoose";
-import { MediaLinkSchema, MediaLink } from "./MediaLink";
+import { MediaLinkSchema, MediaLink } from "./MediaLink.js";
 // TODO: Create the ModelDoc HydratedDocument<IModelType>
 export interface IWebPageTimeline {
   from: string;
@@ -40,6 +40,7 @@ const WebPageTimelineSchema = new Schema<IWebPageTimeline>(
 );
 
 export interface IEpisode extends Document {
+  id: string; // <- now available because of virtual
   channelName: string;
   episodeNumber?: number;
   episodeTitle?: string;
@@ -98,13 +99,23 @@ export const EpisodeSchema = new Schema<IEpisode>(
   { timestamps: true }
 );
 
+// -----------------------------------------------------
+// 🔥 Add this virtual so id = _id
+// -----------------------------------------------------
+EpisodeSchema.virtual("id").get(function () {
+  return this._id.toHexString();
+});
+
+EpisodeSchema.set("toJSON", { virtuals: true });
+EpisodeSchema.set("toObject", { virtuals: true });
+
 /**
  * Sync Episode.sponsorBusinessIds based on Businesses that reference this episode
  */
 EpisodeSchema.statics.syncGuestLinks = async function (
   episode: EpisodeDoc
 ): Promise<void> {
-  const { Person } = await import("./Person");
+  const { Person } = await import("./Person.js");
   const episodeId = episode._id;
 
   // guests currently on this episode
@@ -131,7 +142,7 @@ EpisodeSchema.statics.syncGuestLinks = async function (
 EpisodeSchema.statics.syncSponsorBusinessesForEpisode = async function (
   episodeId: mongoose.Types.ObjectId
 ): Promise<void> {
-  const { Business } = await import("./Business");
+  const { Business } = await import("./Business.js");
 
   // 1) Find all businesses that list this episode in their sponsorEpisodeIds
   const businesses = await Business.find({
@@ -150,39 +161,47 @@ EpisodeSchema.statics.syncSponsorBusinessesForEpisode = async function (
   );
 };
 
-EpisodeSchema.pre("save", function () {
+EpisodeSchema.pre("save", function (this: HydratedDocument<IEpisode>) {
+  const self = this as HydratedDocument<IEpisode> & { $locals?: any };
+
   if (this.isModified("sponsorBusinessIds")) {
-    this.$locals = this.$locals || {};
-    this.$locals.previousSponsorBusinessIds = this.get(
+    self.$locals = self.$locals || {};
+    self.$locals.previousSponsorBusinessIds = this.get(
       "sponsorBusinessIds",
       [],
       { getters: false }
-    );
+    ) as mongoose.Types.ObjectId[];
   }
 });
 
-EpisodeSchema.post("save", async function (doc) {
-  const oldIds: mongoose.Types.ObjectId[] =
-    this.$locals?.previousSponsorBusinessIds ?? [];
-  const newIds: mongoose.Types.ObjectId[] = doc.sponsorBusinessIds ?? [];
+EpisodeSchema.post<EpisodeDoc>(
+  "save",
+  async function (this: HydratedDocument<IEpisode>, doc) {
+    const self = this as HydratedDocument<IEpisode> & { $locals?: any };
 
-  const allBusinessIds = new Set<string>([
-    ...oldIds.map((id) => id.toString()),
-    ...newIds.map((id) => id.toString()),
-  ]);
+    const oldIds: mongoose.Types.ObjectId[] =
+      (self.$locals?.previousSponsorBusinessIds as mongoose.Types.ObjectId[]) ??
+      [];
+    const newIds: mongoose.Types.ObjectId[] = doc.sponsorBusinessIds ?? [];
 
-  const { Business } = await import("./Business");
+    const allBusinessIds = new Set<string>([
+      ...oldIds.map((id) => id.toString()),
+      ...newIds.map((id) => id.toString()),
+    ]);
 
-  for (const idStr of allBusinessIds) {
-    await Business.syncSponsorEpisodesForBusiness(
-      new mongoose.Types.ObjectId(idStr)
-    );
+    const { Business } = await import("./Business.js");
+
+    for (const idStr of allBusinessIds) {
+      await Business.syncSponsorEpisodesForBusiness(
+        new mongoose.Types.ObjectId(idStr)
+      );
+    }
   }
-});
+);
 
 EpisodeSchema.post("findOneAndDelete", async function (doc) {
   if (!doc?.sponsorBusinessIds?.length) return;
-  const { Business } = await import("./Business");
+  const { Business } = await import("./Business.js");
 
   for (const businessId of doc.sponsorBusinessIds) {
     await Business.syncSponsorEpisodesForBusiness(businessId);
@@ -205,10 +224,10 @@ EpisodeSchema.post("findOneAndDelete", async function (doc) {
   if (!doc) return;
   const episodeDoc = doc as EpisodeDoc;
 
-  const { Business } = await import("./Business");
-  const { Person } = await import("./Person");
-  const { User } = await import("./User");
-  const { CaseStudy } = await import("./CaseStudy"); // optional, see below
+  const { Business } = await import("./Business.js");
+  const { Person } = await import("./Person.js");
+  const { User } = await import("./User.js");
+  const { CaseStudy } = await import("./CaseStudy.js"); // optional, see below
 
   // 1) Update Business.sponsorEpisodeIds mirror if you keep that cache
   if (episodeDoc.sponsorBusinessIds && episodeDoc.sponsorBusinessIds.length) {

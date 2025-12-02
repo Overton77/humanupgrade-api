@@ -1,5 +1,5 @@
-import { MediaLink } from "../../models/MediaLink";
-import { IWebPageTimeline, ISponsorLinkObject } from "../../models/Episode";
+import { MediaLink } from "../../models/MediaLink.js";
+import { IWebPageTimeline, ISponsorLinkObject } from "../../models/Episode.js";
 
 export interface BusinessExecutiveRelationInput {
   personId: string;

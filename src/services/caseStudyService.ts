@@ -1,10 +1,10 @@
-import { CaseStudy, ICaseStudy } from "../models/CaseStudy";
-import { toObjectIds } from "./utils/general";
-import { mergeAndDedupeIds } from "./utils/merging";
+import { CaseStudy, ICaseStudy } from "../models/CaseStudy.js";
+import { toObjectIds } from "./utils/general.js";
+import { mergeAndDedupeIds } from "./utils/merging.js";
 import {
   CaseStudyCreateWithOptionalIdsInput,
   CaseStudyUpdateWithOptionalIdsInput,
-} from "../graphql/inputs/caseStudyInputs";
+} from "../graphql/inputs/caseStudyInputs.js";
 export async function createCaseStudyWithOptionalIds(
   input: CaseStudyCreateWithOptionalIdsInput
 ): Promise<ICaseStudy> {

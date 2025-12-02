@@ -1,13 +1,17 @@
 import { GraphQLScalarType, Kind } from "graphql";
-import { Query } from "./Query";
-import { Mutation } from "./Mutation";
-import { Episode, IEpisode } from "../../models/Episode";
-import { Person, IPerson } from "../../models/Person";
-import { Business, IBusiness } from "../../models/Business";
-import { Product, IProduct } from "../../models/Product";
-import { Compound, ICompound } from "../../models/Compound";
-import { CaseStudy, ICaseStudy } from "../../models/CaseStudy";
-import { IUser } from "../../models/User";
+import { Query } from "./Query.js";
+import { Mutation } from "./Mutation.js";
+import { Episode, IEpisode } from "../../models/Episode.js";
+import { Person, IPerson } from "../../models/Person.js";
+import {
+  Business,
+  IBusiness,
+  IBusinessExecutive,
+} from "../../models/Business.js";
+import { Product, IProduct } from "../../models/Product.js";
+import { Compound, ICompound } from "../../models/Compound.js";
+import { CaseStudy, ICaseStudy } from "../../models/CaseStudy.js";
+import { IUser } from "../../models/User.js";
 
 const DateTimeScalar = new GraphQLScalarType({
   name: "DateTime",
@@ -60,6 +64,29 @@ export const resolvers = {
   Business: {
     products: async (parent: IBusiness) =>
       await Product.find({ _id: { $in: parent.productIds || [] } }),
+    executives: async (parent: IBusiness) => {
+      const executives = await Person.find({
+        _id: {
+          $in:
+            parent.executives.map((e: IBusinessExecutive) => e.personId) || [],
+        },
+      });
+      return executives.map((e: IPerson) => ({
+        person: e,
+        title: parent.executives.find(
+          (exec: IBusinessExecutive) =>
+            exec.personId.toString() === e._id.toString()
+        )?.title,
+        role: parent.executives.find(
+          (exec: IBusinessExecutive) =>
+            exec.personId.toString() === e._id.toString()
+        )?.role,
+      }));
+    },
+    owners: async (parent: IBusiness) =>
+      await Person.find({ _id: { $in: parent.ownerIds || [] } }),
+    sponsoredEpisodes: async (parent: IBusiness) =>
+      await Episode.find({ _id: { $in: parent.sponsorEpisodeIds || [] } }),
   },
 
   Product: {

@@ -1,7 +1,8 @@
 import mongoose, { Schema, HydratedDocument, Document, Model } from "mongoose";
-import { MediaLinkSchema, MediaLink } from "./MediaLink";
+import { MediaLinkSchema, MediaLink } from "./MediaLink.js";
 
 export interface IProduct extends Document {
+  id: string; // <- now available because of virtual
   name: string;
   businessId: mongoose.Types.ObjectId;
   description?: string;
@@ -36,10 +37,20 @@ const ProductSchema = new Schema<IProduct>(
   { timestamps: true }
 );
 
+// -----------------------------------------------------
+// 🔥 Add this virtual so id = _id
+// -----------------------------------------------------
+ProductSchema.virtual("id").get(function () {
+  return this._id.toHexString();
+});
+
+ProductSchema.set("toJSON", { virtuals: true });
+ProductSchema.set("toObject", { virtuals: true });
+
 ProductSchema.statics.syncProductsForBusiness = async function (
   businessId: mongoose.Types.ObjectId
 ): Promise<void> {
-  const { Business } = await import("./Business");
+  const { Business } = await import("./Business.js");
   if (!businessId) return;
 
   const products = await this.find({ businessId }).select("_id");
@@ -58,7 +69,7 @@ ProductSchema.statics.syncProductsForBusiness = async function (
 ProductSchema.statics.syncCompoundsForProduct = async function (
   productId: mongoose.Types.ObjectId
 ): Promise<void> {
-  const { Compound } = await import("./Compound");
+  const { Compound } = await import("./Compound.js");
 
   // Find all compounds that reference this product
   const compounds = await Compound.find({ productIds: productId }).select(
@@ -128,7 +139,7 @@ ProductSchema.post("findOneAndDelete", async function (doc: IProduct | null) {
 ProductSchema.post("findOneAndDelete", async function (doc: IProduct | null) {
   if (!doc) return;
 
-  const { User } = await import("./User");
+  const { User } = await import("./User.js");
 
   await User.updateMany(
     { savedProducts: doc._id },
@@ -139,7 +150,7 @@ ProductSchema.post("findOneAndDelete", async function (doc: IProduct | null) {
 ProductSchema.post("findOneAndDelete", async function (doc: IProduct | null) {
   if (!doc?.compoundIds?.length) return;
 
-  const { Compound } = await import("./Compound");
+  const { Compound } = await import("./Compound.js");
 
   for (const compoundId of doc.compoundIds) {
     await Compound.syncProductsForCompound(compoundId);
