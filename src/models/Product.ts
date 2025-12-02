@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Model } from "mongoose";
+import mongoose, { Schema, HydratedDocument, Document, Model } from "mongoose";
 import { MediaLinkSchema, MediaLink } from "./MediaLink";
 
 export interface IProduct extends Document {
@@ -69,39 +69,53 @@ ProductSchema.statics.syncCompoundsForProduct = async function (
   await this.findByIdAndUpdate(productId, { compoundIds }, { new: false });
 };
 
-ProductSchema.pre("save", function (next) {
-  if (this.isModified("businessId")) {
-    this.$locals = this.$locals || {};
-    this.$locals.previousBusinessId = this.getModifiedPaths().includes(
-      "businessId"
-    )
-      ? (this as any).get("businessId", null, { getters: false }) // old value
-      : undefined;
-  }
-  next();
-});
-
-ProductSchema.post("save", async function (doc: IProduct) {
-  const oldBusinessId = this.$locals?.previousBusinessId;
-  const newBusinessId = doc.businessId;
-
-  if (!this.isModified("businessId")) return;
-
-  // If it moved from A → B, resync both
-  if (oldBusinessId && !oldBusinessId.equals(newBusinessId)) {
-    await (this.constructor as typeof Product).syncProductsForBusiness(
-      oldBusinessId
-    );
-  }
-
-  if (newBusinessId) {
-    await (this.constructor as typeof Product).syncProductsForBusiness(
-      newBusinessId
-    );
-  }
-});
-
 // TODO: combine the middlewares
+
+ProductSchema.pre("save", async function (this: HydratedDocument<IProduct>) {
+  const self = this as HydratedDocument<IProduct> & { $locals?: any };
+
+  // For new docs there is no "old" businessId, so nothing to capture.
+  if (self.isNew || !self.isModified("businessId")) {
+    return;
+  }
+
+  self.$locals = self.$locals || {};
+
+  // Look up the existing document to get the previous businessId from DB
+  const existing = await (self.constructor as ProductModel)
+    .findById(self._id)
+    .select("businessId")
+    .lean();
+
+  self.$locals.previousBusinessId = existing?.businessId || null;
+});
+
+// POST: run syncProductsForBusiness for old + new business as needed
+ProductSchema.post("save", async function (doc: IProduct) {
+  const self = this as HydratedDocument<IProduct> & { $locals?: any };
+  const Product = this.constructor as ProductModel;
+
+  const oldBusinessId = self.$locals?.previousBusinessId as
+    | mongoose.Types.ObjectId
+    | null
+    | undefined;
+  const newBusinessId = doc.businessId as mongoose.Types.ObjectId | undefined;
+
+  // 1) Always sync the new business if present
+  if (newBusinessId) {
+    await Product.syncProductsForBusiness(newBusinessId);
+  }
+
+  // 2) If there was a different old business, sync that one too
+  if (
+    oldBusinessId &&
+    newBusinessId &&
+    oldBusinessId instanceof mongoose.Types.ObjectId &&
+    !oldBusinessId.equals(newBusinessId)
+  ) {
+    await Product.syncProductsForBusiness(oldBusinessId);
+  }
+});
 
 ProductSchema.post("findOneAndDelete", async function (doc: IProduct | null) {
   if (doc?.businessId) {

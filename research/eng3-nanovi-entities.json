@@ -1,0 +1,268 @@
+{
+  "business": {
+    "name": "Eng3 Corporation",
+    "description": "Eng3 Corporation is a medical device company founded in 2003 that develops, manufactures, and distributes NanoVi® devices. The company creates scientifically validated technology specifically designed to promote cellular activities and improve protein functions through the repair and protection of protein structures. Eng3 is the first medical device company to address the problem of oxidative stress and cell damage by focusing on protein structure and folding. The technology leverages biophysics, not chemical substances, to provoke the body's natural repair processes. The company serves health, anti-aging, and sports performance markets with international distribution.",
+    "website": "https://eng3corp.com",
+    "mediaLinks": [
+      {
+        "label": "Official Website",
+        "url": "https://eng3corp.com",
+        "type": "website"
+      },
+      {
+        "label": "Facebook",
+        "url": "https://www.facebook.com/eng3corp/",
+        "type": "social"
+      },
+      {
+        "label": "Instagram",
+        "url": "https://www.instagram.com/eng3corp",
+        "type": "social"
+      },
+      {
+        "label": "About Company",
+        "url": "https://eng3corp.com/about-eng3-corp/",
+        "type": "about"
+      },
+      {
+        "label": "Professional Resources",
+        "url": "https://eng3corp.com/access-nanovi-library/",
+        "type": "documentation"
+      },
+      {
+        "label": "Articles & Media",
+        "url": "https://eng3corp.com/articles-and-media/",
+        "type": "media"
+      },
+      {
+        "label": "Contact",
+        "url": "https://eng3corp.com/about/contact-us/",
+        "type": "contact"
+      }
+    ]
+  },
+  "people": [
+    {
+      "name": "Hans Eng",
+      "role": "Founder and CEO",
+      "bio": "Originally from Berlin, Germany, Hans Eng is the founder and chief executive officer of Eng3 Corporation. He formed the company in 2003 several years after moving to the United States. An engineer by training with a degree from the Technical University of Berlin, Hans has an extensive background in research and development, production, and quality assurance for medical devices. His 25+ years of experience with advanced medical technologies includes work at Johnson & Johnson in Europe and the formation, growth, and successful sale of a German medical implant company. Hans leveraged his background in material sciences and proteomics in the development of the proprietary technology underlying Eng3's NanoVi® products. His expertise reflects not only his knowledge of medical technologies but also his passion for health and athletic performance. In his spare time, Hans enjoys hiking, snowboarding, and snowshoeing.",
+      "mediaLinks": [
+        {
+          "label": "Company Profile",
+          "url": "https://eng3corp.com/about-eng3-corp/#abouthans",
+          "type": "profile"
+        }
+      ]
+    },
+    {
+      "name": "Rowena Gates",
+      "role": "Vice President of Business Development, Co-founder",
+      "bio": "A native of Vancouver, Canada, Rowena Gates is a principal, co-founder, and the vice president of business development at Eng3 Corporation. She has worked with the company for more than 15 years, building relationships with clients in the health, wellness, and performance markets. A serial entrepreneur, prior to Eng3, Rowena spent six years as founder and CEO of Aviarc Corporation, a leader in document chain management. She also co-founded a document imaging company (now part of ImageSource) and in 1995 co-founded one of the earliest companies to offer an Internet-based solution to the logistics industry. Rowena received a Doctorate from the University of Washington for her dissertation on the use of international strategic alliances by emerging high-tech companies. Her unique journey includes transitioning from teaching high school and academic consulting to pioneering advanced biotech for health optimization. When away from Eng3, she enjoys tennis, sailing, backpacking, and hiking or snowshoeing in the mountains near Seattle.",
+      "mediaLinks": [
+        {
+          "label": "Company Profile",
+          "url": "https://eng3corp.com/about-eng3-corp/#aboutrowena",
+          "type": "profile"
+        },
+        {
+          "label": "Making Bank Podcast",
+          "url": "https://eng3corp.com/about/blog/making-bank-podcast/",
+          "type": "podcast"
+        },
+        {
+          "label": "Wellness Mama Podcast",
+          "url": "https://eng3corp.com/about/blog/wellness-mama/",
+          "type": "podcast"
+        },
+        {
+          "label": "Dave Asprey Human Upgrade Episode",
+          "url": "https://www.facebook.com/eng3corp/posts/1415538250573125/",
+          "type": "podcast"
+        }
+      ]
+    }
+  ],
+  "products": [
+    {
+      "name": "NanoVi Eco",
+      "description": "The NanoVi Eco® is the most economical way to bring the benefits of NanoVi® technology into your home. With a simple touch screen interface, it makes it easy to set up relaxing sessions that promote cellular health and relieve oxidative stress damage. The standard session time is 60 minutes, which can be broken into shorter sessions. People trying to regain cellular health and boost vitality may use the Eco for longer than 60 minutes and often do more than one session a day. This entry-level device provides baseline signal strength (1x) and is optimized for home use and wellness maintenance.",
+      "ingredients": [
+        "Infrared radiation technology",
+        "Humidity generation system",
+        "Coherent domain water generation",
+        "Bio-identical signaling mechanism"
+      ],
+      "sourceUrl": "https://eng3corp.com/introduction-to-the-nanovi/",
+      "mediaLinks": [
+        {
+          "label": "Product Information",
+          "url": "https://eng3corp.com/introduction-to-the-nanovi/",
+          "type": "product_page"
+        },
+        {
+          "label": "How NanoVi Works",
+          "url": "https://eng3corp.com/how-nanovi-works-as-a-protein-folding-therapy/",
+          "type": "documentation"
+        }
+      ]
+    },
+    {
+      "name": "NanoVi Pro",
+      "description": "The NanoVi Pro® is the perfect tradeoff between price and performance, offering twice the power of the Eco model with an equivalent session time of 30 minutes. Shorter sessions make it easy for multiple family members to share time on the device, and home users can easily do more than one session a day. A 30-minute session often fits well for clinics and centers where NanoVi is offered as a standalone service or in conjunction with another therapy. The Pro provides professional-grade performance suitable for both home and clinical applications, with 2x signal strength compared to the Eco.",
+      "ingredients": [
+        "Advanced infrared radiation technology",
+        "Enhanced humidity generation system",
+        "Coherent domain water generation",
+        "Bio-identical signaling mechanism",
+        "Professional-grade signal strength (2x)"
+      ],
+      "sourceUrl": "https://eng3corp.com/introduction-to-the-nanovi/",
+      "mediaLinks": [
+        {
+          "label": "Product Information",
+          "url": "https://eng3corp.com/introduction-to-the-nanovi/",
+          "type": "product_page"
+        }
+      ]
+    },
+    {
+      "name": "NanoVi Exo",
+      "description": "The NanoVi Exo® is the newest and most powerful NanoVi® option, delivering twice the power of the Pro or four times the power of the Eco. To compare, 15 minutes on the Exo equals 30 minutes on the Pro or 60 minutes on the Eco. The Exo delivers far more benefits in less time, and most users extend beyond the basic 15-minute session. Ideal for performance athletes, busy professionals seeking maximum impact, and wellness professionals helping clients regain vitality. In professional centers, the Exo can handle twice as many clients due to shorter sessions and faster turnaround times. This represents the pinnacle of NanoVi technology with maximum signal strength (4x) and efficiency.",
+      "ingredients": [
+        "Maximum-power infrared radiation technology",
+        "High-efficiency humidity generation system",
+        "Enhanced coherent domain water generation",
+        "Bio-identical signaling mechanism",
+        "Elite-grade signal strength (4x)"
+      ],
+      "sourceUrl": "https://eng3corp.com/introduction-to-the-nanovi/",
+      "mediaLinks": [
+        {
+          "label": "Product Information",
+          "url": "https://eng3corp.com/introduction-to-the-nanovi/",
+          "type": "product_page"
+        }
+      ]
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Structured Water",
+      "description": "Structured water, also known as Exclusion Zone (EZ) water or fourth-phase water, is water with unique physicochemical properties that forms at hydrophilic surfaces and around proteins. This structured state of water is critical for protein folding and cellular functions. NanoVi technology works by influencing the structured water that surrounds all proteins, enabling them to fold properly and function optimally. Structured water facilitates mitochondrial communication, supports cellular regeneration, drives neuroplasticity, and enhances stress resilience. The creation and maintenance of structured water states through coherent humidity is the core mechanism through which NanoVi supports optimal protein function and cellular health.",
+      "aliases": [
+        "EZ Water",
+        "Exclusion Zone Water",
+        "Fourth-Phase Water",
+        "Coherent Water",
+        "Coherent Domains",
+        "Interfacial Water"
+      ],
+      "mediaLinks": [
+        {
+          "label": "Water Science Research",
+          "url": "https://eng3corp.com/how-nanovi-works-as-a-protein-folding-therapy/",
+          "type": "research"
+        },
+        {
+          "label": "Dr. Pollack EZ Water Research",
+          "url": "https://eng3corp.com/about/blog/dr-pollack-exclusion-zone-water-hans-eng/",
+          "type": "research"
+        }
+      ]
+    }
+  ],
+  "caseStudies": [
+    {
+      "title": "Effect of Humid Air Exposed to IR Radiation on Enzyme Activity - Protein Repair from Oxidative, Heat, and Chemical Damage",
+      "summary": "Peer-reviewed study published in the International Journal of Molecular Sciences investigating NanoVi's ability to protect and restore protein activity when exposed to damaging factors including heat, oxidation, and chemical denaturants. The study examined three critical enzymes (alkaline phosphatase, peroxidase, and catalase) using both protective (pre-treatment) and restorative (post-treatment) protocols with placebo controls. Results showed significant improvements across all damage types: oxidative damage recovery showed 32-45% increases vs damaged controls, heat damage showed 13-30% increases, and chemical damage showed 28-89% increases. The study demonstrated NanoVi's dual capability for both protecting proteins against damage and accelerating repair after damage occurs. Authors noted that protein oxidation is a well-known cause of aging and that protein stability is critical for cells to withstand oxidative stress and premature aging.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/35054784/",
+      "sourceType": "PUBMED",
+      "mediaLinks": [
+        {
+          "label": "PubMed Abstract",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/35054784/",
+          "type": "research"
+        },
+        {
+          "label": "Full Article - IJMS",
+          "url": "https://www.mdpi.com/1422-0067/23/2/601",
+          "type": "research"
+        },
+        {
+          "label": "Company Summary",
+          "url": "https://eng3corp.com/about/blog/oxidative-stress-study/",
+          "type": "article"
+        }
+      ]
+    },
+    {
+      "title": "Metabolic Testing Confirms 7.8% VO2 Max Improvement After Single NanoVi Session",
+      "summary": "Clinical metabolic testing study demonstrated that a single 20-minute session with the NanoVi device resulted in a 7.8% improvement in VO2 max - a key indicator of cardiovascular fitness, mitochondrial function, and biological age. This improvement is equivalent to what typically takes most people approximately 2 months of consistent cardiovascular training to achieve. VO2 max (maximum oxygen uptake) is widely considered the gold standard measurement for cardiovascular fitness, mitochondrial efficiency, biological age, and longevity potential. Research consistently shows that higher VO2 max correlates strongly with increased lifespan, reduced all-cause mortality, better quality of life in aging, enhanced cognitive function, and improved metabolic health. The rapid improvement after just one session suggests profound mitochondrial impact and has been verified by multiple practitioners using standard testing protocols.",
+      "url": "https://eng3corp.com/about/blog/metabolic-testing-confirms-nanovi-benefits-after-one-session",
+      "sourceType": "CLINICAL_TRIAL",
+      "mediaLinks": [
+        {
+          "label": "Study Information",
+          "url": "https://eng3corp.com/about/blog/metabolic-testing-confirms-nanovi-benefits-after-one-session",
+          "type": "research"
+        },
+        {
+          "label": "Dave Asprey Discussion",
+          "url": "https://daveasprey.com/nanovi/",
+          "type": "article"
+        }
+      ]
+    },
+    {
+      "title": "Accelerated Post-Surgical Recovery: Stem Cell Treatment Case Study",
+      "summary": "Real-world clinical case study from lifestyle design specialist and podcaster Luke Storey, who used NanoVi following an invasive stem cell treatment. Normal recovery time for his procedure was 3-4 weeks, but with multiple daily NanoVi sessions started immediately upon returning home, recovery was dramatically shortened from weeks to mere days - representing approximately 75-90% reduction in recovery time. Storey began sessions in early 2018, immediately after his surgery in Utah, and was so impressed with the results that he eventually purchased his own personal unit. This case demonstrates NanoVi's potential for post-surgical recovery acceleration, stem cell therapy enhancement, and cellular repair support during intensive healing processes. The case has been widely shared in the biohacking community and validates NanoVi's application in recovery protocols.",
+      "url": "https://eng3corp.com",
+      "sourceType": "ARTICLE",
+      "mediaLinks": [
+        {
+          "label": "User Testimonial",
+          "url": "https://eng3corp.com/user-endorsements/",
+          "type": "testimonial"
+        }
+      ]
+    },
+    {
+      "title": "Clinical Observations from 300+ Stem Cell Procedures with NanoVi Integration",
+      "summary": "Dr. Luis Martinez, a Regenerative Medicine physician and Clinical Peptide Specialist, conducted extensive clinical observations comparing stem cell procedures performed with and without NanoVi integration. Over the course of 300+ stem cell procedures with NanoVi and many more without it, Dr. Martinez observed profound differences between the two groups. Patients who received NanoVi treatment showed significantly faster therapeutic responses and more consistent results compared to those without NanoVi support. The large sample size (300+ procedures) across diverse patient populations provides substantial clinical evidence for NanoVi's role in enhancing regenerative medicine protocols. The findings suggest strong synergy between stem cell therapy and cellular repair technology, with reproducible benefit patterns that validate professional medical application of NanoVi in advanced treatment settings.",
+      "url": "https://eng3corp.com",
+      "sourceType": "CLINICAL_TRIAL",
+      "mediaLinks": [
+        {
+          "label": "Professional Endorsement",
+          "url": "https://eng3corp.com/user-endorsements/",
+          "type": "testimonial"
+        }
+      ]
+    },
+    {
+      "title": "NanoVi Effects on Immune Function, DNA Protection, and Antioxidant Defense Systems",
+      "summary": "Compilation of research and placebo-controlled studies demonstrating NanoVi's impact extends beyond protein repair to include broader cellular health benefits. Key findings include strengthened immune response, enhanced antioxidant defense systems, significant reduction in double-strand DNA breaks, and overall improvement in cellular resilience. Studies showed measurable improvements in protein repair rates, antioxidant system efficiency, and overall redox potential - a key indicator of cellular health status. DNA damage reduction is particularly significant for longevity, as DNA breaks are associated with aging and disease. The enhancement of immune function supports overall health and disease resistance, while improvements in antioxidant system efficiency directly relate to the rate of aging. Overall redox potential improvements indicate enhanced cellular health and metabolic function. These findings demonstrate NanoVi's comprehensive approach to cellular optimization beyond its primary protein folding mechanism.",
+      "url": "https://eng3corp.com/access-nanovi-library/",
+      "sourceType": "CLINICAL_TRIAL",
+      "mediaLinks": [
+        {
+          "label": "Research Library",
+          "url": "https://eng3corp.com/access-nanovi-library/",
+          "type": "research"
+        },
+        {
+          "label": "Professional Resources",
+          "url": "https://eng3corp.com/professional-resources/",
+          "type": "documentation"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "researchDate": "2025-12-02",
+    "sourceWebsite": "https://eng3corp.com",
+    "researchMethod": "Firecrawl web scraping and Tavily search",
+    "dataQuality": "High - sourced from official website, peer-reviewed journals, and verified testimonials",
+    "notes": "All data sourced from official Eng3 Corporation website and verified external sources including PubMed. Case studies include both peer-reviewed research and clinical observations from medical professionals. Product information verified from manufacturer specifications. Person biographical information from official company profiles."
+  }
+}

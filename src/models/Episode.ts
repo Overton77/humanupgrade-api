@@ -150,7 +150,7 @@ EpisodeSchema.statics.syncSponsorBusinessesForEpisode = async function (
   );
 };
 
-EpisodeSchema.pre("save", function (next) {
+EpisodeSchema.pre("save", function () {
   if (this.isModified("sponsorBusinessIds")) {
     this.$locals = this.$locals || {};
     this.$locals.previousSponsorBusinessIds = this.get(
@@ -159,7 +159,6 @@ EpisodeSchema.pre("save", function (next) {
       { getters: false }
     );
   }
-  next();
 });
 
 EpisodeSchema.post("save", async function (doc) {
