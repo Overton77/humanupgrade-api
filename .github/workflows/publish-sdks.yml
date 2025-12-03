@@ -15,7 +15,7 @@ jobs:
         name: Publish TS/React SDK to npm (GitHub Packages)
         runs-on: ubuntu-latest
         permissions:
-            contents: read
+            contents: write # needed so we can commit version bumps
             packages: write
 
         defaults:
@@ -26,20 +26,51 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v4
 
+            - name: Detect relevant changes
+              id: changed_graphql
+              run: |
+                  if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+                    echo "changed=true" >> "$GITHUB_OUTPUT"
+                    exit 0
+                  fi
+
+                  CHANGED_FILES="$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} || true)"
+                  echo "Changed files:"
+                  echo "$CHANGED_FILES"
+
+                  if echo "$CHANGED_FILES" | grep -E '^src/graphql/schema\.graphql$|^src/graphql/operations/|^sdks/ts-sdk/codegen\.ts$|^sdks/py-sdk/pyproject\.toml$'; then
+                    echo "changed=true" >> "$GITHUB_OUTPUT"
+                  else
+                    echo "changed=false" >> "$GITHUB_OUTPUT"
+                  fi
+
             - name: Setup Node
               uses: actions/setup-node@v4
               with:
                   node-version: "22"
-                  # If you're using GitHub Packages as your private npm registry:
                   registry-url: "https://npm.pkg.github.com"
 
             - name: Install dependencies
+              if: steps.changed_graphql.outputs.changed == 'true'
               run: npm install
 
+            - name: Bump TS SDK version (patch)
+              if: steps.changed_graphql.outputs.changed == 'true'
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+                  npm version patch --no-git-tag-version
+
+                  git add package.json package-lock.json || true
+                  git commit -m "chore: bump TS SDK version [skip ci]" || echo "No changes to commit"
+                  git push || echo "Could not push version bump (maybe branch is protected)"
+
             - name: Build & codegen
+              if: steps.changed_graphql.outputs.changed == 'true'
               run: npm run prepare
 
             - name: Publish package
+              if: steps.changed_graphql.outputs.changed == 'true'
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: npm publish --access restricted
@@ -59,26 +90,50 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v4
 
+            - name: Detect relevant changes
+              id: changed_graphql
+              run: |
+                  if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+                    echo "changed=true" >> "$GITHUB_OUTPUT"
+                    exit 0
+                  fi
+
+                  CHANGED_FILES="$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} || true)"
+                  echo "Changed files:"
+                  echo "$CHANGED_FILES"
+
+                  if echo "$CHANGED_FILES" | grep -E '^src/graphql/schema\.graphql$|^src/graphql/operations/|^sdks/ts-sdk/codegen\.ts$|^sdks/py-sdk/pyproject\.toml$'; then
+                    echo "changed=true" >> "$GITHUB_OUTPUT"
+                  else
+                    echo "changed=false" >> "$GITHUB_OUTPUT"
+                  fi
+
             - name: Setup Python
+              if: steps.changed_graphql.outputs.changed == 'true'
               uses: actions/setup-python@v5
               with:
                   python-version: "3.13"
 
             - name: Install build & codegen deps
+              if: steps.changed_graphql.outputs.changed == 'true'
               run: |
                   python -m pip install --upgrade pip
                   pip install ariadne-codegen build
 
             - name: Run codegen
+              if: steps.changed_graphql.outputs.changed == 'true'
               run: ariadne-codegen
 
             - name: Build wheel + sdist
+              if: steps.changed_graphql.outputs.changed == 'true'
               run: python -m build
 
             - name: Publish to GitHub Packages (Python)
-              # Change repository-url if you later move to another private index
+              if: steps.changed_graphql.outputs.changed == 'true'
               uses: pypa/gh-action-pypi-publish@v1.12.2
               with:
                   repository-url: https://pypi.pkg.github.com/${{ github.repository_owner }}
                   user: ${{ github.actor }}
                   password: ${{ secrets.GITHUB_TOKEN }}
+                  packages-dir: sdks/py-sdk/dist
+                  skip-existing: true
