@@ -26,13 +26,7 @@ export interface BusinessScalarUpdateFields {
 }
 
 /** Simple create: scalars + optional owner/product/episode IDs */
-export interface BusinessCreateWithOptionalIdsInput
-  extends BusinessScalarFields {
-  ownerIds?: string[];
-  productIds?: string[];
-  executives?: BusinessExecutiveRelationInput[];
-  sponsorEpisodeIds?: string[];
-}
+
 /** Simple update: scalars + optional owner/product/episode IDs */
 export interface BusinessUpdateWithOptionalIdsInput
   extends BusinessScalarUpdateFields {
@@ -84,6 +78,13 @@ export interface BusinessEpisodeNestedInput {
   webPageTimelines?: IWebPageTimeline[];
 }
 
+export interface BusinessExecutiveNestedInput {
+  name: string;
+  title: string;
+  role: string;
+  mediaLinks?: MediaLink[];
+}
+
 /** Executive relation input */
 export interface BusinessExecutiveRelationInput {
   personId: string; // Person _id as string
@@ -98,11 +99,23 @@ export interface BusinessExecutiveRelationInput {
  * - executives: manage executive list
  * - sponsorEpisodeIds / sponsorEpisodesNested: manage sponsored episodes
  */
+
+export interface BusinessCreateRelationsInput extends BusinessScalarFields {
+  ownerIds?: string[];
+  productIds?: string[];
+  executives?: BusinessExecutiveRelationInput[];
+  sponsorEpisodeIds?: string[];
+  executivesNested?: BusinessExecutiveNestedInput[];
+  ownersNested?: BusinessOwnerNestedInput[];
+  productsNested?: BusinessProductNestedInput[];
+  sponsorEpisodesNested?: BusinessEpisodeNestedInput[];
+}
 export interface BusinessUpdateRelationFieldsInput {
   id: string;
 
   ownerIds?: string[];
   ownersNested?: BusinessOwnerNestedInput[];
+  executivesNested?: BusinessExecutiveNestedInput[];
 
   productIds?: string[];
   productsNested?: BusinessProductNestedInput[];

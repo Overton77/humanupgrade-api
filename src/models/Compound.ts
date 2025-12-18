@@ -1,25 +1,45 @@
-import mongoose, { Schema, Document, Model } from "mongoose";
+import mongoose, {
+  Schema,
+  Document,
+  Model,
+  HydratedDocument,
+  ClientSession,
+} from "mongoose";
 import { MediaLinkSchema, MediaLink } from "./MediaLink.js";
+import { TxOpts } from "./utils/syncLocals.js";
+import { pullFromUsersSaved } from "./utils/usedSavedCleanup.js";
 
-export interface ICompound extends Document {
+export interface ICompound {
   id: string; // <- now available because of virtual
   name: string;
   description?: string;
   aliases: string[];
+  protocolIds: mongoose.Types.ObjectId[];
   mediaLinks?: MediaLink[];
   productIds: mongoose.Types.ObjectId[];
 }
 
 // Extend the model interface with our static methods
+
+export type CompoundDoc = HydratedDocument<ICompound>;
+
 export interface CompoundModel extends Model<ICompound> {
-  syncProductsForCompound(compoundId: mongoose.Types.ObjectId): Promise<void>;
+  syncProtocolsForCompound(
+    compoundId: mongoose.Types.ObjectId,
+    opts?: TxOpts
+  ): Promise<void>;
+  syncProductsForCompound(
+    compoundId: mongoose.Types.ObjectId,
+    opts?: TxOpts
+  ): Promise<void>;
 }
 
-const CompoundSchema = new Schema<ICompound>(
+const CompoundSchema = new Schema<ICompound, CompoundModel>(
   {
     name: { type: String, required: true, index: true },
     description: { type: String },
     aliases: [{ type: String }],
+    protocolIds: [{ type: Schema.Types.ObjectId, ref: "Protocol" }],
     mediaLinks: [MediaLinkSchema],
     productIds: [{ type: Schema.Types.ObjectId, ref: "Product" }],
   },
@@ -40,48 +60,76 @@ CompoundSchema.set("toObject", { virtuals: true });
  * Sync Compound.productIds based on Products that reference this compound
  */
 CompoundSchema.statics.syncProductsForCompound = async function (
-  compoundId: mongoose.Types.ObjectId
+  compoundId: mongoose.Types.ObjectId,
+  opts?: TxOpts
 ): Promise<void> {
   const { Product } = await import("./Product.js");
-
-  // Find all products that reference this compound as canonical
-  const products = await Product.find({ compoundIds: compoundId }).select(
-    "_id"
+  const products = await Product.find({ compoundIds: compoundId })
+    .select("_id")
+    .lean()
+    .session(opts?.session ?? null);
+  const productIds = products.map(
+    (p: { _id: mongoose.Types.ObjectId }) => p._id
   );
-  const productIds = products.map((p: any) => p._id);
-
-  // Update the mirror field on Compound
   await this.findByIdAndUpdate(
     compoundId,
     { $set: { productIds } },
-    { new: false }
+    { session: opts?.session }
   );
 };
 
-CompoundSchema.post("findOneAndDelete", async function (doc: ICompound | null) {
-  if (!doc) return;
-
-  const compoundId = doc._id;
-  const { Product } = await import("./Product.js");
-  const { CaseStudy } = await import("./CaseStudy.js");
-
-  // 1) Remove this compound from all products' canonical compoundIds
-  await Product.updateMany(
-    { compoundIds: compoundId },
-    { $pull: { compoundIds: compoundId } }
+CompoundSchema.statics.syncProtocolsForCompound = async function (
+  compoundId: mongoose.Types.ObjectId,
+  opts?: TxOpts
+): Promise<void> {
+  const { Protocol } = await import("./Protocol.js");
+  const protocols = await Protocol.find({ compoundIds: compoundId })
+    .select("_id")
+    .lean()
+    .session(opts?.session ?? null);
+  const protocolIds = protocols.map(
+    (p: { _id: mongoose.Types.ObjectId }) => p._id
   );
-
-  // 2) Recompute mirrors for all affected compounds if you want them perfect
-  //    (Not strictly necessary since this compound is gone, but other compounds
-  //     may still be fine; we skip this to avoid extra work.)
-
-  // 3) Remove this compound from all CaseStudy.compoundIds
-  await CaseStudy.updateMany(
-    { compoundIds: compoundId },
-    { $pull: { compoundIds: compoundId } }
+  await this.findByIdAndUpdate(
+    compoundId,
+    { $set: { protocolIds } },
+    { session: opts?.session }
   );
-});
+};
 
+CompoundSchema.post(
+  "findOneAndDelete",
+  async function (doc: CompoundDoc | null) {
+    if (!doc) return;
+    const session = this.getOptions()?.session as ClientSession | undefined;
+    const compoundId = doc._id;
+    const { User } = await import("./User.js");
+    const { Protocol } = await import("./Protocol.js");
+    const { Product } = await import("./Product.js");
+    const { CaseStudy } = await import("./CaseStudy.js");
+    await pullFromUsersSaved(
+      User,
+      "savedCompounds",
+      compoundId,
+      session ?? undefined
+    );
+    await Protocol.updateMany(
+      { compoundIds: compoundId },
+      { $pull: { compoundIds: compoundId } },
+      { session: session ?? undefined }
+    );
+    await Product.updateMany(
+      { compoundIds: compoundId },
+      { $pull: { compoundIds: compoundId } },
+      { session: session ?? undefined }
+    );
+    await CaseStudy.updateMany(
+      { compoundIds: compoundId },
+      { $pull: { compoundIds: compoundId } },
+      { session: session ?? undefined }
+    );
+  }
+);
 export const Compound: CompoundModel =
   (mongoose.models.Compound as CompoundModel) ||
   mongoose.model<ICompound, CompoundModel>("Compound", CompoundSchema);

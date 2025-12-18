@@ -1,9 +1,9 @@
 scalar DateTime
 
 type MediaLink {
-  label: String
   url: String!
-  type: String
+  description: String
+  posterUrl: String
 }
 
 enum UserProvider {
@@ -18,10 +18,23 @@ enum UserRole {
   USER
 }
 
+enum ProtocolCategory {
+  sleep
+  circadian
+  fitness
+  nutrition
+  cognition
+  stress
+  recovery
+  longevity
+  health
+  other
+}
+
 input MediaLinkInput {
-  label: String
   url: String!
-  type: String
+  description: String!
+  posterUrl: String
 }
 
 input UserUpsertInput {
@@ -44,7 +57,7 @@ input UserCreateInput {
   mediaLinks: [MediaLinkInput!]
 }
 
-input BusinessCreateWithIdsInput {
+input BusinessCreateRelationsInput {
   name: String!
   description: String
   website: String
@@ -52,6 +65,11 @@ input BusinessCreateWithIdsInput {
   ownerIds: [ID!]
   productIds: [ID!]
   sponsorEpisodeIds: [ID!]
+  ownersNested: [BusinessOwnerNestedInput!]
+  executivesNested: [BusinessExecutiveNestedInput!]
+  productsNested: [BusinessProductNestedInput!]
+  sponsorEpisodesNested: [BusinessEpisodeNestedInput!]
+  executives: [BusinessExecutiveRelationInput!]
 }
 
 input BusinessUpdateWithIdsInput {
@@ -108,6 +126,7 @@ input BusinessEpisodeNestedInput {
   id: ID
   channelName: String!
   episodeNumber: Int
+  episodePageUrl: String!
   episodeTitle: String
   publishedAt: DateTime
   summaryShort: String
@@ -122,6 +141,13 @@ input BusinessEpisodeNestedInput {
   mediaLinks: [MediaLinkInput!]
   sponsorLinkObjects: [SponsorLinkObjectInput!]
   webPageTimelines: [WebPageTimelineInput!]
+}
+
+input BusinessExecutiveNestedInput {
+  name: String!
+  title: String!
+  role: String!
+  mediaLinks: [MediaLinkInput!]
 }
 
 input BusinessUpdateRelationFieldsInput {
@@ -134,6 +160,7 @@ input BusinessUpdateRelationFieldsInput {
   productsNested: [BusinessProductNestedInput!]
 
   executives: [BusinessExecutiveRelationInput!]
+  executivesNested: [BusinessExecutiveNestedInput!]
 
   sponsorEpisodeIds: [ID!]
   sponsorEpisodesNested: [BusinessEpisodeNestedInput!]
@@ -145,20 +172,24 @@ input ProductCreateWithIdsInput {
   name: String!
   businessId: ID!
   description: String
+  price: Float
   ingredients: [String!]
   mediaLinks: [MediaLinkInput!]
   sourceUrl: String
   compoundIds: [ID!]
+  protocolIds: [ID!]
 }
 
 input ProductUpdateWithIdsInput {
   id: ID!
   name: String
   description: String
+  price: Float
   ingredients: [String!]
   mediaLinks: [MediaLinkInput!]
   sourceUrl: String
   compoundIds: [ID!]
+  protocolIds: [ID!]
 }
 
 input ProductCompoundNestedInput {
@@ -169,45 +200,42 @@ input ProductCompoundNestedInput {
   mediaLinks: [MediaLinkInput!]
 }
 
+input ProductProtocolNestedInput {
+  id: ID
+  name: String
+  description: String
+  categories: [ProtocolCategory!]
+  goals: [String!]
+  steps: [String!]
+  cautions: [String!]
+  aliases: [String!]
+  sourceUrl: String
+}
+
 input ProductUpdateRelationFieldsInput {
   id: ID!
 
   compoundIds: [ID!]
   compoundsNested: [ProductCompoundNestedInput!]
+  protocolIds: [ID!]
+  protocolsNested: [ProductProtocolNestedInput!]
 }
 
 # --- Person Inputs ---
 
-input PersonCreateWithIdsInput {
+input PersonCreateInput {
   name: String!
   role: String
   bio: String
   mediaLinks: [MediaLinkInput!]
-  businessIds: [ID!]
 }
 
-input PersonUpdateWithIdsInput {
+input PersonUpdateInput {
   id: ID!
   name: String
   role: String
   bio: String
   mediaLinks: [MediaLinkInput!]
-  businessIds: [ID!]
-}
-
-input PersonBusinessNestedInput {
-  id: ID
-  name: String
-  description: String
-  website: String
-  mediaLinks: [MediaLinkInput!]
-}
-
-input PersonUpdateRelationFieldsInput {
-  id: ID!
-
-  businessIds: [ID!]
-  businessesNested: [PersonBusinessNestedInput!]
 }
 
 # --- Episode Inputs ---
@@ -216,12 +244,13 @@ input EpisodeCreateWithIdsInput {
   channelName: String!
   episodeNumber: Int
   episodeTitle: String
-  episodePageUrl: String
+  episodePageUrl: String!
   episodeTranscriptUrl: String
   publishedAt: DateTime
   summaryShort: String
   webPageSummary: String
   summaryDetailed: String
+  publishedSummary: String
   youtubeVideoId: String
   youtubeWatchUrl: String
   youtubeEmbedUrl: String
@@ -231,8 +260,10 @@ input EpisodeCreateWithIdsInput {
   mediaLinks: [MediaLinkInput!]
   sponsorLinkObjects: [SponsorLinkObjectInput!]
   webPageTimelines: [WebPageTimelineInput!]
+  businessLinks: [String!]
   guestIds: [ID!]
   sponsorBusinessIds: [ID!]
+  protocolIds: [ID!]
 }
 
 input EpisodeUpdateWithIdsInput {
@@ -246,6 +277,7 @@ input EpisodeUpdateWithIdsInput {
   summaryShort: String
   webPageSummary: String
   summaryDetailed: String
+  publishedSummary: String
   youtubeVideoId: String
   youtubeWatchUrl: String
   youtubeEmbedUrl: String
@@ -255,8 +287,10 @@ input EpisodeUpdateWithIdsInput {
   mediaLinks: [MediaLinkInput!]
   sponsorLinkObjects: [SponsorLinkObjectInput!]
   webPageTimelines: [WebPageTimelineInput!]
+  businessLinks: [String!]
   guestIds: [ID!]
   sponsorBusinessIds: [ID!]
+  protocolIds: [ID!]
 }
 
 input EpisodeGuestNestedInput {
@@ -283,9 +317,64 @@ input EpisodeUpdateRelationFieldsInput {
 
   sponsorBusinessIds: [ID!]
   sponsorBusinessesNested: [EpisodeSponsorBusinessNestedInput!]
+
+  protocolIds: [ID!]
 }
 
 # --- Compound Inputs ---
+
+input ProtocolCreateWithIdsInput {
+  name: String!
+  description: String
+  categories: [ProtocolCategory!]
+  goals: [String!]
+  steps: [String!]
+  cautions: [String!]
+  aliases: [String!]
+  sourceUrl: String
+  productIds: [ID!]
+  compoundIds: [ID!]
+}
+
+input ProtocolUpdateWithIdsInput {
+  id: ID!
+  name: String
+  description: String
+  categories: [ProtocolCategory!]
+  goals: [String!]
+  steps: [String!]
+  cautions: [String!]
+  aliases: [String!]
+  sourceUrl: String
+  productIds: [ID!]
+  compoundIds: [ID!]
+}
+
+input ProtocolProductNestedInput {
+  id: ID
+  name: String
+  description: String
+  businessId: ID
+  ingredients: [String!]
+  mediaLinks: [MediaLinkInput!]
+  sourceUrl: String
+}
+
+input ProtocolCompoundNestedInput {
+  id: ID
+  name: String
+  description: String
+  aliases: [String!]
+  mediaLinks: [MediaLinkInput!]
+}
+
+input ProtocolUpdateRelationFieldsInput {
+  id: ID!
+  productIds: [ID!]
+  productsNested: [ProtocolProductNestedInput!]
+  compoundIds: [ID!]
+  compoundsNested: [ProtocolCompoundNestedInput!]
+}
 
 input CompoundCreateWithIdsInput {
   name: String!
@@ -327,6 +416,10 @@ type User {
   savedEpisodes: [Episode!]!
   savedProducts: [Product!]!
   savedBusinesses: [Business!]!
+  savedProtocols: [Protocol!]!
+  savedCompounds: [Compound!]!
+  savedCaseStudies: [CaseStudy!]!
+  savedPersons: [Person!]!
   role: String!
 }
 
@@ -366,7 +459,10 @@ type Episode {
   guests: [Person!]
   summaryShort: String
   summaryDetailed: String
+  publishedSummary: String
+  businessLinks: [String!]
   sponsorBusinesses: [Business!]
+  protocols: [Protocol!]
 }
 
 type Person {
@@ -419,6 +515,20 @@ type Compound {
   caseStudies: [CaseStudy!]!
 }
 
+type Protocol {
+  id: ID!
+  name: String!
+  description: String
+  categories: [ProtocolCategory!]!
+  goals: [String!]!
+  steps: [String!]!
+  cautions: [String!]!
+  aliases: [String!]!
+  sourceUrl: String
+  products: [Product!]!
+  compounds: [Compound!]!
+}
+
 enum CaseStudySourceType {
   PUBMED
   CLINICAL_TRIAL
@@ -461,6 +571,8 @@ type Query {
   me: User
   episodes(limit: Int = 20, offset: Int = 0): [Episode!]!
   episode(id: ID!): Episode
+  protocols(limit: Int = 20, offset: Int = 0): [Protocol!]!
+  protocol(id: ID!): Protocol
   products(limit: Int = 20, offset: Int = 0): [Product!]!
   product(id: ID!): Product
   compounds(limit: Int = 20, offset: Int = 0): [Compound!]!
@@ -472,6 +584,10 @@ type Query {
   caseStudies(limit: Int = 20, offset: Int = 0): [CaseStudy!]!
   caseStudy(id: ID!): CaseStudy
   allUsers(limit: Int = 20, offset: Int = 0): [User!]!
+
+  vectorSearchProducts(args: VectorSearchArgs!): [ProductSearchPayload!]
+  vectorSearchBusinesses(args: VectorSearchArgs!): [BusinessSearchPayload!]
+  vectorSearchPeople(args: VectorSearchArgs!): [PersonSearchPayload!]
 }
 
 type AuthPayload {
@@ -479,11 +595,46 @@ type AuthPayload {
   user: User!
 }
 
+type DeleteResult {
+  deletedCount: Int!
+}
+
 input UserMassSaveInput {
   userId: ID!
   episodeIds: [ID!]
   productIds: [ID!]
   businessIds: [ID!]
+  protocolIds: [ID!]
+  compoundIds: [ID!]
+  caseStudyIds: [ID!]
+  personIds: [ID!]
+}
+
+input VectorSearchArgs {
+  query: String!
+  numCandidates: Int
+  limit: Int
+}
+
+type ProductSearchPayload {
+  id: ID!
+  name: String!
+  description: String!
+  score: Float
+}
+
+type BusinessSearchPayload {
+  id: ID!
+  name: String!
+  description: String!
+  score: Float
+}
+
+type PersonSearchPayload {
+  id: ID!
+  name: String!
+  bio: String!
+  score: Float
 }
 
 type Mutation {
@@ -496,33 +647,37 @@ type Mutation {
 
   # --- Business management ---
 
-  createBusiness(input: BusinessCreateWithIdsInput!): Business!
+  createBusinessWithRelations(input: BusinessCreateRelationsInput!): Business!
   updateBusiness(input: BusinessUpdateWithIdsInput!): Business
   updateBusinessRelations(input: BusinessUpdateRelationFieldsInput!): Business
+  deleteBusiness(id: ID!): DeleteResult!
 
   # --- Product management ---
 
   createProduct(input: ProductCreateWithIdsInput!): Product!
   updateProduct(input: ProductUpdateWithIdsInput!): Product
   updateProductRelations(input: ProductUpdateRelationFieldsInput!): Product
-
+  deleteProduct(id: ID!): Product!
   # --- Person management ---
 
-  createPerson(input: PersonCreateWithIdsInput!): Person!
-  updatePerson(input: PersonUpdateWithIdsInput!): Person
-  updatePersonRelations(input: PersonUpdateRelationFieldsInput!): Person
+  createPerson(input: PersonCreateInput!): Person!
+  updatePerson(input: PersonUpdateInput!): Person
+  deletePerson(id: ID!): Person!
 
   # --- Episode management ---
 
   createEpisode(input: EpisodeCreateWithIdsInput!): Episode!
   updateEpisode(input: EpisodeUpdateWithIdsInput!): Episode
   updateEpisodeRelations(input: EpisodeUpdateRelationFieldsInput!): Episode
+  deleteEpisode(identifier: String!): Episode
+  deleteAllEpisodes: DeleteResult!
 
   # --- Compound management ---
 
   createCompound(input: CompoundCreateWithIdsInput!): Compound!
   updateCompound(input: CompoundUpdateWithIdsInput!): Compound
   updateCompoundRelations(input: CompoundUpdateRelationFieldsInput!): Compound
+  deleteCompound(id: ID!): Compound!
 
   createCaseStudy(input: CaseStudyCreateWithOptionalIdsInput!): CaseStudy!
 
@@ -532,4 +687,14 @@ type Mutation {
 
   addSavedItemsToUser(input: UserMassSaveInput!): User!
   removeSavedItemsFromUser(input: UserMassSaveInput!): User!
+
+  createProtocol(input: ProtocolCreateWithIdsInput!): Protocol!
+  updateProtocol(input: ProtocolUpdateWithIdsInput!): Protocol
+  updateProtocolRelations(input: ProtocolUpdateRelationFieldsInput!): Protocol
+
+  # --- Vector management ---
+
+  embedProductDescription(productId: ID!): Product!
+  embedBusinessDescription(businessId: ID!): Business!
+  embedPersonBio(personId: ID!): Person!
 }

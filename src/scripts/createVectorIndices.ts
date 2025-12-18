@@ -10,11 +10,9 @@ const MAX_SEARCH_INDEXES_FREE_TIER = 3;
 
 type VectorIndexConfig = {
   collection: string;
-  path: string; // embedding field
+  path: string;
 };
 
-// You can change this config as needed.
-// On free tier: you're only allowed 3 FTS/search/vector indexes total.
 const allDesiredVectorIndexes: VectorIndexConfig[] = [
   { collection: "products", path: "descriptionEmbedding" },
   { collection: "businesses", path: "descriptionEmbedding" },

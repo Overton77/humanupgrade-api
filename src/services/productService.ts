@@ -1,16 +1,35 @@
-import mongoose from "mongoose";
-import { Product, IProduct } from "../models/Product.js";
+import mongoose, { ClientSession } from "mongoose";
+import {
+  Product,
+  IProduct,
+  ProductDoc,
+  ProductModel,
+} from "../models/Product.js";
 import { Business } from "../models/Business.js";
 import { Compound } from "../models/Compound.js";
-import { Episode } from "../models/Episode.js";
+import { Protocol, ProtocolDoc } from "../models/Protocol.js";
+
 import {
   ProductCreateWithOptionalIdsInput,
   ProductUpdateWithOptionalIdsInput,
   ProductUpdateRelationFieldsInput,
   ProductCompoundNestedInput,
+  ProductProtocolNestedInput,
 } from "../graphql/inputs/productInputs.js";
 
-import { validateEntitiesExist } from "./utils/validation.js";
+import {
+  ProductCreateWithOptionalIdsInputSchema,
+  ProductUpdateWithOptionalIdsInputSchema,
+  ProductUpdateRelationFieldsInputSchema,
+  ProductCompoundNestedInputSchema,
+  ProductProtocolNestedInputSchema,
+} from "../graphql/inputs/schemas/productSchemas.js";
+
+import { validateInput } from "../lib/validation.js";
+import { withTransaction } from "../lib/transactions.js";
+import { BaseService } from "./BaseService.js";
+import { Errors } from "../lib/errors.js";
+
 import { toObjectIds } from "./utils/general.js";
 import {
   mergeAndDedupeIds,
@@ -19,224 +38,422 @@ import {
 } from "./utils/merging.js";
 import { MediaLink } from "../models/MediaLink.js";
 
-export async function createProductWithOptionalIds(
-  input: ProductCreateWithOptionalIdsInput
-): Promise<IProduct> {
-  const {
-    name,
-    businessId,
-    description,
-    ingredients,
-    mediaLinks,
-    sourceUrl,
-    compoundIds,
-  } = input;
-
-  // Validate all referenced entities exist before creating
-  await validateEntitiesExist(Business, [businessId], "Business");
-
-  if (compoundIds && compoundIds.length > 0) {
-    await validateEntitiesExist(Compound, compoundIds, "Compound");
+class ProductService extends BaseService<IProduct, ProductDoc, ProductModel> {
+  constructor() {
+    super(Product, "productService", "Product");
   }
 
-  const businessObjectId = new mongoose.Types.ObjectId(businessId);
-  const compoundObjectIds = compoundIds ? toObjectIds(compoundIds) : [];
-
-  const product = await Product.create({
-    name,
-    businessId: businessObjectId,
-    description,
-    ingredients: ingredients ?? [],
-    mediaLinks,
-    sourceUrl,
-    compoundIds: compoundObjectIds,
-  });
-
-  await Product.syncProductsForBusiness(businessObjectId);
-
-  if (compoundIds && compoundIds.length > 0) {
-    for (const cid of compoundIds) {
-      await Compound.syncProductsForCompound(new mongoose.Types.ObjectId(cid));
-    }
-  }
-
-  return product;
-}
-
-// ========== UPDATE ==========
-
-/**
- * Simple update: scalars + optional compound/episode IDs.
- *
- * Semantics:
- * - compoundIds: treated as "add these compounds" (merge + dedupe, no removals).
- * - sponsorEpisodeIds: treated as "add these episodes" (merge + dedupe, no removals).
- */
-export async function updateProductWithOptionalIds(
-  input: ProductUpdateWithOptionalIdsInput
-): Promise<IProduct | null> {
-  const {
-    id,
-    name,
-    description,
-    ingredients,
-    mediaLinks,
-    sourceUrl,
-    compoundIds,
-  } = input;
-
-  const product = await Product.findById(id);
-  if (!product) return null;
-
-  // Update scalar fields
-  if (name !== undefined) product.name = name;
-  if (description !== undefined) product.description = description;
-  if (ingredients !== undefined && ingredients.length > 0) {
-    product.ingredients = mergeUniqueStrings(
-      product.ingredients ?? [],
-      ingredients
+  async createProductWithOptionalIds(
+    input: ProductCreateWithOptionalIdsInput
+  ): Promise<IProduct> {
+    const validated = validateInput(
+      ProductCreateWithOptionalIdsInputSchema,
+      input,
+      "ProductCreateWithOptionalIdsInput"
     );
-  }
-  if (mediaLinks !== undefined && mediaLinks.length > 0) {
-    product.mediaLinks = mergeUniqueBy(
-      product.mediaLinks ?? [],
+
+    const {
+      name,
+      businessId,
+      description,
+      ingredients,
       mediaLinks,
-      (m: MediaLink) => m.url
+      sourceUrl,
+      compoundIds,
+      protocolIds,
+    } = validated;
+
+    return withTransaction(
+      async (session) => {
+        await this.validateEntities(Business, [businessId], "Business", {
+          session,
+        });
+
+        if (compoundIds?.length) {
+          await this.validateEntities(Compound, compoundIds, "Compound", {
+            session,
+          });
+        }
+
+        if (protocolIds?.length) {
+          await this.validateEntities(
+            Protocol as any,
+            protocolIds,
+            "Protocol",
+            { session }
+          );
+        }
+
+        const businessObjectId = new mongoose.Types.ObjectId(businessId);
+
+        const validMediaLinks: MediaLink[] | undefined = mediaLinks?.filter(
+          (m): m is MediaLink => !!m.url
+        );
+
+        const [product] = await Product.create(
+          [
+            {
+              name,
+              businessId: businessObjectId,
+              description,
+              ingredients: ingredients ?? [],
+              mediaLinks: validMediaLinks,
+              sourceUrl,
+              compoundIds: compoundIds ? toObjectIds(compoundIds) : [],
+
+              protocolIds: [],
+            },
+          ],
+          { session }
+        );
+
+        if (protocolIds?.length) {
+          await Protocol.updateMany(
+            { _id: { $in: protocolIds } },
+            { $addToSet: { productIds: product._id } },
+            { session }
+          );
+        }
+
+        return product;
+      },
+      { operation: "createProductWithOptionalIds", productName: name }
     );
-    if (sourceUrl !== undefined) product.sourceUrl = sourceUrl;
-
-    // --- Compounds: merge, dedupe, then sync from Compound side ---
-
-    if (compoundIds !== undefined && compoundIds.length > 0) {
-      await validateEntitiesExist(Compound, compoundIds, "Compound");
-      product.compoundIds = mergeAndDedupeIds(product.compoundIds, compoundIds);
-
-      // Sync each affected compound
-      for (const cid of compoundIds) {
-        await Compound.syncProductsForCompound(
-          new mongoose.Types.ObjectId(cid)
-        );
-      }
-    }
   }
-  await product.save();
-  return product;
-}
 
-// ========== NESTED UPSERT HELPERS ==========
+  async updateProductWithOptionalIds(
+    input: ProductUpdateWithOptionalIdsInput
+  ): Promise<IProduct | null> {
+    const validated = validateInput(
+      ProductUpdateWithOptionalIdsInputSchema,
+      input,
+      "ProductUpdateWithOptionalIdsInput"
+    );
 
-/**
- * Nested upsert for compounds.
- *
- * Rules:
- * - If id is provided: update Compound by id.
- * - Else if name is provided: find Compound by name (unique),
- *   update if exists, otherwise create.
- * - Returns list of resulting ObjectIds.
- */
-async function upsertCompoundsNested(
-  compoundsNested: ProductCompoundNestedInput[] | undefined
-): Promise<mongoose.Types.ObjectId[]> {
-  if (!compoundsNested || compoundsNested.length === 0) return [];
+    const {
+      id,
+      name,
+      description,
+      ingredients,
+      mediaLinks,
+      sourceUrl,
+      compoundIds,
+      protocolIds,
+    } = validated;
 
-  const compoundIds: mongoose.Types.ObjectId[] = [];
+    return withTransaction(
+      async (session) => {
+        const product = await this.findByIdOrNull(id, { session });
+        if (!product) return null;
 
-  for (const compoundInput of compoundsNested) {
-    const { id, name, description, aliases, mediaLinks } = compoundInput;
+        // Scalars
+        if (name !== undefined) product.name = name;
+        if (description !== undefined) product.description = description;
+        if (sourceUrl !== undefined) product.sourceUrl = sourceUrl;
 
-    let compound: any | null = null;
+        if (ingredients?.length) {
+          product.ingredients = mergeUniqueStrings(
+            product.ingredients ?? [],
+            ingredients
+          );
+        }
 
-    if (id) {
-      compound = await Compound.findById(id);
-      if (!compound && name) {
-        compound = await Compound.findOne({ name });
+        if (mediaLinks !== undefined) {
+          const validMediaLinks = mediaLinks.filter(
+            (m): m is MediaLink => !!m.url
+          );
+          product.mediaLinks = mergeUniqueBy(
+            product.mediaLinks ?? [],
+            validMediaLinks,
+            (m: MediaLink) => m.url
+          );
+        }
+
+        if (compoundIds?.length) {
+          await this.validateEntities(Compound, compoundIds, "Compound", {
+            session,
+          });
+          product.compoundIds = mergeAndDedupeIds(
+            product.compoundIds,
+            compoundIds
+          );
+        }
+
+        await product.save({ session });
+
+        if (protocolIds?.length) {
+          await this.validateEntities(
+            Protocol as any,
+            protocolIds,
+            "Protocol",
+            { session }
+          );
+          await Protocol.updateMany(
+            { _id: { $in: protocolIds } },
+            { $addToSet: { productIds: product._id } },
+            { session }
+          );
+        }
+
+        return product;
+      },
+      { operation: "updateProductWithOptionalIds", productId: id }
+    );
+  }
+
+  private async upsertCompoundsNested(
+    compoundsNested: ProductCompoundNestedInput[] | undefined,
+    session: ClientSession
+  ): Promise<mongoose.Types.ObjectId[]> {
+    if (!compoundsNested?.length) return [];
+
+    const compoundIds: mongoose.Types.ObjectId[] = [];
+
+    for (const raw of compoundsNested) {
+      const validated = validateInput(
+        ProductCompoundNestedInputSchema,
+        raw,
+        "ProductCompoundNestedInput"
+      );
+
+      const { id, name, description, aliases, mediaLinks } = validated;
+
+      let compound: any | null = null;
+
+      if (id) {
+        compound = await Compound.findById(id).session(session);
+        if (!compound && name) {
+          compound = await Compound.findOne({ name }).session(session);
+        }
+      } else if (name) {
+        compound = await Compound.findOne({ name }).session(session);
       }
-    } else if (name) {
-      compound = await Compound.findOne({ name });
+
+      const validMediaLinks: MediaLink[] | undefined = mediaLinks?.filter(
+        (m): m is MediaLink => !!m.url
+      );
+
+      if (compound) {
+        if (name !== undefined) compound.name = name;
+        if (description !== undefined) compound.description = description;
+        if (aliases !== undefined) compound.aliases = aliases;
+        if (mediaLinks !== undefined) compound.mediaLinks = validMediaLinks;
+
+        await compound.save({ session });
+      } else {
+        if (!name) {
+          throw Errors.validation(
+            "compoundsNested entry requires 'name' when neither 'id' nor an existing compound by name is found",
+            "name"
+          );
+        }
+
+        const [created] = await Compound.create(
+          [
+            {
+              name,
+              description,
+              aliases: aliases ?? [],
+              mediaLinks: validMediaLinks,
+
+              productIds: [],
+
+              protocolIds: [],
+            },
+          ],
+          { session }
+        );
+
+        compound = created;
+      }
+
+      compoundIds.push(compound._id);
     }
 
-    if (compound) {
-      // Update existing
-      if (name !== undefined) compound.name = name;
-      if (description !== undefined) compound.description = description;
-      if (aliases !== undefined) compound.aliases = aliases;
-      if (mediaLinks !== undefined) compound.mediaLinks = mediaLinks;
-      await compound.save();
-    } else {
-      // Create new
-      if (!name) {
-        throw new Error(
-          "compoundsNested entry requires 'name' when neither 'id' nor an existing compound by name is found"
-        );
-      }
+    return compoundIds;
+  }
 
-      compound = await Compound.create({
+  private async upsertProtocolsNested(
+    productId: mongoose.Types.ObjectId,
+    protocolsNested: ProductProtocolNestedInput[] | undefined,
+    session: ClientSession
+  ): Promise<mongoose.Types.ObjectId[]> {
+    if (!protocolsNested?.length) return [];
+
+    const protocolIds: mongoose.Types.ObjectId[] = [];
+
+    for (const raw of protocolsNested) {
+      const validated = validateInput(
+        ProductProtocolNestedInputSchema,
+        raw,
+        "ProductProtocolNestedInput"
+      );
+
+      const {
+        id,
         name,
         description,
-        aliases: aliases ?? [],
-        mediaLinks,
-        productIds: [],
-      });
+        categories,
+        goals,
+        steps,
+        cautions,
+        aliases,
+        sourceUrl,
+      } = validated;
+
+      let protocol: ProtocolDoc | null = null;
+
+      if (id) {
+        protocol = await Protocol.findById(id).session(session);
+        if (!protocol && name) {
+          protocol = await Protocol.findOne({ name }).session(session);
+        }
+      } else if (name) {
+        protocol = await Protocol.findOne({ name }).session(session);
+      }
+
+      if (protocol) {
+        if (name !== undefined) protocol.name = name;
+        if (description !== undefined) protocol.description = description;
+        if (categories !== undefined) protocol.categories = categories;
+        if (goals !== undefined) protocol.goals = goals;
+        if (steps !== undefined) protocol.steps = steps;
+        if (cautions !== undefined) protocol.cautions = cautions;
+        if (aliases !== undefined) protocol.aliases = aliases;
+        if (sourceUrl !== undefined) protocol.sourceUrl = sourceUrl;
+
+        // Canonical attach: Protocol.productIds
+        const current = protocol.productIds ?? [];
+        protocol.productIds = mergeAndDedupeIds(current, [
+          productId.toString(),
+        ]);
+
+        await protocol.save({ session });
+      } else {
+        if (!name) {
+          throw Errors.validation(
+            "protocolsNested entry requires 'name' when neither 'id' nor an existing protocol by name is found",
+            "name"
+          );
+        }
+
+        const [created] = await Protocol.create(
+          [
+            {
+              name,
+              description,
+              categories,
+              goals,
+              steps,
+              cautions,
+              aliases,
+              sourceUrl,
+              productIds: [productId],
+
+              compoundIds: [],
+            },
+          ],
+          { session }
+        );
+
+        protocol = created;
+      }
+
+      protocolIds.push(protocol._id);
     }
 
-    compoundIds.push(compound._id);
+    return protocolIds;
   }
 
-  return compoundIds;
-}
-
-/**
- * Rich relation update:
- * - compoundIds / compoundsNested (merged, deduped, no implicit removals)
- * - sponsorEpisodeIds / sponsorEpisodesNested (merged, deduped, no implicit removals)
- *
- * Product ↔ Compound consistency:
- * - Compound.syncProductsForCompound(compoundId) recomputes Compound.productIds
- *
- * Product ↔ Episode consistency:
- * - Episode.syncSponsorProductsForEpisode(episodeId) recomputes Episode.sponsorProductIds
- */
-export async function updateProductWithRelationFields(
-  input: ProductUpdateRelationFieldsInput
-): Promise<IProduct | null> {
-  const { id, compoundIds, compoundsNested } = input;
-
-  const product = await Product.findById(id);
-  if (!product) return null;
-
-  const productId = product._id;
-
-  // --- Compounds: merge & dedupe with existing set ---
-
-  if (compoundIds !== undefined && compoundIds.length > 0) {
-    await validateEntitiesExist(Compound, compoundIds, "Compound");
-    product.compoundIds = mergeAndDedupeIds(product.compoundIds, compoundIds);
-
-    // Sync affected compounds
-    for (const cid of compoundIds) {
-      await Compound.syncProductsForCompound(new mongoose.Types.ObjectId(cid));
-    }
-  }
-
-  if (compoundsNested !== undefined) {
-    const nestedCompoundIds = await upsertCompoundsNested(compoundsNested);
-    product.compoundIds = mergeAndDedupeIds(
-      product.compoundIds,
-      nestedCompoundIds.map((id) => id.toString())
+  async updateProductWithRelationFields(
+    input: ProductUpdateRelationFieldsInput
+  ): Promise<IProduct | null> {
+    const validated = validateInput(
+      ProductUpdateRelationFieldsInputSchema,
+      input,
+      "ProductUpdateRelationFieldsInput"
     );
 
-    // Sync affected compounds
-    for (const cid of nestedCompoundIds) {
-      await Compound.syncProductsForCompound(cid);
-    }
+    const { id, compoundIds, compoundsNested, protocolIds, protocolsNested } =
+      validated;
+
+    return withTransaction(
+      async (session) => {
+        const product = await this.findByIdOrNull(id, { session });
+        if (!product) return null;
+
+        const productId = product._id;
+
+        if (compoundIds?.length) {
+          await this.validateEntities(Compound, compoundIds, "Compound", {
+            session,
+          });
+          product.compoundIds = mergeAndDedupeIds(
+            product.compoundIds,
+            compoundIds
+          );
+        }
+
+        if (compoundsNested?.length) {
+          const nestedCompoundIds = await this.upsertCompoundsNested(
+            compoundsNested,
+            session
+          );
+          product.compoundIds = mergeAndDedupeIds(
+            product.compoundIds,
+            nestedCompoundIds.map((x) => x.toString())
+          );
+        }
+
+        await product.save({ session });
+
+        if (protocolIds?.length) {
+          await this.validateEntities(
+            Protocol as any,
+            protocolIds,
+            "Protocol",
+            { session }
+          );
+          await Protocol.updateMany(
+            { _id: { $in: protocolIds } },
+            { $addToSet: { productIds: productId } },
+            { session }
+          );
+        }
+
+        if (protocolsNested?.length) {
+          await this.upsertProtocolsNested(productId, protocolsNested, session);
+          // Protocol hooks will recompute Product.protocolIds mirror.
+        }
+
+        return product;
+      },
+      { operation: "updateProductWithRelationFields", productId: id }
+    );
   }
 
-  // --- Episodes: merge & dedupe with existing set ---
-
-  await product.save();
-
-  // Recompute from reverse sides for consistency
-  await Product.syncCompoundsForProduct(productId);
-
-  return product;
+  async deleteProduct(id: string): Promise<IProduct | null> {
+    return withTransaction(
+      async (session) => {
+        return await this.deleteById(id, { session });
+      },
+      { operation: "deleteProduct", productId: id }
+    );
+  }
 }
+
+export const productService = new ProductService();
+
+export const createProductWithOptionalIds = (
+  input: ProductCreateWithOptionalIdsInput
+) => productService.createProductWithOptionalIds(input);
+
+export const updateProductWithOptionalIds = (
+  input: ProductUpdateWithOptionalIdsInput
+) => productService.updateProductWithOptionalIds(input);
+
+export const updateProductWithRelationFields = (
+  input: ProductUpdateRelationFieldsInput
+) => productService.updateProductWithRelationFields(input);
+
+export const deleteProduct = (id: string) => productService.deleteProduct(id);

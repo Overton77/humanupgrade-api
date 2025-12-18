@@ -12,12 +12,13 @@ export interface UserUpsertInput {
   mediaLinks?: MediaLinkInput[];
 }
 
-/**
- * For bulk saving/removing saved items
- */
 export interface UserMassSaveInput {
   userId: string;
   episodeIds?: string[];
   productIds?: string[];
   businessIds?: string[];
+  protocolIds?: string[];
+  compoundIds?: string[];
+  caseStudyIds?: string[];
+  personIds?: string[];
 }

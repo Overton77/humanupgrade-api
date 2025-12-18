@@ -1,24 +1,27 @@
-import mongoose from "mongoose";
+import mongoose, { type ClientSession, type Model } from "mongoose";
+import { Errors } from "../../lib/errors.js";
 
-export async function validateEntitiesExist<T extends mongoose.Document>(
-  model: mongoose.Model<T>,
+export async function validateEntitiesExist<T>(
+  model: Model<T>,
   ids: string[],
-  entityType: string
+  entityType: string,
+  opts?: { session?: ClientSession }
 ): Promise<void> {
-  if (!ids || ids.length === 0) return;
+  if (!ids?.length) return;
 
-  // Batch query for all IDs at once (more efficient than individual queries)
-  const existingEntities = await model
-    .find({ _id: { $in: ids } })
+  const objectIds = ids.map((id) => new mongoose.Types.ObjectId(id));
+
+  const existing = await model
+    .find({ _id: { $in: objectIds } })
     .select("_id")
-    .lean();
+    .lean()
+    .session(opts?.session ?? null);
 
-  const existingIds = new Set(existingEntities.map((e) => e._id.toString()));
+  const existingSet = new Set(existing.map((d: any) => String(d._id)));
 
-  // Check if any IDs are missing
   for (const id of ids) {
-    if (!existingIds.has(id)) {
-      throw new Error(`${entityType} with id ${id} does not exist`);
+    if (!existingSet.has(id)) {
+      throw Errors.notFound(entityType, id); // use your AppError path
     }
   }
 }

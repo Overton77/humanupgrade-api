@@ -22,15 +22,7 @@ export interface PersonScalarUpdateFields {
  * Note: businessIds is primarily managed by Business.syncPersonLinks,
  * but we allow optional initial businessIds for convenience
  */
-export interface PersonCreateWithOptionalIdsInput extends PersonScalarFields {
-  businessIds?: string[];
-  episodeIds?: string[];
-}
 
-/**
- * Simple update: scalars + optional business IDs
- * Note: Prefer using Business mutations to manage person-business relationships
- */
 export interface PersonUpdateWithOptionalIdsInput
   extends PersonScalarUpdateFields {
   id: string;

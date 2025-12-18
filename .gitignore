@@ -84,3 +84,22 @@ scripts/oneoffs/*
 
 **/personal_docs/**
 
+**/uploads/**  
+
+**/import_uploads/**   
+
+debug*.log
+
+debug*.log.*
+
+docker-compose.yml
+docker-compose.override.yml
+docker-compose.local.yml
+docker-compose.production.yml
+docker-compose.development.yml
+docker-compose.test.yml
+docker-compose.staging.yml
+docker-compose.production.yml
+docker-compose.development.yml
+docker-compose.test.yml
+docker-compose.staging.yml

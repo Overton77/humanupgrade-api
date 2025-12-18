@@ -5,6 +5,12 @@ import { CaseStudy } from "../../models/CaseStudy.js";
 import { User } from "../../models/User.js";
 import { Person } from "../../models/Person.js";
 import { Business } from "../../models/Business.js";
+import { Protocol } from "../../models/Protocol.js";
+import { vectorSearchProductsByDescription } from "../../services/searchService.js";
+import { vectorSearchBusinessesByDescription } from "../../services/searchService.js";
+import { vectorSearchPeopleByBio } from "../../services/searchService.js";
+import { VectorSearchArgs } from "../inputs/vectorSearchInputs.js";
+import mongoose from "mongoose";
 
 export const Query = {
   me: (_parent: unknown, _args: unknown, ctx: any) => {
@@ -35,6 +41,7 @@ export const Query = {
     _parent: unknown,
     args: { limit?: number; offset?: number }
   ) => {
+    console.log(`[DB] Connected to MongoDB (db: ${mongoose.connection.name})`);
     const { limit = 20, offset = 0 } = args;
     return await Product.find({}).skip(offset).limit(limit);
   },
@@ -66,6 +73,17 @@ export const Query = {
   caseStudy: async (_parent: unknown, args: { id: string }) => {
     return await CaseStudy.findById(args.id);
   },
+  protocols: async (
+    _parent: unknown,
+    args: { limit?: number; offset?: number }
+  ) => {
+    const { limit = 20, offset = 0 } = args;
+    return await Protocol.find({}).skip(offset).limit(limit);
+  },
+  protocol: async (_parent: unknown, args: { id: string }) => {
+    const protocol = await Protocol.findById(args.id);
+    return protocol ? protocol : null;
+  },
 
   people: async (
     _parent: unknown,
@@ -74,6 +92,7 @@ export const Query = {
     const { limit = 20, offset = 0 } = args;
     return await Person.find({}).skip(offset).limit(limit);
   },
+
   businesses: async (
     _parent: unknown,
     args: { limit?: number; offset?: number }
@@ -87,5 +106,23 @@ export const Query = {
   ) => {
     const { limit = 20, offset = 0 } = args;
     return await CaseStudy.find({}).skip(offset).limit(limit);
+  },
+  vectorSearchProducts: async (
+    _parent: unknown,
+    args: { args: VectorSearchArgs }
+  ) => {
+    return await vectorSearchProductsByDescription(args.args);
+  },
+  vectorSearchBusinesses: async (
+    _parent: unknown,
+    args: { args: VectorSearchArgs }
+  ) => {
+    return await vectorSearchBusinessesByDescription(args.args);
+  },
+  vectorSearchPeople: async (
+    _parent: unknown,
+    args: { args: VectorSearchArgs }
+  ) => {
+    return await vectorSearchPeopleByBio(args.args);
   },
 };

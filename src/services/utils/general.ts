@@ -20,11 +20,21 @@ export function toggleObjectIdInArray(
   const idx = arr.findIndex((id) => id.toString() === targetStr);
 
   if (idx >= 0) {
-    // remove
     arr.splice(idx, 1);
   } else {
-    // add
     arr.push(targetId);
   }
   return arr;
+}
+
+export function norm(v?: string) {
+  return (v ?? "").trim().toLowerCase();
+}
+
+export function executiveKey(e: {
+  personId: mongoose.Types.ObjectId;
+  title?: string;
+  role?: string;
+}) {
+  return `${e.personId.toString()}|${norm(e.title)}|${norm(e.role)}`;
 }

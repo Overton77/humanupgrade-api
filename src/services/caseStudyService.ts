@@ -1,77 +1,125 @@
-import { CaseStudy, ICaseStudy } from "../models/CaseStudy.js";
+import {
+  CaseStudy,
+  type ICaseStudy,
+  type CaseStudyDoc,
+  type CaseStudyModel,
+} from "../models/CaseStudy.js";
+import { BaseService } from "./BaseService.js";
+import { withTransaction } from "../lib/transactions.js";
+import { validateInput } from "../lib/validation.js";
 import { toObjectIds } from "./utils/general.js";
 import { mergeAndDedupeIds } from "./utils/merging.js";
-import {
+
+import type {
   CaseStudyCreateWithOptionalIdsInput,
   CaseStudyUpdateWithOptionalIdsInput,
 } from "../graphql/inputs/caseStudyInputs.js";
-export async function createCaseStudyWithOptionalIds(
-  input: CaseStudyCreateWithOptionalIdsInput
-): Promise<ICaseStudy> {
-  const {
-    title,
-    summary,
-    url,
-    sourceType = "other",
-    episodeIds,
-    compoundIds,
-  } = input;
 
-  const episodeObjectIds = episodeIds ? toObjectIds(episodeIds) : [];
-  const compoundObjectIds = compoundIds ? toObjectIds(compoundIds) : [];
+import {
+  CaseStudyCreateWithOptionalIdsInputSchema,
+  CaseStudyUpdateWithOptionalIdsInputSchema,
+} from "../graphql/inputs/schemas/caseStudySchemas.js";
 
-  const caseStudy = await CaseStudy.create({
-    title,
-    summary,
-    url,
-    sourceType,
-    episodeIds: episodeObjectIds,
-    compoundIds: compoundObjectIds,
-  });
-
-  return caseStudy;
-}
-
-export async function updateCaseStudyWithOptionalIds(
-  input: CaseStudyUpdateWithOptionalIdsInput
-): Promise<ICaseStudy> {
-  const { id, title, summary, url, sourceType, episodeIds, compoundIds } =
-    input;
-
-  const caseStudy = await CaseStudy.findById(id);
-  if (!caseStudy) {
-    throw new Error("CaseStudy not found");
+class CaseStudyService extends BaseService<
+  ICaseStudy,
+  CaseStudyDoc,
+  CaseStudyModel
+> {
+  constructor() {
+    super(CaseStudy, "caseStudyService", "CaseStudy");
   }
 
-  if (typeof title === "string") {
-    caseStudy.title = title;
-  }
+  /**
+   * One-way refs only. No mirror sync calls.
+   */
+  async createCaseStudyWithOptionalIds(
+    input: CaseStudyCreateWithOptionalIdsInput
+  ): Promise<ICaseStudy> {
+    const validated = validateInput(
+      CaseStudyCreateWithOptionalIdsInputSchema,
+      input,
+      "CaseStudyCreateWithOptionalIdsInput"
+    );
 
-  if (typeof summary === "string") {
-    caseStudy.summary = summary;
-  }
+    const { title, summary, url, sourceType, episodeIds, compoundIds } =
+      validated;
 
-  if (typeof url === "string") {
-    caseStudy.url = url;
-  }
+    return withTransaction(
+      async (session) => {
+        const [caseStudy] = await CaseStudy.create(
+          [
+            {
+              title,
+              summary,
+              url,
+              sourceType, // schema default may also handle this; using validated value is fine
+              episodeIds: episodeIds ? toObjectIds(episodeIds) : [],
+              compoundIds: compoundIds ? toObjectIds(compoundIds) : [],
+            },
+          ],
+          { session }
+        );
 
-  if (typeof sourceType === "string") {
-    caseStudy.sourceType = sourceType;
-  }
-
-  // Merge + dedupe episodeIds if provided
-  if (episodeIds && episodeIds.length > 0) {
-    caseStudy.episodeIds = mergeAndDedupeIds(caseStudy.episodeIds, episodeIds);
-  }
-
-  // Merge + dedupe compoundIds if provided
-  if (compoundIds && compoundIds.length > 0) {
-    caseStudy.compoundIds = mergeAndDedupeIds(
-      caseStudy.compoundIds,
-      compoundIds
+        return caseStudy;
+      },
+      { operation: "createCaseStudyWithOptionalIds", caseStudyTitle: title }
     );
   }
 
-  await caseStudy.save();
-  return caseStudy;
+  /**
+   * Semantics: "add these" episodeIds/compoundIds (merge+dedupe; no removals).
+   * Scalars overwrite if provided.
+   */
+  async updateCaseStudyWithOptionalIds(
+    input: CaseStudyUpdateWithOptionalIdsInput
+  ): Promise<ICaseStudy> {
+    const validated = validateInput(
+      CaseStudyUpdateWithOptionalIdsInputSchema,
+      input,
+      "CaseStudyUpdateWithOptionalIdsInput"
+    );
+
+    const { id, title, summary, url, sourceType, episodeIds, compoundIds } =
+      validated;
+
+    return withTransaction(
+      async (session) => {
+        const caseStudy = await this.findById(id, { session });
+
+        if (title !== undefined) caseStudy.title = title;
+        if (summary !== undefined) caseStudy.summary = summary;
+        if (url !== undefined) caseStudy.url = url;
+        if (sourceType !== undefined) caseStudy.sourceType = sourceType;
+
+        if (episodeIds?.length) {
+          caseStudy.episodeIds = mergeAndDedupeIds(
+            caseStudy.episodeIds ?? [],
+            episodeIds
+          );
+        }
+
+        if (compoundIds?.length) {
+          caseStudy.compoundIds = mergeAndDedupeIds(
+            caseStudy.compoundIds ?? [],
+            compoundIds
+          );
+        }
+
+        await caseStudy.save({ session });
+        return caseStudy;
+      },
+      { operation: "updateCaseStudyWithOptionalIds", caseStudyId: id }
+    );
+  }
 }
+
+export const caseStudyService = new CaseStudyService();
+
+// Backward compatible function exports
+export const createCaseStudyWithOptionalIds = (
+  input: CaseStudyCreateWithOptionalIdsInput
+) => caseStudyService.createCaseStudyWithOptionalIds(input);
+
+export const updateCaseStudyWithOptionalIds = (
+  input: CaseStudyUpdateWithOptionalIdsInput
+) => caseStudyService.updateCaseStudyWithOptionalIds(input);

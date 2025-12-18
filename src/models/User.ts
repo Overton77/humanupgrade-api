@@ -1,9 +1,9 @@
-import mongoose, { Schema, Document, Model } from "mongoose";
+import mongoose, { Schema, Document, Model, HydratedDocument } from "mongoose";
 import bcrypt from "bcryptjs";
 import { MediaLinkSchema, MediaLink } from "./MediaLink.js";
 
 export interface IUser extends Document {
-  id: string; // <- now available because of virtual
+  id: string;
   email: string;
   passwordHash?: string;
   provider: "local" | "google" | "github" | "apple";
@@ -14,10 +14,18 @@ export interface IUser extends Document {
   savedEpisodes: mongoose.Types.ObjectId[];
   savedProducts: mongoose.Types.ObjectId[];
   savedBusinesses: mongoose.Types.ObjectId[];
+  savedProtocols: mongoose.Types.ObjectId[];
+  savedCompounds: mongoose.Types.ObjectId[];
+  savedCaseStudies: mongoose.Types.ObjectId[];
+  savedPersons: mongoose.Types.ObjectId[];
   comparePassword(plain: string): Promise<boolean>;
 }
 
-const UserSchema = new Schema<IUser>(
+export type UserDoc = HydratedDocument<IUser>;
+
+export interface UserModel extends Model<IUser> {}
+
+const UserSchema = new Schema<IUser, UserModel>(
   {
     email: { type: String, required: true, unique: true, index: true },
     passwordHash: { type: String },
@@ -36,14 +44,15 @@ const UserSchema = new Schema<IUser>(
     mediaLinks: [MediaLinkSchema],
     savedEpisodes: [{ type: Schema.Types.ObjectId, ref: "Episode" }],
     savedProducts: [{ type: Schema.Types.ObjectId, ref: "Product" }],
+    savedPersons: [{ type: Schema.Types.ObjectId, ref: "Person" }],
     savedBusinesses: [{ type: Schema.Types.ObjectId, ref: "Business" }],
+    savedCompounds: [{ type: Schema.Types.ObjectId, ref: "Compound" }],
+    savedCaseStudies: [{ type: Schema.Types.ObjectId, ref: "CaseStudy" }],
+    savedProtocols: [{ type: Schema.Types.ObjectId, ref: "Protocol" }],
   },
   { timestamps: true }
 );
 
-// -----------------------------------------------------
-// 🔥 Add this virtual so id = _id
-// -----------------------------------------------------
 UserSchema.virtual("id").get(function () {
   return this._id.toHexString();
 });
@@ -57,5 +66,6 @@ UserSchema.methods.comparePassword = async function (plain: string) {
   return bcrypt.compare(plain, this.passwordHash);
 };
 
-export const User: Model<IUser> =
-  mongoose.models.User || mongoose.model<IUser>("User", UserSchema);
+export const User: UserModel =
+  (mongoose.models.User as UserModel) ||
+  mongoose.model<IUser, UserModel>("User", UserSchema);

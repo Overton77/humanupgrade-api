@@ -14,7 +14,7 @@ export const env = {
   port: parseInt(process.env.PORT || "4000", 10),
   mongoUri: requireEnv("MONGODB_URI"),
   jwtSecret: requireEnv("JWT_SECRET"),
-  seedDBName: requireEnv("SEED_DB_NAME"), 
+  seedDBName: requireEnv("SEED_DB_NAME"),
   dbName: requireEnv("DB_NAME"),
   seedDBCollectionName: requireEnv("SEED_DB_COLLECTION_NAME"),
   transcriptBucketName: requireEnv("HU_TRANSCRIPT_BUCKET"),
@@ -25,4 +25,5 @@ export const env = {
     process.env.QDRANT_VECTOR_DIMENSION || "1536",
     10
   ),
+  openaiApiKey: requireEnv("OPENAI_API_KEY"),
 };

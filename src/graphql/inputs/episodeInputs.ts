@@ -11,6 +11,7 @@ export interface EpisodeCreateWithOptionalIdsInput {
   summaryShort?: string;
   webPageSummary?: string;
   summaryDetailed?: string;
+  publishedSummary?: string;
   youtubeVideoId?: string;
   youtubeWatchUrl?: string;
   youtubeEmbedUrl?: string;
@@ -20,8 +21,10 @@ export interface EpisodeCreateWithOptionalIdsInput {
   mediaLinks?: MediaLink[];
   sponsorLinkObjects?: ISponsorLinkObject[];
   webPageTimelines?: IWebPageTimeline[];
+  businessLinks?: string[];
   guestIds?: string[];
   sponsorBusinessIds?: string[];
+  protocolIds?: string[];
 }
 
 export interface EpisodeUpdateWithOptionalIdsInput {
@@ -35,6 +38,7 @@ export interface EpisodeUpdateWithOptionalIdsInput {
   summaryShort?: string;
   webPageSummary?: string;
   summaryDetailed?: string;
+  publishedSummary?: string;
   youtubeVideoId?: string;
   youtubeWatchUrl?: string;
   youtubeEmbedUrl?: string;
@@ -44,8 +48,10 @@ export interface EpisodeUpdateWithOptionalIdsInput {
   mediaLinks?: MediaLink[];
   sponsorLinkObjects?: ISponsorLinkObject[];
   webPageTimelines?: IWebPageTimeline[];
+  businessLinks?: string[];
   guestIds?: string[];
   sponsorBusinessIds?: string[];
+  protocolIds?: string[];
 }
 
 export interface EpisodeGuestNestedInput {
@@ -70,4 +76,5 @@ export interface EpisodeUpdateRelationFieldsInput {
   guestsNested?: EpisodeGuestNestedInput[];
   sponsorBusinessIds?: string[];
   sponsorBusinessesNested?: EpisodeSponsorBusinessNestedInput[];
+  protocolIds?: string[];
 }

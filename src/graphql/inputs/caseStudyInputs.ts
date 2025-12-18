@@ -11,6 +11,8 @@ export interface CaseStudyCreateWithOptionalIdsInput {
   sourceType?: CaseStudySourceType;
   episodeIds?: string[];
   compoundIds?: string[];
+  productIds?: string[];
+  protocolIds?: string[];
 }
 
 export interface CaseStudyUpdateWithOptionalIdsInput {
@@ -22,4 +24,6 @@ export interface CaseStudyUpdateWithOptionalIdsInput {
   // These are additional IDs to merge in
   episodeIds?: string[];
   compoundIds?: string[];
+  productIds?: string[];
+  protocolIds?: string[];
 }

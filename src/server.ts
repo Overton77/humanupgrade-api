@@ -3,71 +3,129 @@ import path from "path";
 import { createServer } from "http";
 import { fileURLToPath } from "url";
 import { WebSocketServer } from "ws";
-import { useServer } from "graphql-ws/use/ws"; // Fixed: use/ws instead of lib/use/ws
+import { useServer } from "graphql-ws/use/ws";
 import { ApolloServer } from "@apollo/server";
 import { expressMiddleware } from "@as-integrations/express5";
 import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
 import { makeExecutableSchema } from "@graphql-tools/schema";
 import express from "express";
 import cors from "cors";
+import { randomUUID } from "crypto";
 
 import { connectToDatabase } from "./db/connection.js";
+import { GraphQLContext, createContext } from "./graphql/context.js";
 import { env } from "./config/env.js";
 import { resolvers } from "./graphql/resolvers/index.js";
-import { getUserFromAuthHeader, Context, Role } from "./services/auth.js";
+import { getIdentityFromAuthHeader, Role } from "./services/auth.js";
+import { AppError, ErrorCode, isAppError } from "./lib/errors.js";
+import { logger, logGraphQLOperation, logError } from "./lib/logger.js";
+import { GraphQLFormattedError } from "graphql";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function startServer() {
-  // Connect to database first
   await connectToDatabase(env.dbName);
 
-  // Load schema
   const schemaPath = path.join(__dirname, "graphql", "schema.graphql");
   const typeDefs = readFileSync(schemaPath, "utf8");
 
-  // Build a GraphQLSchema instance so we can reuse it for HTTP & WS
   const schema = makeExecutableSchema({
     typeDefs,
     resolvers,
   });
 
-  // Create Express app and HTTP server
   const app = express();
   const httpServer = createServer(app);
 
-  // Create WebSocket server for subscriptions
   const wsServer = new WebSocketServer({
     server: httpServer,
     path: "/graphql",
   });
 
-  // Set up WebSocket server with graphql-ws
   const serverCleanup = useServer(
     {
       schema,
-      // Context for subscriptions (runs on WebSocket connect/start)
-      context: async (ctx): Promise<Context> => {
+
+      context: async (ctx): Promise<GraphQLContext> => {
+        const requestId = randomUUID();
         const authHeader =
           (ctx.connectionParams?.authorization as string | undefined) ??
           (ctx.connectionParams?.Authorization as string | undefined);
 
-        const user = await getUserFromAuthHeader(authHeader);
-        return { user, role: (user?.role as Role) || null };
+        const identity = getIdentityFromAuthHeader(authHeader);
+
+        return createContext({
+          userId: identity?.userId ?? null,
+          role: (identity?.role as Role) ?? null,
+          requestId,
+        });
       },
     },
     wsServer
   );
 
-  // Create Apollo Server
-  const apolloServer = new ApolloServer<Context>({
+  // Create Apollo Server with error formatting
+  const apolloServer = new ApolloServer<GraphQLContext>({
     schema,
     introspection: true,
+    formatError: (formattedError: GraphQLFormattedError, error: unknown) => {
+      // Log the error
+      const errorMessage = formattedError.message;
+      const errorCode = formattedError.extensions?.code as string | undefined;
+      const path = formattedError.path;
+      const requestId = formattedError.extensions?.requestId as
+        | string
+        | undefined;
+
+      logError(error, {
+        graphqlError: true,
+        message: errorMessage,
+        code: errorCode,
+        path: path ? path.join(".") : undefined,
+        requestId,
+      });
+
+      if (isAppError(error)) {
+        return {
+          ...formattedError,
+          extensions: {
+            ...formattedError.extensions,
+            code: error.code,
+            requestId,
+          },
+        };
+      }
+
+      if (process.env.NODE_ENV === "production") {
+        const isInternalError =
+          errorCode === "INTERNAL_SERVER_ERROR" ||
+          !errorCode ||
+          errorCode === "DATABASE_ERROR";
+
+        if (isInternalError) {
+          return {
+            ...formattedError,
+            message: "An internal error occurred",
+            extensions: {
+              code: ErrorCode.INTERNAL_SERVER_ERROR,
+              requestId,
+            },
+          };
+        }
+      }
+
+      return {
+        ...formattedError,
+        extensions: {
+          ...formattedError.extensions,
+          requestId,
+        },
+      };
+    },
     plugins: [
-      // Proper shutdown for the HTTP server
       ApolloServerPluginDrainHttpServer({ httpServer }),
-      // Proper shutdown for the WebSocket server
+
       {
         async serverWillStart() {
           return {
@@ -88,29 +146,48 @@ async function startServer() {
     cors<cors.CorsRequest>(),
     express.json(),
     expressMiddleware(apolloServer, {
-      context: async ({ req }): Promise<Context> => {
+      context: async ({ req }): Promise<GraphQLContext> => {
+        const requestId = randomUUID();
+
         const authHeader = req.headers.authorization;
-        const user = await getUserFromAuthHeader(authHeader);
-        return { user, role: user?.role || null };
+        const identity = getIdentityFromAuthHeader(authHeader);
+
+        const ctx = createContext({
+          userId: identity?.userId ?? null,
+          role: (identity?.role as Role) ?? null,
+          requestId,
+        });
+
+        logGraphQLOperation(
+          req.body?.operationName || "anonymous",
+          req.body?.operationName,
+          {
+            requestId,
+            userId: ctx.userId ?? undefined,
+            method: req.method,
+            path: req.path,
+          }
+        );
+
+        return ctx;
       },
     })
   );
 
-  // Start the HTTP server (which also handles WebSocket upgrades)
   httpServer.listen(env.port, () => {
-    console.log(
+    logger.info(
       `🚀 GraphQL server ready at http://localhost:${env.port}/graphql`
     );
-    console.log(
+    logger.info(
       `🔌 WebSocket subscriptions ready at ws://localhost:${env.port}/graphql`
     );
-    console.log(
+    logger.info(
       `🎮 Apollo Sandbox available at http://localhost:${env.port}/graphql`
     );
   });
 }
 
 startServer().catch((err) => {
-  console.error("Server startup error:", err);
+  logError(err, { stage: "server_startup" });
   process.exit(1);
 });

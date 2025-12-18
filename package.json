@@ -9,7 +9,9 @@
     "create-vector-indices": "tsx src/scripts/createVectorIndices.ts",
     "build": "tsc && pnpm copy-schema",
     "copy-schema": "copyfiles -u 1 src/graphql/schema.graphql dist",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "start-admin": "tsx --watch src/restServer.ts",
+    "create:admin": "tsx scripts/oneoffs/createAdmin.ts"
   },
   "keywords": [],
   "author": "",
@@ -20,10 +22,13 @@
     "@as-integrations/express5": "^1.1.2",
     "@graphql-tools/schema": "^10.0.30",
     "@qdrant/qdrant-js": "^1.16.1",
+    "@types/multer": "^2.0.0",
     "@types/ws": "^8.18.1",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
+    "csv-parse": "^6.1.0",
+    "dataloader": "^2.2.3",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "graphql": "^16.12.0",
@@ -31,7 +36,11 @@
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^7.0.0",
     "mongoose": "^9.0.0",
-    "ws": "^8.18.3"
+    "multer": "^2.0.2",
+    "openai": "^6.14.0",
+    "winston": "^3.19.0",
+    "ws": "^8.18.3",
+    "zod": "^4.2.0"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",

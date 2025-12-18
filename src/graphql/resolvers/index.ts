@@ -10,6 +10,7 @@ import {
 } from "../../models/Business.js";
 import { Product, IProduct } from "../../models/Product.js";
 import { Compound, ICompound } from "../../models/Compound.js";
+import { Protocol, IProtocol } from "../../models/Protocol.js";
 import { CaseStudy, ICaseStudy } from "../../models/CaseStudy.js";
 import { IUser } from "../../models/User.js";
 
@@ -52,6 +53,8 @@ export const resolvers = {
       await Person.find({ _id: { $in: parent.guestIds || [] } }),
     sponsorBusinesses: async (parent: IEpisode) =>
       await Business.find({ _id: { $in: parent.sponsorBusinessIds || [] } }),
+    protocols: async (parent: IEpisode) =>
+      await Protocol.find({ _id: { $in: parent.protocolIds || [] } }),
   },
 
   Person: {
@@ -101,6 +104,13 @@ export const resolvers = {
       await Product.find({ _id: { $in: parent.productIds || [] } }),
     caseStudies: async (parent: ICompound) =>
       await CaseStudy.find({ compoundIds: parent._id }),
+  },
+
+  Protocol: {
+    products: async (parent: IProtocol) =>
+      await Product.find({ _id: { $in: parent.productIds || [] } }),
+    compounds: async (parent: IProtocol) =>
+      await Compound.find({ _id: { $in: parent.compoundIds || [] } }),
   },
 
   CaseStudy: {

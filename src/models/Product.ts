@@ -1,26 +1,46 @@
-import mongoose, { Schema, HydratedDocument, Document, Model } from "mongoose";
+import mongoose, {
+  Schema,
+  HydratedDocument,
+  Model,
+  ClientSession,
+} from "mongoose";
 import { MediaLinkSchema, MediaLink } from "./MediaLink.js";
+import {
+  TxOpts,
+  getDocSession,
+  preloadPrevForPaths,
+  diffIdsFromLocals,
+  cleanupSyncLocals,
+} from "./utils/syncLocals.js";
+import { pullFromUsersSaved } from "./utils/usedSavedCleanup.js";
 
-export interface IProduct extends Document {
+export interface IProduct {
   id: string; // <- now available because of virtual
   name: string;
   businessId: mongoose.Types.ObjectId;
+  descriptionEmbedding?: number[];
+  embeddingUpdatedAt?: Date;
   description?: string;
   ingredients: string[];
+  protocolIds: mongoose.Types.ObjectId[];
   mediaLinks?: MediaLink[];
+  price?: number;
   sponsorEpisodes: mongoose.Types.ObjectId[];
   sourceUrl?: string;
   compoundIds: mongoose.Types.ObjectId[];
-  episodeIds: mongoose.Types.ObjectId[];
 }
+
+export type ProductDoc = HydratedDocument<IProduct>;
 
 // Extend the model interface with our static methods
 export interface ProductModel extends Model<IProduct> {
-  syncProductsForBusiness(businessId: mongoose.Types.ObjectId): Promise<void>;
-  syncCompoundsForProduct(productId: mongoose.Types.ObjectId): Promise<void>;
+  syncProtocolsForProduct(
+    productId: mongoose.Types.ObjectId,
+    opts?: TxOpts
+  ): Promise<void>;
 }
 
-const ProductSchema = new Schema<IProduct>(
+const ProductSchema = new Schema<IProduct, ProductModel>(
   {
     name: { type: String, unique: true, required: true },
     businessId: {
@@ -28,9 +48,13 @@ const ProductSchema = new Schema<IProduct>(
       ref: "Business",
       required: true,
     },
+    protocolIds: [{ type: Schema.Types.ObjectId, ref: "Protocol" }],
+    descriptionEmbedding: { type: [Number], default: undefined },
+    embeddingUpdatedAt: { type: Date },
     mediaLinks: [MediaLinkSchema],
     description: { type: String },
     ingredients: [{ type: String }],
+    price: [{ type: Number }],
     sourceUrl: { type: String },
     compoundIds: [{ type: Schema.Types.ObjectId, ref: "Compound" }],
   },
@@ -47,117 +71,109 @@ ProductSchema.virtual("id").get(function () {
 ProductSchema.set("toJSON", { virtuals: true });
 ProductSchema.set("toObject", { virtuals: true });
 
-ProductSchema.statics.syncProductsForBusiness = async function (
-  businessId: mongoose.Types.ObjectId
+ProductSchema.statics.syncProtocolsForProduct = async function (
+  productId: mongoose.Types.ObjectId,
+  opts?: TxOpts
 ): Promise<void> {
-  const { Business } = await import("./Business.js");
-  if (!businessId) return;
+  const { Protocol } = await import("./Protocol.js");
 
-  const products = await this.find({ businessId }).select("_id");
-  const productIds = products.map((p: IProduct) => p._id);
+  const protocols = await Protocol.find({ productIds: productId })
+    .select("_id")
+    .lean()
+    .session(opts?.session ?? null);
+  const protocolIds = protocols.map(
+    (p: { _id: mongoose.Types.ObjectId }) => p._id
+  );
 
-  await Business.findByIdAndUpdate(
-    businessId,
-    { $set: { productIds } },
-    { new: false }
+  await this.findByIdAndUpdate(
+    productId,
+    { $set: { protocolIds } },
+    { session: opts?.session }
   );
 };
 
-/**
- * Sync Product.compoundIds based on Compounds that reference this product
- */
-ProductSchema.statics.syncCompoundsForProduct = async function (
-  productId: mongoose.Types.ObjectId
-): Promise<void> {
-  const { Compound } = await import("./Compound.js");
-
-  // Find all compounds that reference this product
-  const compounds = await Compound.find({ productIds: productId }).select(
-    "_id"
-  );
-  const compoundIds = compounds.map((c: any) => c._id);
-
-  await this.findByIdAndUpdate(productId, { compoundIds }, { new: false });
-};
-
-// TODO: combine the middlewares
-
-ProductSchema.pre("save", async function (this: HydratedDocument<IProduct>) {
-  const self = this as HydratedDocument<IProduct> & { $locals?: any };
-
-  // For new docs there is no "old" businessId, so nothing to capture.
-  if (self.isNew || !self.isModified("businessId")) {
-    return;
-  }
-
-  self.$locals = self.$locals || {};
-
-  // Look up the existing document to get the previous businessId from DB
-  const existing = await (self.constructor as ProductModel)
-    .findById(self._id)
-    .select("businessId")
-    .lean();
-
-  self.$locals.previousBusinessId = existing?.businessId || null;
+ProductSchema.pre("save", async function (this: ProductDoc) {
+  await preloadPrevForPaths(this, ["businessId", "compoundIds"]);
 });
 
 // POST: run syncProductsForBusiness for old + new business as needed
-ProductSchema.post("save", async function (doc: IProduct) {
-  const self = this as HydratedDocument<IProduct> & { $locals?: any };
-  const Product = this.constructor as ProductModel;
+ProductSchema.post("save", async function (doc: ProductDoc) {
+  const session = getDocSession(doc);
 
-  const oldBusinessId = self.$locals?.previousBusinessId as
-    | mongoose.Types.ObjectId
-    | null
-    | undefined;
-  const newBusinessId = doc.businessId as mongoose.Types.ObjectId | undefined;
+  {
+    const { touched, allIdStrings } = diffIdsFromLocals(doc, "businessId");
 
-  // 1) Always sync the new business if present
-  if (newBusinessId) {
-    await Product.syncProductsForBusiness(newBusinessId);
+    if (touched) {
+      const { Business } = await import("./Business.js");
+
+      for (const idStr of allIdStrings) {
+        await Business.syncProductsForBusiness(
+          new mongoose.Types.ObjectId(idStr),
+          {
+            session,
+          }
+        );
+      }
+    }
   }
 
-  // 2) If there was a different old business, sync that one too
-  if (
-    oldBusinessId &&
-    newBusinessId &&
-    oldBusinessId instanceof mongoose.Types.ObjectId &&
-    !oldBusinessId.equals(newBusinessId)
-  ) {
-    await Product.syncProductsForBusiness(oldBusinessId);
+  {
+    const { touched, allIdStrings } = diffIdsFromLocals(doc, "compoundIds");
+
+    if (touched) {
+      const { Compound } = await import("./Compound.js");
+
+      for (const idStr of allIdStrings) {
+        await Compound.syncProductsForCompound(
+          new mongoose.Types.ObjectId(idStr),
+          { session }
+        );
+      }
+    }
   }
+
+  cleanupSyncLocals(doc, ["businessId", "compoundIds"]);
 });
 
-ProductSchema.post("findOneAndDelete", async function (doc: IProduct | null) {
-  if (doc?.businessId) {
-    await (this.model as typeof Product).syncProductsForBusiness(
-      doc.businessId
-    );
-  }
-});
-
-ProductSchema.post("findOneAndDelete", async function (doc: IProduct | null) {
+ProductSchema.post("findOneAndDelete", async function (doc: ProductDoc | null) {
   if (!doc) return;
 
+  const session = this.getOptions()?.session as ClientSession | undefined;
+
   const { User } = await import("./User.js");
-
-  await User.updateMany(
-    { savedProducts: doc._id },
-    { $pull: { savedProducts: doc._id } }
-  );
-});
-
-ProductSchema.post("findOneAndDelete", async function (doc: IProduct | null) {
-  if (!doc?.compoundIds?.length) return;
-
+  const { Business } = await import("./Business.js");
+  const { Protocol } = await import("./Protocol.js");
+  const { CaseStudy } = await import("./CaseStudy.js");
   const { Compound } = await import("./Compound.js");
 
-  for (const compoundId of doc.compoundIds) {
-    await Compound.syncProductsForCompound(compoundId);
+  // 1) One-way bookmarks: OK to pull
+  await pullFromUsersSaved(User, "savedProducts", doc._id, session);
+
+  // 2) One-way references: OK to pull (if you have these fields)
+  await CaseStudy.updateMany(
+    { productIds: doc._id },
+    { $pull: { productIds: doc._id } },
+    { session }
+  );
+
+  // 3) Canonical cleanup: Protocol owns truth for protocolIds<->productIds
+  await Protocol.updateMany(
+    { productIds: doc._id },
+    { $pull: { productIds: doc._id } },
+    { session }
+  );
+
+  // 4) Mirror recomputes (do NOT $pull mirrors)
+  // Business.productIds mirrors Product.businessId
+  if (doc.businessId) {
+    await Business.syncProductsForBusiness(doc.businessId, { session });
   }
 
-  // NOTE: you can also keep your existing Business/User cleanup here
-  // (e.g., sync Business.productIds, remove from User.savedProducts, etc.)
+  // Compound.productIds mirrors Product.compoundIds
+  const compoundIds = doc.compoundIds ?? [];
+  for (const compoundId of compoundIds) {
+    await Compound.syncProductsForCompound(compoundId, { session });
+  }
 });
 
 export const Product: ProductModel =

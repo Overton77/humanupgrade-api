@@ -1,268 +1,288 @@
-import mongoose from "mongoose";
-import { Compound, ICompound } from "../models/Compound.js";
+import mongoose, { ClientSession } from "mongoose";
+import {
+  Compound,
+  ICompound,
+  CompoundDoc,
+  CompoundModel,
+} from "../models/Compound.js";
 import { Product } from "../models/Product.js";
+
 import {
   CompoundCreateWithOptionalIdsInput,
   CompoundUpdateWithOptionalIdsInput,
   CompoundUpdateRelationFieldsInput,
   CompoundProductNestedInput,
 } from "../graphql/inputs/compoundInputs.js";
-import { toObjectIds } from "./utils/general.js";
+
 import {
-  mergeAndDedupeIds,
-  mergeUniqueStrings,
-  mergeUniqueBy,
-} from "./utils/merging.js";
-import { validateEntitiesExist } from "./utils/validation.js";
+  CompoundCreateWithOptionalIdsInputSchema,
+  CompoundUpdateWithOptionalIdsInputSchema,
+  CompoundUpdateRelationFieldsInputSchema,
+  CompoundProductNestedInputSchema,
+} from "../graphql/inputs/schemas/compoundSchemas.js";
 
-/**
- * Create a Compound and optionally connect products.
- *
- * Relationship rules:
- *
- * - Products:
- *   - Product.compoundIds is canonical.
- *   - Compound.productIds is a mirror, maintained by
- *     Compound.syncProductsForCompound() - NO automatic middleware!
- */
+import { BaseService } from "./BaseService.js";
+import { withTransaction } from "../lib/transactions.js";
+import { validateInput } from "../lib/validation.js";
+import { Errors } from "../lib/errors.js";
+import { mergeUniqueStrings, mergeUniqueBy } from "./utils/merging.js";
+import { MediaLink } from "../models/MediaLink.js";
 
-export async function createCompoundWithOptionalIds(
-  input: CompoundCreateWithOptionalIdsInput
-): Promise<ICompound> {
-  const { name, description, aliases, mediaLinks, productIds } = input;
-
-  // --- 1) Validate all referenced entities exist up front -------------------
-
-  if (productIds && productIds.length > 0) {
-    await validateEntitiesExist(Product, productIds, "Product");
+class CompoundService extends BaseService<
+  ICompound,
+  CompoundDoc,
+  CompoundModel
+> {
+  constructor() {
+    super(Compound, "compoundService", "Compound");
   }
 
-  // --- 2) Create the Compound (mirror side - starts empty) ------------------
-
-  const compound = await Compound.create({
-    name,
-    description,
-    aliases: aliases ?? [],
-    mediaLinks,
-    productIds: [], // Mirror field, always starts empty
-  });
-
-  const compoundId = compound._id;
-
-  // --- 3) Update canonical side (Product.compoundIds) -----------------------
-
-  if (productIds && productIds.length > 0) {
-    // Add this compound to the products' compoundIds arrays (canonical)
-    await Product.updateMany(
-      { _id: { $in: productIds } },
-      { $addToSet: { compoundIds: compoundId } }
+  async createCompoundWithOptionalIds(
+    input: CompoundCreateWithOptionalIdsInput
+  ): Promise<ICompound> {
+    const validated = validateInput(
+      CompoundCreateWithOptionalIdsInputSchema,
+      input,
+      "CompoundCreateWithOptionalIdsInput"
     );
 
-    // Recompute mirror (Compound.productIds) from canonical
-    await Compound.syncProductsForCompound(compoundId);
+    const { name, description, aliases, mediaLinks, productIds } = validated;
+
+    return withTransaction(
+      async (session) => {
+        if (productIds?.length) {
+          await this.validateEntities(Product, productIds, "Product", {
+            session,
+          });
+        }
+
+        const validMediaLinks: MediaLink[] | undefined = mediaLinks?.filter(
+          (m): m is MediaLink => !!m.url
+        );
+
+        const [compound] = await Compound.create(
+          [
+            {
+              name,
+              description,
+              aliases: aliases ?? [],
+              mediaLinks: validMediaLinks,
+              productIds: [],
+              protocolIds: [],
+            },
+          ],
+          { session }
+        );
+
+        const compoundId = compound._id;
+
+        if (productIds?.length) {
+          await Product.updateMany(
+            { _id: { $in: productIds } },
+            { $addToSet: { compoundIds: compoundId } },
+            { session }
+          );
+
+          await Compound.syncProductsForCompound(compoundId, { session });
+        }
+
+        return compound;
+      },
+      { operation: "createCompoundWithOptionalIds", compoundName: name }
+    );
   }
 
-  return compound;
-}
-
-// ============================================================================
-//  SIMPLE UPDATE: SCALARS + OPTIONAL PRODUCT IDS
-// ============================================================================
-
-/**
- * Simple update: scalar fields + optional products.
- *
- * Semantics:
- *
- * - productIds:
- *   - Treated as "add these products to this compound".
- *   - We update Product.compoundIds (canonical).
- *   - Then Compound.syncProductsForCompound(compoundId) recomputes
- *     Compound.productIds as a mirror.
- */
-export async function updateCompoundWithOptionalIds(
-  input: CompoundUpdateWithOptionalIdsInput
-): Promise<ICompound | null> {
-  const { id, name, description, aliases, mediaLinks, productIds } = input;
-
-  const compound = await Compound.findById(id);
-  if (!compound) return null;
-
-  // --- Update scalar fields -------------------------------------------------
-
-  if (name !== undefined) compound.name = name;
-  if (description !== undefined) compound.description = description;
-  if (mediaLinks !== undefined) compound.mediaLinks = mediaLinks;
-
-  // --- Merge arrays (addToSet semantics) ------------------------------------
-
-  if (aliases !== undefined && aliases.length > 0) {
-    compound.aliases = mergeUniqueStrings(compound.aliases ?? [], aliases);
-  }
-
-  const compoundId = compound._id;
-
-  // --- Products: update via Product.compoundIds (canonical) -----------------
-
-  if (productIds && productIds.length > 0) {
-    await validateEntitiesExist(Product, productIds, "Product");
-
-    // Add this compound to the products' compoundIds arrays (canonical)
-    await Product.updateMany(
-      { _id: { $in: productIds } },
-      { $addToSet: { compoundIds: compoundId } }
+  async updateCompoundWithOptionalIds(
+    input: CompoundUpdateWithOptionalIdsInput
+  ): Promise<ICompound | null> {
+    const validated = validateInput(
+      CompoundUpdateWithOptionalIdsInputSchema,
+      input,
+      "CompoundUpdateWithOptionalIdsInput"
     );
 
-    // Recompute Compound.productIds mirror from Product.compoundIds
-    await Compound.syncProductsForCompound(compoundId);
+    const { id, name, description, aliases, mediaLinks, productIds } =
+      validated;
+
+    return withTransaction(
+      async (session) => {
+        const compound = await this.findByIdOrNull(id, { session });
+        if (!compound) return null;
+
+        // Scalars
+        if (name !== undefined) compound.name = name;
+        if (description !== undefined) compound.description = description;
+
+        if (aliases?.length) {
+          compound.aliases = mergeUniqueStrings(
+            compound.aliases ?? [],
+            aliases
+          );
+        }
+
+        if (mediaLinks !== undefined) {
+          const valid = mediaLinks.filter((m): m is MediaLink => !!m.url);
+          compound.mediaLinks = mergeUniqueBy(
+            compound.mediaLinks ?? [],
+            valid,
+            (m: MediaLink) => m.url
+          );
+        }
+
+        if (productIds?.length) {
+          await this.validateEntities(Product, productIds, "Product", {
+            session,
+          });
+
+          await Product.updateMany(
+            { _id: { $in: productIds } },
+            { $addToSet: { compoundIds: compound._id } },
+            { session }
+          );
+
+          await Compound.syncProductsForCompound(compound._id, { session });
+        }
+
+        await compound.save({ session });
+        return compound;
+      },
+      { operation: "updateCompoundWithOptionalIds", compoundId: id }
+    );
   }
 
-  // Persist scalar changes
-  await compound.save();
+  private async upsertProductsNested(
+    compoundId: mongoose.Types.ObjectId,
+    productsNested: CompoundProductNestedInput[] | undefined,
+    session: ClientSession
+  ): Promise<mongoose.Types.ObjectId[]> {
+    if (!productsNested?.length) return [];
 
-  return compound;
-}
+    const ids: mongoose.Types.ObjectId[] = [];
 
-// ============================================================================
-//  NESTED UPSERT HELPERS
-// ============================================================================
+    for (const raw of productsNested) {
+      const validated = validateInput(
+        CompoundProductNestedInputSchema,
+        raw,
+        "CompoundProductNestedInput"
+      );
 
-/**
- * Nested upsert for products (Product).
- *
- * Rules:
- * - If id is provided: update Product by id.
- * - Else if name is provided: find Product by unique name,
- *   update if exists, otherwise create.
- * - Always adds this compound to product.compoundIds (canonical side).
- */
-async function upsertProductsNested(
-  productsNested: CompoundProductNestedInput[] | undefined,
-  compoundId: mongoose.Types.ObjectId
-): Promise<mongoose.Types.ObjectId[]> {
-  if (!productsNested || productsNested.length === 0) return [];
+      const { id, name, description, ingredients, mediaLinks, sourceUrl } =
+        validated;
 
-  const productIds: mongoose.Types.ObjectId[] = [];
+      let product: any | null = null;
 
-  for (const productInput of productsNested) {
-    const { id, name, description, ingredients, mediaLinks, sourceUrl } =
-      productInput;
-
-    let product: any | null = null;
-
-    if (id) {
-      product = await Product.findById(id);
-      if (!product && name) {
-        product = await Product.findOne({ name });
+      if (id) {
+        product = await Product.findById(id).session(session);
+        if (!product && name)
+          product = await Product.findOne({ name }).session(session);
+      } else if (name) {
+        product = await Product.findOne({ name }).session(session);
       }
-    } else if (name) {
-      product = await Product.findOne({ name });
-    }
 
-    if (product) {
-      // Update existing
+      if (!product) {
+        throw Errors.validation(
+          "Cannot create a new product from Compound nested input (Product.businessId is required). Provide an existing product id (or create product separately).",
+          "productsNested"
+        );
+      }
+
       if (name !== undefined) product.name = name;
       if (description !== undefined) product.description = description;
-      if (ingredients !== undefined && ingredients.length > 0) {
-        product.ingredients = mergeUniqueStrings(
-          product.ingredients ?? [],
-          ingredients
-        );
-      }
-      if (mediaLinks !== undefined && mediaLinks.length > 0) {
+      if (ingredients?.length) product.ingredients = ingredients;
+
+      if (mediaLinks !== undefined) {
+        const valid = mediaLinks.filter((m): m is MediaLink => !!m.url);
         product.mediaLinks = mergeUniqueBy(
           product.mediaLinks ?? [],
-          mediaLinks,
-          (m) => m.url
+          valid,
+          (m: MediaLink) => m.url
         );
       }
+
       if (sourceUrl !== undefined) product.sourceUrl = sourceUrl;
 
-      // Add this compound to product.compoundIds (canonical)
       if (
-        !product.compoundIds.some((cid: mongoose.Types.ObjectId) =>
+        !product.compoundIds?.some((cid: mongoose.Types.ObjectId) =>
           cid.equals(compoundId)
         )
       ) {
-        product.compoundIds.push(compoundId);
+        product.compoundIds = [...(product.compoundIds ?? []), compoundId];
       }
 
-      await product.save();
-    } else {
-      // Create new
-      if (!name) {
-        throw new Error(
-          "productsNested entry requires 'name' when neither 'id' nor an existing product by name is found"
-        );
-      }
-
-      // Note: New products require businessId (required field in schema)
-      // This is a limitation - nested product creation needs a business
-      throw new Error(
-        "Cannot create new product via nested input - products require a businessId. Please create the product separately or provide an existing product id."
-      );
+      await product.save({ session });
+      ids.push(product._id);
     }
 
-    productIds.push(product._id);
+    return ids;
   }
 
-  return productIds;
+  async updateCompoundWithRelationFields(
+    input: CompoundUpdateRelationFieldsInput
+  ): Promise<ICompound | null> {
+    const validated = validateInput(
+      CompoundUpdateRelationFieldsInputSchema,
+      input,
+      "CompoundUpdateRelationFieldsInput"
+    );
+
+    const { id, productIds, productsNested } = validated;
+
+    return withTransaction(
+      async (session) => {
+        const compound = await this.findByIdOrNull(id, { session });
+        if (!compound) return null;
+
+        const compoundId = compound._id;
+
+        if (productIds?.length) {
+          await this.validateEntities(Product, productIds, "Product", {
+            session,
+          });
+
+          await Product.updateMany(
+            { _id: { $in: productIds } },
+            { $addToSet: { compoundIds: compoundId } },
+            { session }
+          );
+
+          await Compound.syncProductsForCompound(compoundId, { session });
+        }
+
+        if (productsNested?.length) {
+          await this.upsertProductsNested(compoundId, productsNested, session);
+
+          await Compound.syncProductsForCompound(compoundId, { session });
+        }
+
+        return compound;
+      },
+      { operation: "updateCompoundWithRelationFields", compoundId: id }
+    );
+  }
+
+  async deleteCompound(id: string): Promise<ICompound | null> {
+    return withTransaction(
+      async (session) => {
+        return await this.deleteById(id, { session });
+      },
+      { operation: "deleteCompound", compoundId: id }
+    );
+  }
 }
 
-// ============================================================================
-//  RICH RELATION UPDATE (NESTED INPUTS)
-// ============================================================================
+export const compoundService = new CompoundService();
 
-/**
- * Rich relation update:
- *
- * Handles:
- * - productIds / productsNested
- *
- * Canonical side:
- * - Products: Product.compoundIds
- *
- * Mirror:
- * - Compound.productIds <- Compound.syncProductsForCompound(compoundId)
- *
- * Note: NO automatic middleware handles Product.compoundIds changes!
- * We must manually call Compound.syncProductsForCompound() after updating products.
- */
-export async function updateCompoundWithRelationFields(
+export const createCompoundWithOptionalIds = (
+  input: CompoundCreateWithOptionalIdsInput
+) => compoundService.createCompoundWithOptionalIds(input);
+
+export const updateCompoundWithOptionalIds = (
+  input: CompoundUpdateWithOptionalIdsInput
+) => compoundService.updateCompoundWithOptionalIds(input);
+
+export const updateCompoundWithRelationFields = (
   input: CompoundUpdateRelationFieldsInput
-): Promise<ICompound | null> {
-  const { id, productIds, productsNested } = input;
+) => compoundService.updateCompoundWithRelationFields(input);
 
-  const compound = await Compound.findById(id);
-  if (!compound) return null;
-
-  const compoundId = compound._id;
-
-  // --- Products: update via Product.compoundIds (canonical) -----------------
-
-  if (productIds && productIds.length > 0) {
-    await validateEntitiesExist(Product, productIds, "Product");
-
-    // Add this compound to the products' compoundIds arrays (canonical)
-    await Product.updateMany(
-      { _id: { $in: productIds } },
-      { $addToSet: { compoundIds: compoundId } }
-    );
-  }
-
-  if (productsNested) {
-    const nestedProductIds = await upsertProductsNested(
-      productsNested,
-      compoundId
-    );
-    // No need to set compound.productIds directly; we'll recompute from Products
-    if (nestedProductIds.length > 0) {
-      // Already updated in upsertProductsNested via product.save()
-    }
-  }
-
-  // Recompute Compound.productIds mirror from Product.compoundIds
-  await Compound.syncProductsForCompound(compoundId);
-
-  return compound;
-}
+export const deleteCompound = (id: string) =>
+  compoundService.deleteCompound(id);

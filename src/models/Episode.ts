@@ -1,6 +1,57 @@
-import mongoose, { Schema, Document, Model, HydratedDocument } from "mongoose";
+import mongoose, {
+  Schema,
+  Document,
+  Model,
+  HydratedDocument,
+  ClientSession,
+} from "mongoose";
 import { MediaLinkSchema, MediaLink } from "./MediaLink.js";
-// TODO: Create the ModelDoc HydratedDocument<IModelType>
+
+import {
+  TxOpts,
+  preloadPrevForPaths,
+  diffIdsFromLocals,
+  getDocSession,
+  cleanupSyncLocals,
+} from "./utils/syncLocals.js";
+import { pullFromUsersSaved } from "./utils/usedSavedCleanup.js";
+
+export type TranscriptStatus = "missing" | "queued" | "stored" | "error";
+export type PipelineStatus = "not_started" | "running" | "complete" | "error";
+export type PublishStatus = "hidden" | "ready";
+
+export interface ITranscriptStorage {
+  provider: "s3";
+  bucket?: string;
+  key?: string;
+}
+
+export interface ITranscriptState {
+  status: TranscriptStatus;
+  storage?: ITranscriptStorage;
+  sha256?: string;
+  lastAttemptAt?: Date;
+  error?: { message: string; at: Date };
+}
+
+export interface IStageState {
+  status: PipelineStatus;
+  completedAt?: Date;
+  runId?: string;
+  lastAttemptAt?: Date;
+  error?: { message: string; at: Date };
+}
+
+export interface IEnrichmentState {
+  stage1: IStageState;
+  stage2: IStageState;
+}
+
+export interface IPublishState {
+  status: PublishStatus;
+  publishedAt?: Date;
+}
+
 export interface IWebPageTimeline {
   from: string;
   to: string;
@@ -39,13 +90,81 @@ const WebPageTimelineSchema = new Schema<IWebPageTimeline>(
   { _id: false }
 );
 
-export interface IEpisode extends Document {
+const ErrorInfoSchema = new Schema(
+  { message: String, at: Date },
+  { _id: false }
+);
+
+const TranscriptStorageSchema = new Schema<ITranscriptStorage>(
+  {
+    provider: { type: String, enum: ["s3"], default: "s3" },
+    bucket: String,
+    key: String,
+  },
+  { _id: false }
+);
+
+const TranscriptStateSchema = new Schema<ITranscriptState>(
+  {
+    status: {
+      type: String,
+      enum: ["missing", "queued", "stored", "error"],
+      default: "missing",
+      index: true,
+    },
+    storage: { type: TranscriptStorageSchema, default: undefined },
+    sha256: String,
+    lastAttemptAt: Date,
+    error: { type: ErrorInfoSchema, default: undefined },
+  },
+  { _id: false }
+);
+
+const StageStateSchema = new Schema<IStageState>(
+  {
+    status: {
+      type: String,
+      enum: ["not_started", "running", "complete", "error"],
+      default: "not_started",
+      index: true,
+    },
+    completedAt: Date,
+    runId: String,
+    lastAttemptAt: Date,
+    error: { type: ErrorInfoSchema, default: undefined },
+  },
+  { _id: false }
+);
+
+const EnrichmentStateSchema = new Schema<IEnrichmentState>(
+  {
+    stage1: { type: StageStateSchema, default: () => ({}) },
+    stage2: { type: StageStateSchema, default: () => ({}) },
+  },
+  { _id: false }
+);
+
+const PublishStateSchema = new Schema<IPublishState>(
+  {
+    status: {
+      type: String,
+      enum: ["hidden", "ready"],
+      default: "hidden",
+      index: true,
+    },
+    publishedAt: Date,
+  },
+  { _id: false }
+);
+
+export interface IEpisode {
   id: string; // <- now available because of virtual
   channelName: string;
   episodeNumber?: number;
   episodeTitle?: string;
   publishedAt?: Date;
   guestIds: mongoose.Types.ObjectId[];
+  protocolIds: mongoose.Types.ObjectId[];
   webPageSummary?: string;
   webPageTimelines?: IWebPageTimeline[];
   mediaLinks?: MediaLink[];
@@ -54,6 +173,7 @@ export interface IEpisode extends Document {
   summaryShort?: string;
   summaryDetailed?: string;
   takeaways: string[];
+  publishedSummary?: string;
   s3TranscriptKey?: string;
   youtubeVideoId?: string;
   youtubeEmbedUrl?: string;
@@ -61,17 +181,16 @@ export interface IEpisode extends Document {
   s3TranscriptUrl?: string;
   sponsorLinkObjects?: ISponsorLinkObject[];
   sponsorBusinessIds: mongoose.Types.ObjectId[];
+  businessLinks?: string[];
+  transcript: ITranscriptState;
+  enrichment: IEnrichmentState;
+  publish: IPublishState;
 }
 
 export type EpisodeDoc = HydratedDocument<IEpisode>;
 
 // Extend the model interface with our static methods
-export interface EpisodeModel extends Model<IEpisode> {
-  syncGuestLinks(episode: EpisodeDoc): Promise<void>;
-  syncSponsorBusinessesForEpisode(
-    episodeId: mongoose.Types.ObjectId
-  ): Promise<void>;
-}
+export interface EpisodeModel extends Model<IEpisode> {}
 
 export const EpisodeSchema = new Schema<IEpisode>(
   {
@@ -82,12 +201,14 @@ export const EpisodeSchema = new Schema<IEpisode>(
     episodeTranscriptUrl: { type: String },
     publishedAt: { type: Date },
     guestIds: [{ type: Schema.Types.ObjectId, ref: "Person" }],
+    protocolIds: [{ type: Schema.Types.ObjectId, ref: "Protocol" }],
     summaryShort: { type: String },
     webPageSummary: { type: String },
     mediaLinks: [MediaLinkSchema],
     webPageTimelines: [WebPageTimelineSchema],
     sponsorLinkObjects: [SponsorLinkObjectSchema],
     summaryDetailed: { type: String },
+    publishedSummary: { type: String },
     youtubeVideoId: { type: String },
     youtubeWatchUrl: { type: String },
     youtubeEmbedUrl: { type: String },
@@ -95,9 +216,18 @@ export const EpisodeSchema = new Schema<IEpisode>(
     s3TranscriptKey: { type: String },
     s3TranscriptUrl: { type: String },
     sponsorBusinessIds: [{ type: Schema.Types.ObjectId, ref: "Business" }],
+    businessLinks: [{ type: String }],
+    transcript: { type: TranscriptStateSchema, default: () => ({}) },
+    enrichment: { type: EnrichmentStateSchema, default: () => ({}) },
+    publish: { type: PublishStateSchema, default: () => ({}) },
   },
   { timestamps: true }
 );
+
+EpisodeSchema.index({
+  "enrichment.stage1.status": 1,
+  "enrichment.stage2.status": 1,
+});
 
 // -----------------------------------------------------
 // 🔥 Add this virtual so id = _id
@@ -109,150 +239,83 @@ EpisodeSchema.virtual("id").get(function () {
 EpisodeSchema.set("toJSON", { virtuals: true });
 EpisodeSchema.set("toObject", { virtuals: true });
 
-/**
- * Sync Episode.sponsorBusinessIds based on Businesses that reference this episode
- */
-EpisodeSchema.statics.syncGuestLinks = async function (
-  episode: EpisodeDoc
-): Promise<void> {
-  const { Person } = await import("./Person.js");
-  const episodeId = episode._id;
+EpisodeSchema.pre("save", async function (this: EpisodeDoc) {
+  await preloadPrevForPaths(this, ["guestIds", "sponsorBusinessIds"]);
+});
 
-  // guests currently on this episode
-  const guestIds = (episode.guestIds ?? []).map((id) => id.toString());
+EpisodeSchema.post("save", async function (doc: EpisodeDoc) {
+  const session = getDocSession(doc);
 
-  // 1) Ensure these guests have this episode in their episodeIds
-  if (guestIds.length > 0) {
-    await Person.updateMany(
-      { _id: { $in: guestIds } },
-      { $addToSet: { episodeIds: episodeId } }
+  // --- guestIds -> Person mirror
+  {
+    const { touched, allIdStrings } = diffIdsFromLocals(doc, "guestIds");
+    if (touched) {
+      const { Person } = await import("./Person.js");
+      for (const idStr of allIdStrings) {
+        await Person.syncEpisodesForPerson(new mongoose.Types.ObjectId(idStr), {
+          session,
+        });
+      }
+    }
+  }
+
+  // --- sponsorBusinessIds -> Business mirror
+  {
+    const { touched, allIdStrings } = diffIdsFromLocals(
+      doc,
+      "sponsorBusinessIds"
     );
-  }
-
-  // 2) Remove this episode from any Person that is *not* a guest anymore
-  await Person.updateMany(
-    {
-      episodeIds: episodeId,
-      _id: { $nin: guestIds },
-    },
-    { $pull: { episodeIds: episodeId } }
-  );
-};
-
-EpisodeSchema.statics.syncSponsorBusinessesForEpisode = async function (
-  episodeId: mongoose.Types.ObjectId
-): Promise<void> {
-  const { Business } = await import("./Business.js");
-
-  // 1) Find all businesses that list this episode in their sponsorEpisodeIds
-  const businesses = await Business.find({
-    sponsorEpisodeIds: episodeId,
-  }).select("_id");
-
-  const sponsorBusinessIds = businesses.map(
-    (b: { _id: mongoose.Types.ObjectId }) => b._id
-  );
-
-  // 2) Update the Episode with the full list of sponsorBusinessIds
-  await this.findByIdAndUpdate(
-    episodeId,
-    { $set: { sponsorBusinessIds } },
-    { new: false }
-  );
-};
-
-EpisodeSchema.pre("save", function (this: HydratedDocument<IEpisode>) {
-  const self = this as HydratedDocument<IEpisode> & { $locals?: any };
-
-  if (this.isModified("sponsorBusinessIds")) {
-    self.$locals = self.$locals || {};
-    self.$locals.previousSponsorBusinessIds = this.get(
-      "sponsorBusinessIds",
-      [],
-      { getters: false }
-    ) as mongoose.Types.ObjectId[];
-  }
-});
-
-EpisodeSchema.post<EpisodeDoc>(
-  "save",
-  async function (this: HydratedDocument<IEpisode>, doc) {
-    const self = this as HydratedDocument<IEpisode> & { $locals?: any };
-
-    const oldIds: mongoose.Types.ObjectId[] =
-      (self.$locals?.previousSponsorBusinessIds as mongoose.Types.ObjectId[]) ??
-      [];
-    const newIds: mongoose.Types.ObjectId[] = doc.sponsorBusinessIds ?? [];
-
-    const allBusinessIds = new Set<string>([
-      ...oldIds.map((id) => id.toString()),
-      ...newIds.map((id) => id.toString()),
-    ]);
-
-    const { Business } = await import("./Business.js");
-
-    for (const idStr of allBusinessIds) {
-      await Business.syncSponsorEpisodesForBusiness(
-        new mongoose.Types.ObjectId(idStr)
-      );
+    if (touched) {
+      const { Business } = await import("./Business.js");
+      for (const idStr of allIdStrings) {
+        await Business.syncSponsorEpisodesForBusiness(
+          new mongoose.Types.ObjectId(idStr),
+          { session }
+        );
+      }
     }
   }
-);
 
-EpisodeSchema.post("findOneAndDelete", async function (doc) {
-  if (!doc?.sponsorBusinessIds?.length) return;
-  const { Business } = await import("./Business.js");
-
-  for (const businessId of doc.sponsorBusinessIds) {
-    await Business.syncSponsorEpisodesForBusiness(businessId);
-  }
+  // Optional cleanup
+  cleanupSyncLocals(doc, ["guestIds", "sponsorBusinessIds"]);
 });
 
-EpisodeSchema.post("save", async function (doc) {
-  const episodeDoc = doc as EpisodeDoc;
-
-  // Only sync if guests changed
-  if (this.isModified("guestIds")) {
-    // optional: check a $locals.skipGuestSync flag if you ever need to avoid loops
-    if (!this.$locals?.skipGuestSync) {
-      await Episode.syncGuestLinks(episodeDoc);
-    }
-  }
-});
-
-EpisodeSchema.post("findOneAndDelete", async function (doc) {
+EpisodeSchema.post("findOneAndDelete", async function (doc: EpisodeDoc | null) {
   if (!doc) return;
-  const episodeDoc = doc as EpisodeDoc;
 
-  const { Business } = await import("./Business.js");
+  const session = this.getOptions()?.session as ClientSession | undefined;
+  const episodeId = doc._id;
+
   const { Person } = await import("./Person.js");
+  const { Business } = await import("./Business.js");
+  const { CaseStudy } = await import("./CaseStudy.js");
   const { User } = await import("./User.js");
-  const { CaseStudy } = await import("./CaseStudy.js"); // optional, see below
 
-  // 1) Update Business.sponsorEpisodeIds mirror if you keep that cache
-  if (episodeDoc.sponsorBusinessIds && episodeDoc.sponsorBusinessIds.length) {
-    for (const businessId of episodeDoc.sponsorBusinessIds) {
-      await Business.syncSponsorEpisodesForBusiness(businessId);
-    }
+  // 1) One-way refs: User saved + CaseStudy refs
+  await pullFromUsersSaved(User, "savedEpisodes", episodeId, session);
+
+  await CaseStudy.updateMany(
+    { episodeIds: episodeId },
+    { $pull: { episodeIds: episodeId } },
+    { session }
+  );
+
+  // 2) Mirror recomputes
+  const guestIds = Array.from(
+    new Set((doc.guestIds ?? []).map((id) => id.toString()))
+  ).map((s) => new mongoose.Types.ObjectId(s));
+
+  for (const personId of guestIds) {
+    await Person.syncEpisodesForPerson(personId, { session });
   }
 
-  // 2) Clean up Person.episodeIds if you're using Episode.syncGuestLinks
-  await Person.updateMany(
-    { episodeIds: episodeDoc._id },
-    { $pull: { episodeIds: episodeDoc._id } }
-  );
+  const sponsorIds = Array.from(
+    new Set((doc.sponsorBusinessIds ?? []).map((id) => id.toString()))
+  ).map((s) => new mongoose.Types.ObjectId(s));
 
-  // 3) Remove from User.savedEpisodes
-  await User.updateMany(
-    { savedEpisodes: episodeDoc._id },
-    { $pull: { savedEpisodes: episodeDoc._id } }
-  );
-
-  // 4) Optional: remove this episode from CaseStudy.episodeIds
-  await CaseStudy.updateMany(
-    { episodeIds: episodeDoc._id },
-    { $pull: { episodeIds: episodeDoc._id } }
-  );
+  for (const businessId of sponsorIds) {
+    await Business.syncSponsorEpisodesForBusiness(businessId, { session });
+  }
 });
 
 export const Episode: EpisodeModel =

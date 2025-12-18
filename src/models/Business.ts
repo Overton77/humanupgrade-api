@@ -3,8 +3,17 @@ import mongoose, {
   type Model,
   type HydratedDocument,
   type Document,
+  ClientSession,
 } from "mongoose";
 import { MediaLinkSchema, type MediaLink } from "./MediaLink.js";
+import {
+  TxOpts,
+  getDocSession,
+  preloadPrevForPaths,
+  diffIdsFromLocals,
+  cleanupSyncLocals,
+} from "./utils/syncLocals.js";
+import { pullFromUsersSaved } from "./utils/usedSavedCleanup.js";
 
 // --- Executive subdocument ---
 
@@ -34,10 +43,13 @@ export interface IBusiness extends Document {
   name: string;
   description?: string;
   biography?: string;
+  descriptionEmbedding?: number[];
+  embeddingUpdatedAt?: Date;
   website?: string;
   mediaLinks?: MediaLink[];
   ownerIds: mongoose.Types.ObjectId[];
   productIds: mongoose.Types.ObjectId[];
+  // mirrors
   executives: IBusinessExecutive[];
   sponsorEpisodeIds: mongoose.Types.ObjectId[];
 }
@@ -47,11 +59,14 @@ export type BusinessDoc = HydratedDocument<IBusiness>;
 
 // We'll extend the model type to add static methods
 export interface BusinessModel extends Model<IBusiness> {
-  syncPersonLinks(business: BusinessDoc): Promise<void>;
-  syncSponsorEpisodesForBusiness(
-    businessId: mongoose.Types.ObjectId
+  syncProductsForBusiness(
+    businessId: mongoose.Types.ObjectId,
+    opts?: TxOpts
   ): Promise<void>;
-  syncProductsForBusiness(businessId: mongoose.Types.ObjectId): Promise<void>;
+  syncSponsorEpisodesForBusiness(
+    businessId: mongoose.Types.ObjectId,
+    opts?: TxOpts
+  ): Promise<void>;
 }
 
 const BusinessSchema = new Schema<IBusiness, BusinessModel>(
@@ -59,6 +74,8 @@ const BusinessSchema = new Schema<IBusiness, BusinessModel>(
     name: { type: String, unique: true, required: true },
     description: { type: String },
     biography: { type: String },
+    descriptionEmbedding: { type: [Number], default: undefined },
+    embeddingUpdatedAt: { type: Date },
     website: { type: String },
     mediaLinks: [MediaLinkSchema],
     ownerIds: [{ type: Schema.Types.ObjectId, ref: "Person" }],
@@ -79,118 +96,131 @@ BusinessSchema.virtual("id").get(function () {
 BusinessSchema.set("toJSON", { virtuals: true });
 BusinessSchema.set("toObject", { virtuals: true });
 
-// --- Static: keep Person.businessIds in sync with Business.ownerIds + executives ---
-
+/**
+ * Mirror: Business.productIds <- Products where product.businessId == businessId
+ * Canonical: Product.businessId
+ */
 BusinessSchema.statics.syncProductsForBusiness = async function (
-  business: BusinessDoc
-): Promise<void> {
+  businessId,
+  opts
+) {
   const { Product } = await import("./Product.js");
 
-  const products = await Product.find({ businessId: business._id }).select(
-    "_id"
-  );
+  const products = await Product.find({ businessId })
+    .select("_id")
+    .lean()
+    .session(opts?.session ?? null);
 
-  const productIds = products.map((p) => p._id);
+  const productIds = products.map((p: any) => p._id);
 
-  await Product.updateMany(
-    { _id: { $in: productIds } },
-
-    { $set: { businessId: business._id } }
-  );
-};
-
-BusinessSchema.statics.syncPersonLinks = async function (
-  business: BusinessDoc
-): Promise<void> {
-  const businessId = business._id;
-  const { Person } = await import("./Person.js");
-
-  const ownerIds = business.ownerIds?.map((id) => id.toString()) ?? [];
-  const execPersonIds =
-    business.executives?.map((exec) => exec.personId.toString()) ?? [];
-
-  const keepSet = new Set([...ownerIds, ...execPersonIds]);
-  const keepIds = Array.from(keepSet);
-
-  if (keepIds.length > 0) {
-    await Person.updateMany(
-      { _id: { $in: keepIds } },
-      { $addToSet: { businessIds: businessId } }
-    );
-  }
-
-  await Person.updateMany(
-    {
-      businessIds: businessId,
-      _id: { $nin: keepIds },
-    },
-    { $pull: { businessIds: businessId } }
+  await this.updateOne(
+    { _id: businessId },
+    { $set: { productIds } },
+    { session: opts?.session }
   );
 };
 
+/**
+ * Mirror: Business.sponsorEpisodeIds <- Episodes where episode.sponsorBusinessIds contains businessId
+ * Canonical: Episode.sponsorBusinessIds
+ */
 BusinessSchema.statics.syncSponsorEpisodesForBusiness = async function (
-  businessId: mongoose.Types.ObjectId
-): Promise<void> {
+  businessId,
+  opts
+) {
   const { Episode } = await import("./Episode.js");
 
-  const episodes = await Episode.find({
-    sponsorBusinessIds: businessId,
-  }).select("_id");
+  const episodes = await Episode.find({ sponsorBusinessIds: businessId })
+    .select("_id")
+    .lean()
+    .session(opts?.session ?? null);
 
-  const episodeIds = episodes.map(
-    (e: { _id: mongoose.Types.ObjectId }) => e._id
-  );
+  const episodeIds = episodes.map((e: any) => e._id);
 
-  await this.findByIdAndUpdate(
-    businessId,
+  await this.updateOne(
+    { _id: businessId },
     { $set: { sponsorEpisodeIds: episodeIds } },
-    { new: false }
+    { session: opts?.session }
   );
 };
 
-BusinessSchema.post("save", async function (doc) {
-  const businessDoc = doc as BusinessDoc;
+BusinessSchema.pre("save", async function (this: BusinessDoc) {
+  await preloadPrevForPaths(this, ["ownerIds", "executives.personId"]);
+});
 
-  if (this.isModified("ownerIds") || this.isModified("executives")) {
-    if (!this.$locals?.skipSync) {
-      await Business.syncPersonLinks(businessDoc);
+BusinessSchema.post("save", async function (doc: BusinessDoc) {
+  const session = getDocSession(doc);
+
+  {
+    const { touched, allIdStrings } = diffIdsFromLocals(doc, "ownerIds");
+
+    if (touched) {
+      const { Person } = await import("./Person.js");
+
+      for (const idStr of allIdStrings) {
+        await Person.syncBusinessesForPerson(
+          new mongoose.Types.ObjectId(idStr),
+          {
+            session,
+          }
+        );
+      }
     }
   }
+
+  {
+    const { touched, allIdStrings } = diffIdsFromLocals(
+      doc,
+      "executives.personId"
+    );
+
+    if (touched) {
+      const { Person } = await import("./Person.js");
+
+      for (const idStr of allIdStrings) {
+        await Person.syncBusinessesForPerson(
+          new mongoose.Types.ObjectId(idStr),
+          {
+            session,
+          }
+        );
+      }
+    }
+  }
+
+  cleanupSyncLocals(doc, ["ownerIds", "executives.personId"]);
 });
 
 /**
  * Post-delete hook: Clean up person links and episode relationships when business is deleted
  */
-BusinessSchema.post("findOneAndDelete", async function (doc) {
-  if (!doc) return;
-  const businessDoc = doc as BusinessDoc;
 
-  const { Person } = await import("./Person.js");
-  const { Episode } = await import("./Episode.js");
-  const { User } = await import("./User.js");
+BusinessSchema.post(
+  "findOneAndDelete",
+  async function (doc: BusinessDoc | null) {
+    if (!doc) return;
+    const session = this.getOptions()?.session as ClientSession | undefined;
+    const businessId = doc._id;
+    const { User } = await import("./User.js");
+    const { Episode } = await import("./Episode.js");
+    const { Person } = await import("./Person.js");
+    await pullFromUsersSaved(User, "savedBusinesses", businessId, session);
 
-  // 1) Remove this business from all people (mirror cleanup)
-  await Person.updateMany(
-    { businessIds: businessDoc._id },
-    { $pull: { businessIds: businessDoc._id } }
-  );
+    await Episode.updateMany(
+      { sponsorBusinessIds: businessId },
+      { $pull: { sponsorBusinessIds: businessId } },
+      { session: session }
+    );
 
-  // 2) For sponsor episodes, resync their Business.sponsorEpisodeIds mirror
-  if (
-    businessDoc.sponsorEpisodeIds &&
-    businessDoc.sponsorEpisodeIds.length > 0
-  ) {
-    for (const episodeId of businessDoc.sponsorEpisodeIds) {
-      await Episode.syncSponsorBusinessesForEpisode(episodeId);
-    }
+    await Person.updateMany(
+      { businessIds: businessId },
+      { $pull: { businessIds: businessId } },
+      { session: session }
+    );
+
+    // TODO Handle if I want to archive a business product or delete them all
   }
-
-  // 3) Remove from all users' savedBusinesses
-  await User.updateMany(
-    { savedBusinesses: businessDoc._id },
-    { $pull: { savedBusinesses: businessDoc._id } }
-  );
-});
+);
 
 export const Business: BusinessModel =
   (mongoose.models.Business as BusinessModel) ||

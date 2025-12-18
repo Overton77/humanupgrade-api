@@ -1,20 +1,15 @@
 import { QdrantClient } from "@qdrant/qdrant-js";
 import { env } from "../config/env.js";
 
-/**
- * Payload stored alongside vectors in Qdrant.
- * This is your "Human Upgrade" metadata.
- */
 export type HumanUpgradePayload = {
   kind: "episode" | "product" | "compound" | "case-study" | "blog";
-  refId: string; // Mongo _id or slug
+  refId: string;
 
-  // nice-to-have search attributes
   episodeNumber?: number;
   guestName?: string;
   productName?: string;
   intervention?: string;
-  text: string; // original chunk text
+  text: string;
 };
 
 let client: QdrantClient | null = null;
@@ -29,10 +24,6 @@ export function getQdrantClient(): QdrantClient {
   return client;
 }
 
-/**
- * Ensure the collection exists with correct vector size.
- * Idempotent: safe to call on startup.
- */
 export async function ensureHumanUpgradeCollection(): Promise<void> {
   const client = getQdrantClient();
   const collectionName = env.qdrantCollectionName;
@@ -56,9 +47,6 @@ export async function ensureHumanUpgradeCollection(): Promise<void> {
   );
 }
 
-/**
- * Upsert multiple points (vectors + payload) into Qdrant.
- */
 export async function upsertHumanUpgradePoints(
   points: Array<{
     id: string | number;
@@ -81,9 +69,6 @@ export async function upsertHumanUpgradePoints(
   });
 }
 
-/**
- * Search Qdrant for nearest neighbors.
- */
 export async function searchHumanUpgrade(
   queryVector: number[],
   options: {

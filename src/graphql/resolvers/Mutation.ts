@@ -1,24 +1,21 @@
 import bcrypt from "bcrypt";
 import { User } from "../../models/User.js";
-import { Episode } from "../../models/Episode.js";
-import { Product } from "../../models/Product.js";
-import { Business } from "../../models/Business.js";
-import { Person } from "../../models/Person.js";
-import { Compound } from "../../models/Compound.js";
 import { signAuthToken } from "../../services/auth.js";
-import { Context } from "../../services/auth.js";
+import { GraphQLContext } from "../../graphql/context.js";
 import {
-  createBusinessWithOptionalIds,
+  createBusinessWithRelations,
   updateBusinessWithOptionalIds,
   updateBusinessWithRelationFields,
+  deleteBusiness,
 } from "../../services/businessService.js";
 import {
-  BusinessCreateWithOptionalIdsInput,
+  BusinessCreateRelationsInput,
   BusinessUpdateWithOptionalIdsInput,
   BusinessUpdateRelationFieldsInput,
 } from "../inputs/businessInputs.js";
 import {
   createProductWithOptionalIds,
+  deleteProduct,
   updateProductWithOptionalIds,
   updateProductWithRelationFields,
 } from "../../services/productService.js";
@@ -28,19 +25,20 @@ import {
   ProductUpdateRelationFieldsInput,
 } from "../inputs/productInputs.js";
 import {
-  createPersonWithOptionalIds,
-  updatePersonWithOptionalIds,
-  updatePersonWithRelationFields,
+  createPerson,
+  updatePerson,
+  deletePerson,
 } from "../../services/personService.js";
 import {
-  PersonCreateWithOptionalIdsInput,
-  PersonUpdateWithOptionalIdsInput,
-  PersonUpdateRelationFieldsInput,
+  PersonScalarFields,
+  PersonScalarUpdateFields,
 } from "../inputs/personInputs.js";
 import {
   createEpisodeWithOptionalIds,
   updateEpisodeWithOptionalIds,
   updateEpisodeWithRelationFields,
+  deleteEpisodeByPageUrlOrId,
+  deleteAllEpisodes,
 } from "../../services/episodeService.js";
 import {
   EpisodeCreateWithOptionalIdsInput,
@@ -49,6 +47,7 @@ import {
 } from "../inputs/episodeInputs.js";
 import {
   createCompoundWithOptionalIds,
+  deleteCompound,
   updateCompoundWithOptionalIds,
   updateCompoundWithRelationFields,
 } from "../../services/compoundService.js";
@@ -78,6 +77,26 @@ import {
 } from "../../services/userService.js";
 import { UserMassSaveInput, UserUpsertInput } from "../inputs/userInputs.js";
 
+import {
+  createProtocolWithOptionalIds,
+  updateProtocolWithOptionalIds,
+  updateProtocolWithRelationFields,
+} from "../../services/protocolService.js";
+import {
+  ProtocolCreateWithOptionalIdsInput,
+  ProtocolUpdateWithOptionalIdsInput,
+  ProtocolUpdateRelationFieldsInput,
+} from "../inputs/protocolInputs.js";
+
+import {
+  embedProductDescription,
+  embedBusinessDescription,
+  embedPersonBio,
+} from "../../services/createEmbeddingsService.js";
+import { Product } from "../../models/Product.js";
+import { Business } from "../../models/Business.js";
+import { Person } from "../../models/Person.js";
+
 const SALT_ROUNDS = 10;
 
 export const Mutation = {
@@ -88,7 +107,8 @@ export const Mutation = {
       password: string;
       name?: string;
       role?: "admin" | "user";
-    }
+    },
+    ctx: GraphQLContext
   ) => {
     const existing = await User.findOne({ email: args.email });
     if (existing) {
@@ -116,7 +136,7 @@ export const Mutation = {
   upsertUser: async (
     _p: unknown,
     args: { input: UserUpsertInput },
-    ctx: Context
+    ctx: GraphQLContext
   ) => {
     requireAdmin(ctx);
     return upsertUser(args.input);
@@ -145,7 +165,7 @@ export const Mutation = {
   addSavedItemsToUser: async (
     _p: unknown,
     args: { input: UserMassSaveInput },
-    ctx: Context
+    ctx: GraphQLContext
   ) => {
     requireAuth(ctx); // probably only owner or admin in real life
     return addSavedItemsToUser(args.input);
@@ -154,7 +174,7 @@ export const Mutation = {
   removeSavedItemsFromUser: async (
     _p: unknown,
     args: { input: UserMassSaveInput },
-    ctx: Context
+    ctx: GraphQLContext
   ) => {
     requireAuth(ctx);
     return removeSavedItemsFromUser(args.input);
@@ -175,7 +195,7 @@ export const Mutation = {
   toggleSaveProduct: async (
     _parent: unknown,
     args: { productId: string },
-    ctx: Context
+    ctx: GraphQLContext
   ) => {
     requireAuth(ctx);
     return await toggleSavedProductForUser(
@@ -195,13 +215,13 @@ export const Mutation = {
       args.businessId
     );
   },
-  createBusiness: async (
+  createBusinessWithRelations: async (
     _parent: unknown,
-    args: { input: BusinessCreateWithOptionalIdsInput },
+    args: { input: BusinessCreateRelationsInput },
     _ctx: any
   ) => {
     // args.input shape matches BusinessCreateWithOptionalIdsInput
-    const business = await createBusinessWithOptionalIds(args.input);
+    const business = await createBusinessWithRelations(args.input);
     return business;
   },
 
@@ -252,32 +272,37 @@ export const Mutation = {
     return product;
   },
 
+  deleteProduct: async (
+    _parent: unknown,
+    args: { id: string },
+    _ctx: GraphQLContext
+  ) => {
+    const product = await deleteProduct(args.id);
+    return product;
+  },
+
   // --- Person mutations ---
 
   createPerson: async (
     _parent: unknown,
-    args: { input: PersonCreateWithOptionalIdsInput },
+    args: { input: PersonScalarFields },
     _ctx: any
   ) => {
-    const person = await createPersonWithOptionalIds(args.input);
+    const person = await createPerson(args.input);
     return person;
   },
 
   updatePerson: async (
     _parent: unknown,
-    args: { input: PersonUpdateWithOptionalIdsInput },
+    args: { input: PersonScalarUpdateFields },
     _ctx: any
   ) => {
-    const person = await updatePersonWithOptionalIds(args.input);
+    const person = await updatePerson(args.input);
     return person;
   },
 
-  updatePersonRelations: async (
-    _parent: unknown,
-    args: { input: PersonUpdateRelationFieldsInput },
-    _ctx: any
-  ) => {
-    const person = await updatePersonWithRelationFields(args.input);
+  deletePerson: async (_parent: unknown, args: { id: string }, _ctx: any) => {
+    const person = await deletePerson(args.id);
     return person;
   },
 
@@ -310,6 +335,23 @@ export const Mutation = {
     return episode;
   },
 
+  deleteEpisode: async (
+    _parent: unknown,
+    args: { identifier: string },
+    _ctx: any
+  ) => {
+    const episode = await deleteEpisodeByPageUrlOrId(args.identifier);
+    if (!episode) {
+      throw new Error(`Episode not found with identifier: ${args.identifier}`);
+    }
+    return episode;
+  },
+
+  deleteAllEpisodes: async (_parent: unknown, _args: unknown, _ctx: any) => {
+    const result = await deleteAllEpisodes();
+    return result;
+  },
+
   // --- Compound mutations ---
 
   createCompound: async (
@@ -339,10 +381,15 @@ export const Mutation = {
     return compound;
   },
 
+  deleteCompound: async (_parent: unknown, args: { id: string }, _ctx: any) => {
+    const compound = await deleteCompound(args.id);
+    return compound;
+  },
+
   createCaseStudy: async (
     _parent: unknown,
     args: { input: CaseStudyCreateWithOptionalIdsInput },
-    _ctx: Context
+    _ctx: GraphQLContext
   ) => {
     const caseStudy = await createCaseStudyWithOptionalIds(args.input);
     return caseStudy;
@@ -351,9 +398,73 @@ export const Mutation = {
   updateCaseStudy: async (
     _parent: unknown,
     args: { input: CaseStudyUpdateWithOptionalIdsInput },
-    _ctx: Context
+    _ctx: GraphQLContext
   ) => {
     const caseStudy = await updateCaseStudyWithOptionalIds(args.input);
     return caseStudy;
+  },
+
+  // --- Protocol mutations ---
+
+  createProtocol: async (
+    _parent: unknown,
+    args: { input: ProtocolCreateWithOptionalIdsInput },
+    _ctx: GraphQLContext
+  ) => {
+    const protocol = await createProtocolWithOptionalIds(args.input);
+    return protocol;
+  },
+
+  updateProtocol: async (
+    _parent: unknown,
+    args: { input: ProtocolUpdateWithOptionalIdsInput },
+    _ctx: GraphQLContext
+  ) => {
+    const protocol = await updateProtocolWithOptionalIds(args.input);
+    return protocol;
+  },
+
+  updateProtocolRelations: async (
+    _parent: unknown,
+    args: { input: ProtocolUpdateRelationFieldsInput },
+    _ctx: GraphQLContext
+  ) => {
+    const protocol = await updateProtocolWithRelationFields(args.input);
+    return protocol;
+  },
+  embedProductDescription: async (
+    _parent: unknown,
+    args: { productId: string },
+    ctx: GraphQLContext
+  ) => {
+    const product = await embedProductDescription(args.productId);
+    if (!product) throw new Error("Product not found");
+    return product;
+  },
+  embedBusinessDescription: async (
+    _parent: unknown,
+    args: { id: string },
+    ctx: GraphQLContext
+  ) => {
+    const business = await embedBusinessDescription(args.id);
+    if (!business) throw new Error("Business not found");
+    return business;
+  },
+  embedPersonBio: async (
+    _parent: unknown,
+    args: { id: string },
+    ctx: GraphQLContext
+  ) => {
+    const person = await embedPersonBio(args.id);
+    if (!person) throw new Error("Person not found");
+    return person;
+  },
+  deleteBusiness: async (
+    _parent: unknown,
+    args: { id: string },
+    _ctx: GraphQLContext
+  ) => {
+    const business = await deleteBusiness(args.id);
+    return business;
   },
 };

@@ -1,222 +1,117 @@
-import mongoose from "mongoose";
-import { Person, IPerson } from "../models/Person.js";
-import { Episode } from "../models/Episode.js";
-import { Business, BusinessDoc } from "../models/Business.js";
+import { Person, IPerson, PersonDoc, PersonModel } from "../models/Person.js";
+
 import { MediaLink } from "../models/MediaLink.js";
+
 import {
-  PersonCreateWithOptionalIdsInput,
-  PersonUpdateWithOptionalIdsInput,
-  PersonUpdateRelationFieldsInput,
-  PersonBusinessNestedInput,
-  PersonEpisodeNestedInput,
+  PersonScalarFields,
+  PersonScalarUpdateFields,
 } from "../graphql/inputs/personInputs.js";
 
-import { validateEntitiesExist } from "./utils/validation.js";
-import { toObjectIds } from "./utils/general.js";
+import {
+  PersonScalarFieldsSchema,
+  PersonScalarUpdateFieldsSchema,
+  PersonUpdateWithOptionalIdsInputSchema,
+} from "../graphql/inputs/schemas/personSchemas.js";
 
-import { mergeAndDedupeIds, mergeUniqueBy } from "./utils/merging.js";
+import { validateInput } from "../lib/validation.js";
+import { withTransaction } from "../lib/transactions.js";
+import { BaseService } from "./BaseService.js";
+import { Errors } from "../lib/errors.js";
+import { mergeUniqueBy, mergeUniqueStrings } from "./utils/merging.js";
 
-// ========== UTILITY FUNCTIONS ==========
-
-// ========== CREATE ==========
-
-/**
- * Simple create: scalars + optional business IDs.
- *
- * Note: Person.businessIds is primarily managed by Business.syncPersonLinks.
- * This function allows initial businessIds for convenience, but the typical
- * workflow is to create a Person, then add them to a Business via Business mutations.
- */
-export async function createPersonWithOptionalIds(
-  input: PersonCreateWithOptionalIdsInput
-): Promise<IPerson> {
-  const { name, role, bio, mediaLinks, businessIds, episodeIds } = input;
-
-  // Validate all referenced businesses exist before creating
-  if (businessIds && businessIds.length > 0) {
-    await validateEntitiesExist(Business, businessIds, "Business");
+class PersonService extends BaseService<IPerson, PersonDoc, PersonModel> {
+  constructor() {
+    super(Person, "personService", "Person");
   }
 
-  const businessObjectIds = businessIds ? toObjectIds(businessIds) : [];
-
-  if (episodeIds && episodeIds.length > 0) {
-    await validateEntitiesExist(Episode, episodeIds, "Episode");
-  }
-
-  const episodeObjectIds = episodeIds ? toObjectIds(episodeIds) : [];
-
-  const person = await Person.create({
-    name,
-    role,
-    bio,
-    mediaLinks,
-    businessIds: businessObjectIds,
-    episodeIds: episodeObjectIds,
-  });
-
-  // Note: No need to call Business.syncPersonLinks here because we're not
-  // modifying Business documents. The businessIds on Person are informational.
-  // The Business mutations handle syncing via Business.syncPersonLinks.
-
-  return person;
-}
-
-// ========== UPDATE ==========
-
-/**
- * Simple update: scalars + optional business IDs.
- *
- * Semantics:
- * - businessIds: treated as "add these businesses" (merge + dedupe, no removals).
- *
- * Note: Prefer using Business mutations to manage person-business relationships.
- * This function is provided for convenience but doesn't trigger Business.syncPersonLinks.
- */
-export async function updatePersonWithOptionalIds(
-  input: PersonUpdateWithOptionalIdsInput
-): Promise<IPerson | null> {
-  const { id, name, role, bio, mediaLinks, businessIds, episodeIds } = input;
-
-  const person = await Person.findById(id);
-  if (!person) return null;
-
-  // Update scalar fields
-  if (name !== undefined) person.name = name;
-  if (role !== undefined) person.role = role;
-  if (bio !== undefined) person.bio = bio;
-  if (mediaLinks !== undefined)
-    person.mediaLinks = mergeUniqueBy(
-      person.mediaLinks ?? [],
-      mediaLinks,
-      (m: MediaLink) => m.url
+  async createPerson(input: PersonScalarFields): Promise<IPerson> {
+    const validated = validateInput(
+      PersonScalarFieldsSchema,
+      input,
+      "PersonScalarFields"
     );
 
-  // --- Businesses: merge, dedupe, no removals here ---
+    const { name, role, bio, mediaLinks } = validated;
 
-  if (businessIds !== undefined && businessIds.length > 0) {
-    await validateEntitiesExist(Business, businessIds, "Business");
-    person.businessIds = mergeAndDedupeIds(person.businessIds, businessIds);
-  }
-
-  if (episodeIds !== undefined && episodeIds.length > 0) {
-    await validateEntitiesExist(Episode, episodeIds, "Episode");
-    person.episodeIds = mergeAndDedupeIds(person.episodeIds, episodeIds);
-  }
-
-  await person.save();
-
-  // Note: We don't call Business.syncPersonLinks here because that would
-  // require modifying Business documents, which is outside this function's scope.
-  // Use Business mutations for proper bidirectional syncing.
-
-  return person;
-}
-
-// ========== NESTED UPSERT HELPERS ==========
-
-/**
- * Nested upsert for businesses.
- *
- * Rules:
- * - If id is provided: update Business by id.
- * - Else if name is provided: find Business by name (unique),
- *   update if exists, otherwise create.
- * - Returns list of resulting ObjectIds.
- *
- * Note: This is provided for completeness but is less commonly used.
- * Prefer creating/updating Businesses directly via Business mutations.
- */
-async function upsertBusinessesNested(
-  businessesNested: PersonBusinessNestedInput[] | undefined
-): Promise<mongoose.Types.ObjectId[]> {
-  if (!businessesNested || businessesNested.length === 0) return [];
-
-  const businessIds: mongoose.Types.ObjectId[] = [];
-
-  for (const businessInput of businessesNested) {
-    const { id, name, description, website, mediaLinks } = businessInput;
-
-    let business: any | null = null;
-
-    if (id) {
-      business = await Business.findById(id);
-      if (!business && name) {
-        business = await Business.findOne({ name });
-      }
-    } else if (name) {
-      business = await Business.findOne({ name });
-    }
-
-    if (business) {
-      // Update existing
-      if (name !== undefined) business.name = name;
-      if (description !== undefined) business.description = description;
-      if (website !== undefined) business.website = website;
-      if (mediaLinks !== undefined) business.mediaLinks = mediaLinks;
-      await business.save();
-    } else {
-      // Create new
-      if (!name) {
-        throw new Error(
-          "businessesNested entry requires 'name' when neither 'id' nor an existing business by name is found"
+    return withTransaction(
+      async (session) => {
+        const validMediaLinks: MediaLink[] | undefined = mediaLinks?.filter(
+          (m): m is MediaLink => !!m.url
         );
-      }
 
-      business = await Business.create({
-        name,
-        description,
-        website,
-        mediaLinks,
-        ownerIds: [],
-        productIds: [],
-        executives: [],
-      });
-    }
+        const [person] = await Person.create(
+          [
+            {
+              name,
+              role,
+              bio,
+              mediaLinks: validMediaLinks,
 
-    businessIds.push(business._id);
-  }
+              businessIds: [],
+              episodeIds: [],
+            },
+          ],
+          { session }
+        );
 
-  return businessIds;
-}
-
-// ========== RICH RELATION UPDATE ==========
-
-/**
- * Rich relation update:
- * - businessIds / businessesNested (merged, deduped, no implicit removals)
- *
- * Note: This function manages Person.businessIds but does NOT sync Business documents.
- * For proper bidirectional syncing, use Business mutations which call Business.syncPersonLinks.
- * This function is provided for rare cases where you want to manage Person.businessIds directly.
- */
-export async function updatePersonWithRelationFields(
-  input: PersonUpdateRelationFieldsInput
-): Promise<IPerson | null> {
-  const { id, businessIds, businessesNested } = input;
-
-  const person = await Person.findById(id);
-  if (!person) return null;
-
-  // --- Businesses: merge & dedupe with existing set ---
-
-  if (businessIds !== undefined && businessIds.length > 0) {
-    await validateEntitiesExist(Business, businessIds, "Business");
-    person.businessIds = mergeAndDedupeIds(person.businessIds, businessIds);
-  }
-
-  if (businessesNested !== undefined) {
-    const nestedBusinessIds = await upsertBusinessesNested(businessesNested);
-    person.businessIds = mergeAndDedupeIds(
-      person.businessIds,
-      nestedBusinessIds.map((id) => id.toString())
+        return person;
+      },
+      { operation: "createPersonWithOptionalIds", personName: name }
     );
   }
 
-  await person.save();
+  async deletePerson(id: string): Promise<IPerson | null> {
+    return withTransaction(
+      async (session) => {
+        return await this.deleteById(id, { session });
+      },
+      { operation: "deletePerson", personId: id }
+    );
+  }
 
-  // Note: We don't call Business.syncPersonLinks here because that's
-  // the Business model's responsibility. This function only manages the
-  // Person side of the relationship.
+  async updatePerson(input: PersonScalarUpdateFields): Promise<IPerson | null> {
+    const validated = validateInput(
+      PersonScalarUpdateFieldsSchema,
+      input,
+      "PersonScalarUpdateFields"
+    );
 
-  return person;
+    const { id, name, role, bio, mediaLinks } = validated;
+
+    return withTransaction(
+      async (session) => {
+        const person = await this.findByIdOrNull(id, { session });
+        if (!person) return null;
+
+        if (name !== undefined) person.name = name;
+        if (role !== undefined) person.role = role;
+        if (bio !== undefined) person.bio = bio;
+
+        if (mediaLinks !== undefined) {
+          const validMediaLinks = mediaLinks.filter(
+            (m): m is MediaLink => !!m.url
+          );
+          person.mediaLinks = mergeUniqueBy(
+            person.mediaLinks ?? [],
+            validMediaLinks,
+            (m: MediaLink) => m.url
+          );
+        }
+
+        await person.save({ session });
+        return person;
+      },
+      { operation: "updatePersonWithOptionalIds", personId: id }
+    );
+  }
 }
+
+export const personService = new PersonService();
+
+export const createPerson = (input: PersonScalarFields) =>
+  personService.createPerson(input);
+
+export const updatePerson = (input: PersonScalarUpdateFields) =>
+  personService.updatePerson(input);
+
+export const deletePerson = (id: string) => personService.deletePerson(id);

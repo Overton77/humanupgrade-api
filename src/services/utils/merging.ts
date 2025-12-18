@@ -10,6 +10,20 @@ export function mergeAndDedupeIds(
   return toObjectIds(Array.from(merged));
 }
 
+export function dedupeObjectIds(
+  ids: mongoose.Types.ObjectId[]
+): mongoose.Types.ObjectId[] {
+  const seen = new Set<string>();
+  const out: mongoose.Types.ObjectId[] = [];
+  for (const id of ids) {
+    const s = id.toString();
+    if (seen.has(s)) continue;
+    seen.add(s);
+    out.push(id);
+  }
+  return out;
+}
+
 export function mergeUniqueStrings(
   existing: string[] = [],
   incoming: string[] = []
