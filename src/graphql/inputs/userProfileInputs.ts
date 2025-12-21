@@ -4,8 +4,6 @@ import {
   DietStyle,
   TimeBudget,
   PreferredFormat,
-  IUserGoal,
-  IEntityPreferences,
 } from "../../models/UserProfile.js";
 
 export interface UserGoalInput {

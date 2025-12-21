@@ -12,7 +12,6 @@ import {
   diffIdsFromLocals,
   cleanupSyncLocals,
 } from "./utils/syncLocals.js";
-import { pullFromUsersSaved } from "./utils/usedSavedCleanup.js";
 
 export interface IProduct {
   id: string; // <- now available because of virtual
@@ -140,14 +139,12 @@ ProductSchema.post("findOneAndDelete", async function (doc: ProductDoc | null) {
 
   const session = this.getOptions()?.session as ClientSession | undefined;
 
-  const { User } = await import("./User.js");
   const { Business } = await import("./Business.js");
   const { Protocol } = await import("./Protocol.js");
   const { CaseStudy } = await import("./CaseStudy.js");
   const { Compound } = await import("./Compound.js");
 
   // 1) One-way bookmarks: OK to pull
-  await pullFromUsersSaved(User, "savedProducts", doc._id, session);
 
   // 2) One-way references: OK to pull (if you have these fields)
   await CaseStudy.updateMany(

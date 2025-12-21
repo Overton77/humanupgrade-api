@@ -14,7 +14,6 @@ import {
   getDocSession,
   cleanupSyncLocals,
 } from "./utils/syncLocals.js";
-import { pullFromUsersSaved } from "./utils/usedSavedCleanup.js";
 
 export type TranscriptStatus = "missing" | "queued" | "stored" | "error";
 export type PipelineStatus = "not_started" | "running" | "complete" | "error";
@@ -289,10 +288,6 @@ EpisodeSchema.post("findOneAndDelete", async function (doc: EpisodeDoc | null) {
   const { Person } = await import("./Person.js");
   const { Business } = await import("./Business.js");
   const { CaseStudy } = await import("./CaseStudy.js");
-  const { User } = await import("./User.js");
-
-  // 1) One-way refs: User saved + CaseStudy refs
-  await pullFromUsersSaved(User, "savedEpisodes", episodeId, session);
 
   await CaseStudy.updateMany(
     { episodeIds: episodeId },

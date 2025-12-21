@@ -7,7 +7,7 @@ import mongoose, {
 } from "mongoose";
 import { MediaLinkSchema, MediaLink } from "./MediaLink.js";
 import { TxOpts } from "./utils/syncLocals.js";
-import { pullFromUsersSaved } from "./utils/usedSavedCleanup.js";
+
 export interface IPerson {
   id: string; // <- now available because of virtual
   name: string;
@@ -105,14 +105,8 @@ PersonSchema.post("findOneAndDelete", async function (doc) {
   const personId = doc._id;
 
   const { Episode } = await import("./Episode.js");
-  const { User } = await import("./User.js");
+
   const { Business } = await import("./Business.js");
-  await pullFromUsersSaved(
-    User,
-    "savedPersons",
-    personId,
-    session ?? undefined
-  );
 
   await Episode.updateMany(
     { guestIds: personId },

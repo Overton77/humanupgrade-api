@@ -5,7 +5,6 @@ import mongoose, {
   HydratedDocument,
   ClientSession,
 } from "mongoose";
-import { pullFromUsersSaved } from "./utils/usedSavedCleanup.js";
 
 export interface ICaseStudy {
   id: string; // virtual
@@ -49,21 +48,14 @@ CaseStudySchema.virtual("id").get(function () {
 CaseStudySchema.set("toJSON", { virtuals: true });
 CaseStudySchema.set("toObject", { virtuals: true });
 
-CaseStudySchema.post(
-  "findOneAndDelete",
-  async function (doc: CaseStudyDoc | null) {
-    if (!doc) return;
-    const session = this.getOptions()?.session as ClientSession | undefined;
-    const { User } = await import("./User.js");
+// CaseStudySchema.post(
+//   "findOneAndDelete",
+//   async function (doc: CaseStudyDoc | null) {
+//     if (!doc) return;
+//     const session = this.getOptions()?.session as ClientSession | undefined;
 
-    await pullFromUsersSaved(
-      User,
-      "savedCaseStudies",
-      doc._id,
-      session ?? undefined
-    );
-  }
-);
+//   }
+// );
 
 export const CaseStudy: CaseStudyModel =
   (mongoose.models.CaseStudy as CaseStudyModel) ||

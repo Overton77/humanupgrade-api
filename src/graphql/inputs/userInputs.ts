@@ -11,14 +11,3 @@ export interface UserUpsertInput {
   role?: "admin" | "user";
   mediaLinks?: MediaLinkInput[];
 }
-
-export interface UserMassSaveInput {
-  userId: string;
-  episodeIds?: string[];
-  productIds?: string[];
-  businessIds?: string[];
-  protocolIds?: string[];
-  compoundIds?: string[];
-  caseStudyIds?: string[];
-  personIds?: string[];
-}
