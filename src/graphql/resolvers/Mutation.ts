@@ -95,10 +95,12 @@ import {
   upsertUserProfile,
 } from "../../services/userProfileService.js";
 import { Errors } from "../../lib/errors.js";
+import { userSavedResolvers } from "./userSavedResolvers.js";
 
 const SALT_ROUNDS = 10;
 
 export const Mutation = {
+  ...userSavedResolvers.Mutation,
   register: async (
     _parent: unknown,
     args: {

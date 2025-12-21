@@ -14,6 +14,7 @@ import { Protocol, ProtocolDoc } from "../../models/Protocol.js";
 import { CaseStudy, CaseStudyDoc } from "../../models/CaseStudy.js";
 import { UserDoc } from "../../models/User.js";
 import { UserProfile } from "../../models/UserProfile.js";
+import { userSavedResolvers } from "./userSavedResolvers.js";
 
 const DateTimeScalar = new GraphQLScalarType({
   name: "DateTime",
@@ -115,5 +116,13 @@ export const resolvers = {
       await Episode.find({ _id: { $in: parent.episodeIds || [] } }),
     compounds: async (parent: CaseStudyDoc) =>
       await Compound.find({ _id: { $in: parent.compoundIds || [] } }),
+  },
+
+  UserSaved: {
+    ...userSavedResolvers.UserSaved,
+  },
+
+  SavedTargetUnion: {
+    ...userSavedResolvers.SavedTargetUnion,
   },
 };

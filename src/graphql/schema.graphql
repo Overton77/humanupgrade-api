@@ -1,5 +1,35 @@
 scalar DateTime
 
+enum ArticleSourceType {
+  human_upgrade
+  external
+}
+
+type Article {
+  id: ID!
+
+  title: String!
+  summary: String
+  url: String
+
+  sourceType: ArticleSourceType!
+  publishedAt: DateTime
+  authorName: String
+
+  tags: [String!]!
+  mediaLinks: [MediaLink!]
+
+  episodeIds: [ID!]
+  personIds: [ID!]
+  businessIds: [ID!]
+  productIds: [ID!]
+  compoundIds: [ID!]
+  protocolIds: [ID!]
+
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
 enum GoalType {
   sleep
   energy
@@ -658,7 +688,6 @@ input CaseStudyUpdateWithOptionalIdsInput {
   summary: String
   url: String
   sourceType: CaseStudySourceType
-  # These are *additional* IDs to merge and dedupe with existing ones
   episodeIds: [ID!]
   compoundIds: [ID!]
 }
@@ -666,6 +695,98 @@ input CaseStudyUpdateWithOptionalIdsInput {
 type UserDeleteResult {
   message: String!
   success: Boolean
+}
+
+enum SavedEntityType {
+  product
+  compound
+  person
+  business
+  protocol
+  episode
+  caseStudy
+  article
+}
+
+enum SaveSource {
+  dashboard
+  episode
+  assistant
+  search
+  protocol_builder
+  profile
+  other
+}
+
+type UserSaved {
+  id: ID!
+  userId: ID!
+
+  targetType: SavedEntityType!
+  targetId: ID!
+
+  note: String
+  tags: [String!]!
+  pinned: Boolean!
+  source: SaveSource
+
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  # hydrated via dataloaders
+  target: SavedTargetUnion
+}
+
+union SavedTargetUnion =
+    Product
+  | Compound
+  | Person
+  | Business
+  | Protocol
+  | Episode
+  | CaseStudy
+  | Article
+
+input SaveEntityInput {
+  targetType: SavedEntityType!
+  targetId: ID!
+
+  note: String
+  tags: [String!]
+  pinned: Boolean
+  source: SaveSource
+}
+
+input UnsaveEntityInput {
+  targetType: SavedEntityType!
+  targetId: ID!
+}
+
+input SavedEntitiesFilterInput {
+  targetType: SavedEntityType
+  search: String
+  tags: [String!]
+  pinned: Boolean
+}
+
+input CursorPageInput {
+  first: Int = 20
+  after: String
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  endCursor: String
+}
+
+type UserSavedEdge {
+  cursor: String!
+  node: UserSaved!
+}
+
+type UserSavedConnection {
+  edges: [UserSavedEdge!]!
+  pageInfo: PageInfo!
 }
 
 type Query {
@@ -690,6 +811,11 @@ type Query {
   vectorSearchProducts(args: VectorSearchArgs!): [ProductSearchPayload!]
   vectorSearchBusinesses(args: VectorSearchArgs!): [BusinessSearchPayload!]
   vectorSearchPeople(args: VectorSearchArgs!): [PersonSearchPayload!]
+
+  savedEntities(
+    filter: SavedEntitiesFilterInput
+    page: CursorPageInput
+  ): UserSavedConnection!
 }
 
 type AuthPayload {
@@ -785,4 +911,7 @@ type Mutation {
   embedProductDescription(productId: ID!): Product!
   embedBusinessDescription(businessId: ID!): Business!
   embedPersonBio(personId: ID!): Person!
+
+  saveEntity(input: SaveEntityInput!): UserSaved!
+  unsaveEntity(input: UnsaveEntityInput!): Boolean!
 }

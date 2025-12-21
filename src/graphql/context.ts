@@ -1,7 +1,11 @@
 import DataLoader from "dataloader";
-import mongoose from "mongoose";
 import type { IUser } from "../models/User.js";
 import { getUserByIdCached, type Role } from "../services/auth.js";
+
+import {
+  createSavedTargetLoaders,
+  type SavedTargetLoaders,
+} from "./loaders/savedTargetLoaders.js";
 
 export interface GraphQLContext {
   userId: string | null;
@@ -9,6 +13,7 @@ export interface GraphQLContext {
 
   loaders: {
     userById: DataLoader<string, IUser | null>;
+    savedTargets: SavedTargetLoaders;
   };
 
   requestId?: string;
@@ -34,7 +39,10 @@ export function createContext(params: {
   return {
     userId,
     role,
-    loaders: { userById },
+    loaders: {
+      userById,
+      savedTargets: createSavedTargetLoaders(),
+    },
     requestId,
   };
 }
@@ -42,9 +50,11 @@ export function createContext(params: {
 export function isAuthenticated(ctx: GraphQLContext): boolean {
   return !!ctx.userId;
 }
+
 export function isAdmin(ctx: GraphQLContext): boolean {
   return ctx.role === "admin";
 }
+
 export function requireUserId(ctx: GraphQLContext): string {
   if (!ctx.userId) throw new Error("User not authenticated");
   return ctx.userId;
