@@ -11,15 +11,26 @@ import { vectorSearchBusinessesByDescription } from "../../services/searchServic
 import { vectorSearchPeopleByBio } from "../../services/searchService.js";
 import { VectorSearchArgs } from "../inputs/vectorSearchInputs.js";
 import mongoose from "mongoose";
+import { getMe } from "../../services/userProfileService.js";
+import { GraphQLContext } from "../context.js";
+import { Errors } from "../../lib/errors.js";
 
 export const Query = {
-  me: (_parent: unknown, _args: unknown, ctx: any) => {
-    return ctx.user || null;
+  me: (_parent: unknown, _args: unknown, ctx: GraphQLContext) => {
+    return ctx.userId ? ctx.loaders.userById.load(ctx.userId) : null;
+  },
+  myProfile: async (_parent: unknown, _args: unknown, ctx: GraphQLContext) => {
+    const user = await ctx.loaders.userById.load(ctx.userId!);
+    if (!user) {
+      throw Errors.notFound("User not found");
+    }
+    return await getMe(user);
   },
 
   allUsers: async (
     _parent: unknown,
-    args: { limit?: number; offset?: number }
+    args: { limit?: number; offset?: number },
+    ctx: GraphQLContext
   ) => {
     const { limit = 20, offset = 0 } = args;
     return await User.find({}).skip(offset).limit(limit);
@@ -27,19 +38,17 @@ export const Query = {
 
   episodes: async (
     _parent: unknown,
-    args: { limit?: number; offset?: number }
+    args: { limit?: number; offset?: number },
+    ctx: GraphQLContext
   ) => {
     const { limit = 20, offset = 0 } = args;
     return await Episode.find({}).skip(offset).limit(limit);
   },
 
-  episode: async (_parent: unknown, args: { id: string }) => {
-    return await Episode.findById(args.id);
-  },
-
   products: async (
     _parent: unknown,
-    args: { limit?: number; offset?: number }
+    args: { limit?: number; offset?: number },
+    ctx: GraphQLContext
   ) => {
     console.log(`[DB] Connected to MongoDB (db: ${mongoose.connection.name})`);
     const { limit = 20, offset = 0 } = args;

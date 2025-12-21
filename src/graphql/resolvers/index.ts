@@ -13,6 +13,7 @@ import { Compound, ICompound } from "../../models/Compound.js";
 import { Protocol, IProtocol } from "../../models/Protocol.js";
 import { CaseStudy, ICaseStudy } from "../../models/CaseStudy.js";
 import { IUser } from "../../models/User.js";
+import { UserProfile } from "../../models/UserProfile.js";
 
 const DateTimeScalar = new GraphQLScalarType({
   name: "DateTime",
@@ -40,6 +41,8 @@ export const resolvers = {
   Mutation,
 
   User: {
+    profile: async (parent: IUser) =>
+      await UserProfile.findOne({ userId: parent._id }),
     savedEpisodes: async (parent: IUser) =>
       await Episode.find({ _id: { $in: parent.savedEpisodes } }),
     savedProducts: async (parent: IUser) =>

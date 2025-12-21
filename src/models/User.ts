@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document, Model, HydratedDocument } from "mongoose";
 import bcrypt from "bcryptjs";
 import { MediaLinkSchema, MediaLink } from "./MediaLink.js";
+import { IUserProfile } from "./UserProfile.js";
 
 export interface IUser extends Document {
   id: string;
@@ -11,6 +12,7 @@ export interface IUser extends Document {
   name?: string;
   role?: "admin" | "user";
   mediaLinks?: MediaLink[];
+  profile?: IUserProfile;
   savedEpisodes: mongoose.Types.ObjectId[];
   savedProducts: mongoose.Types.ObjectId[];
   savedBusinesses: mongoose.Types.ObjectId[];
@@ -42,6 +44,7 @@ const UserSchema = new Schema<IUser, UserModel>(
     providerId: { type: String },
     name: { type: String },
     mediaLinks: [MediaLinkSchema],
+    profile: { type: Schema.Types.ObjectId, ref: "UserProfile" },
     savedEpisodes: [{ type: Schema.Types.ObjectId, ref: "Episode" }],
     savedProducts: [{ type: Schema.Types.ObjectId, ref: "Product" }],
     savedPersons: [{ type: Schema.Types.ObjectId, ref: "Person" }],

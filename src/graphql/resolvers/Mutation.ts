@@ -96,6 +96,11 @@ import {
 import { Product } from "../../models/Product.js";
 import { Business } from "../../models/Business.js";
 import { Person } from "../../models/Person.js";
+import { UserProfileUpsertInput } from "../inputs/userProfileInputs.js";
+import {
+  deleteUserProfile,
+  upsertUserProfile,
+} from "../../services/userProfileService.js";
 
 const SALT_ROUNDS = 10;
 
@@ -142,6 +147,30 @@ export const Mutation = {
     return upsertUser(args.input);
   },
 
+  upsertUserProfile: async (
+    _p: unknown,
+    args: { input: UserProfileUpsertInput },
+    ctx: GraphQLContext
+  ) => {
+    requireAuth(ctx);
+    return await upsertUserProfile(args.input);
+  },
+
+  deleteUserProfile: async (
+    _p: unknown,
+    args: { userId: string },
+    ctx: GraphQLContext
+  ) => {
+    requireAuth(ctx);
+
+    const user = await ctx.loaders.userById.load(ctx.userId!);
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    return await deleteUserProfile(user._id.toString());
+  },
   login: async (
     _parent: unknown,
     args: { email: string; password: string }
@@ -183,13 +212,10 @@ export const Mutation = {
   toggleSaveEpisode: async (
     _parent: unknown,
     args: { episodeId: string },
-    ctx: any
+    ctx: GraphQLContext
   ) => {
     requireAuth(ctx);
-    return await toggleSavedEpisodeForUser(
-      ctx.user!._id.toString(),
-      args.episodeId
-    );
+    return await toggleSavedEpisodeForUser(ctx.userId!, args.episodeId);
   },
 
   toggleSaveProduct: async (
@@ -198,27 +224,21 @@ export const Mutation = {
     ctx: GraphQLContext
   ) => {
     requireAuth(ctx);
-    return await toggleSavedProductForUser(
-      ctx.user!._id.toString(),
-      args.productId
-    );
+    return await toggleSavedProductForUser(ctx.userId!, args.productId);
   },
 
   toggleSaveBusiness: async (
     _parent: unknown,
     args: { businessId: string },
-    ctx: any
+    ctx: GraphQLContext
   ) => {
     requireAuth(ctx);
-    return await toggleSavedBusinessForUser(
-      ctx.user!._id.toString(),
-      args.businessId
-    );
+    return await toggleSavedBusinessForUser(ctx.userId!, args.businessId);
   },
   createBusinessWithRelations: async (
     _parent: unknown,
     args: { input: BusinessCreateRelationsInput },
-    _ctx: any
+    ctx: GraphQLContext
   ) => {
     // args.input shape matches BusinessCreateWithOptionalIdsInput
     const business = await createBusinessWithRelations(args.input);
@@ -228,7 +248,7 @@ export const Mutation = {
   updateBusiness: async (
     _parent: unknown,
     args: { input: BusinessUpdateWithOptionalIdsInput },
-    _ctx: any
+    ctx: GraphQLContext
   ) => {
     const business = await updateBusinessWithOptionalIds(args.input);
     return business;
@@ -237,7 +257,7 @@ export const Mutation = {
   updateBusinessRelations: async (
     _parent: unknown,
     args: { input: BusinessUpdateRelationFieldsInput },
-    _ctx: any
+    ctx: GraphQLContext
   ) => {
     const business = await updateBusinessWithRelationFields(args.input);
     return business;
@@ -248,7 +268,7 @@ export const Mutation = {
   createProduct: async (
     _parent: unknown,
     args: { input: ProductCreateWithOptionalIdsInput },
-    _ctx: any
+    ctx: GraphQLContext
   ) => {
     const product = await createProductWithOptionalIds(args.input);
     return product;
@@ -257,7 +277,7 @@ export const Mutation = {
   updateProduct: async (
     _parent: unknown,
     args: { input: ProductUpdateWithOptionalIdsInput },
-    _ctx: any
+    ctx: GraphQLContext
   ) => {
     const product = await updateProductWithOptionalIds(args.input);
     return product;
@@ -266,7 +286,7 @@ export const Mutation = {
   updateProductRelations: async (
     _parent: unknown,
     args: { input: ProductUpdateRelationFieldsInput },
-    _ctx: any
+    ctx: GraphQLContext
   ) => {
     const product = await updateProductWithRelationFields(args.input);
     return product;
@@ -286,7 +306,7 @@ export const Mutation = {
   createPerson: async (
     _parent: unknown,
     args: { input: PersonScalarFields },
-    _ctx: any
+    ctx: GraphQLContext
   ) => {
     const person = await createPerson(args.input);
     return person;
@@ -295,7 +315,7 @@ export const Mutation = {
   updatePerson: async (
     _parent: unknown,
     args: { input: PersonScalarUpdateFields },
-    _ctx: any
+    ctx: GraphQLContext
   ) => {
     const person = await updatePerson(args.input);
     return person;
@@ -311,7 +331,7 @@ export const Mutation = {
   createEpisode: async (
     _parent: unknown,
     args: { input: EpisodeCreateWithOptionalIdsInput },
-    _ctx: any
+    ctx: GraphQLContext
   ) => {
     const episode = await createEpisodeWithOptionalIds(args.input);
     return episode;
@@ -320,7 +340,7 @@ export const Mutation = {
   updateEpisode: async (
     _parent: unknown,
     args: { input: EpisodeUpdateWithOptionalIdsInput },
-    _ctx: any
+    ctx: GraphQLContext
   ) => {
     const episode = await updateEpisodeWithOptionalIds(args.input);
     return episode;
@@ -329,7 +349,7 @@ export const Mutation = {
   updateEpisodeRelations: async (
     _parent: unknown,
     args: { input: EpisodeUpdateRelationFieldsInput },
-    _ctx: any
+    ctx: GraphQLContext
   ) => {
     const episode = await updateEpisodeWithRelationFields(args.input);
     return episode;
@@ -338,7 +358,7 @@ export const Mutation = {
   deleteEpisode: async (
     _parent: unknown,
     args: { identifier: string },
-    _ctx: any
+    ctx: GraphQLContext
   ) => {
     const episode = await deleteEpisodeByPageUrlOrId(args.identifier);
     if (!episode) {
@@ -347,7 +367,11 @@ export const Mutation = {
     return episode;
   },
 
-  deleteAllEpisodes: async (_parent: unknown, _args: unknown, _ctx: any) => {
+  deleteAllEpisodes: async (
+    _parent: unknown,
+    _args: unknown,
+    ctx: GraphQLContext
+  ) => {
     const result = await deleteAllEpisodes();
     return result;
   },
@@ -357,7 +381,7 @@ export const Mutation = {
   createCompound: async (
     _parent: unknown,
     args: { input: CompoundCreateWithOptionalIdsInput },
-    _ctx: any
+    ctx: GraphQLContext
   ) => {
     const compound = await createCompoundWithOptionalIds(args.input);
     return compound;
@@ -366,7 +390,7 @@ export const Mutation = {
   updateCompound: async (
     _parent: unknown,
     args: { input: CompoundUpdateWithOptionalIdsInput },
-    _ctx: any
+    ctx: GraphQLContext
   ) => {
     const compound = await updateCompoundWithOptionalIds(args.input);
     return compound;
@@ -375,13 +399,17 @@ export const Mutation = {
   updateCompoundRelations: async (
     _parent: unknown,
     args: { input: CompoundUpdateRelationFieldsInput },
-    _ctx: any
+    ctx: GraphQLContext
   ) => {
     const compound = await updateCompoundWithRelationFields(args.input);
     return compound;
   },
 
-  deleteCompound: async (_parent: unknown, args: { id: string }, _ctx: any) => {
+  deleteCompound: async (
+    _parent: unknown,
+    args: { id: string },
+    ctx: GraphQLContext
+  ) => {
     const compound = await deleteCompound(args.id);
     return compound;
   },

@@ -43,7 +43,6 @@ export async function getUserByIdCached(userId: string): Promise<IUser | null> {
 
   if (cached && cached.expiresAt > now) return cached.value;
 
-  // Minimal projection is also fine if you want: .select("_id email role name")
   const user = await User.findById(userId).exec();
   const value = user ?? null;
 

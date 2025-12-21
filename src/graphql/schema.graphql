@@ -1,5 +1,107 @@
 scalar DateTime
 
+enum GoalType {
+  sleep
+  energy
+  fatLoss
+  cognition
+  longevity
+  strength
+  stress
+  recovery
+  other
+}
+
+enum ExperienceLevel {
+  beginner
+  intermediate
+  advanced
+}
+
+enum DietStyle {
+  none
+  keto
+  paleo
+  vegan
+  vegetarian
+  mediterranean
+  lowCarb
+  omnivore
+  other
+}
+
+enum TimeBudget {
+  min5
+  min15
+  min30
+  min60
+}
+
+enum PreferredFormat {
+  video
+  summary
+  protocol
+  caseStudy
+}
+
+type UserGoal {
+  goalType: GoalType!
+  priority: Int!
+  notes: String
+}
+
+type EntityPreferences {
+  likedEntityIds: [ID!]!
+  hiddenEntityIds: [ID!]!
+  blockedEntityIds: [ID!]!
+}
+
+type UserProfile {
+  id: ID!
+  userId: ID!
+
+  goals: [UserGoal!]!
+
+  experienceLevel: ExperienceLevel
+  dietStyle: DietStyle
+
+  avoidances: [String!]!
+  timeBudget: TimeBudget
+
+  preferredFormats: [PreferredFormat!]!
+  topicInterests: [String!]!
+
+  entityPreferences: EntityPreferences
+
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input UserGoalInput {
+  goalType: GoalType!
+  priority: Int!
+  notes: String
+}
+
+input EntityPreferencesInput {
+  likedEntityIds: [ID!]
+  hiddenEntityIds: [ID!]
+  blockedEntityIds: [ID!]
+}
+
+input UserProfileUpsertInput {
+  userId: ID!
+
+  goals: [UserGoalInput!]
+  experienceLevel: ExperienceLevel
+  dietStyle: DietStyle
+  avoidances: [String!]
+  timeBudget: TimeBudget
+  preferredFormats: [PreferredFormat!]
+  topicInterests: [String!]
+  entityPreferences: EntityPreferencesInput
+}
+
 type MediaLink {
   url: String!
   description: String
@@ -421,6 +523,7 @@ type User {
   savedCaseStudies: [CaseStudy!]!
   savedPersons: [Person!]!
   role: String!
+  profile: UserProfile
 }
 
 type WebPageTimeline {
@@ -569,6 +672,7 @@ input CaseStudyUpdateWithOptionalIdsInput {
 
 type Query {
   me: User
+  myProfile: UserProfile
   episodes(limit: Int = 20, offset: Int = 0): [Episode!]!
   episode(id: ID!): Episode
   protocols(limit: Int = 20, offset: Int = 0): [Protocol!]!
@@ -640,6 +744,9 @@ type PersonSearchPayload {
 type Mutation {
   register(email: String!, password: String!, name: String): AuthPayload!
   login(email: String!, password: String!): AuthPayload!
+
+  upsertUserProfile(input: UserProfileUpsertInput!): UserProfile!
+  deleteUserProfile(userId: ID!): DeleteResult!
 
   toggleSaveEpisode(episodeId: ID!): User!
   toggleSaveProduct(productId: ID!): User!
