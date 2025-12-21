@@ -14,8 +14,10 @@ import mongoose from "mongoose";
 import { getMe } from "../../services/userProfileService.js";
 import { GraphQLContext } from "../context.js";
 import { Errors } from "../../lib/errors.js";
+import { userSavedResolvers } from "./userSavedResolvers.js";
 
 export const Query = {
+  ...userSavedResolvers.Query,
   me: (_parent: unknown, _args: unknown, ctx: GraphQLContext) => {
     return ctx.userId ? ctx.loaders.userById.load(ctx.userId) : null;
   },
