@@ -67,15 +67,8 @@ import {
 } from "../inputs/caseStudyInputs.js";
 
 import { requireAuth, requireAdmin } from "../../services/auth.js";
-import {
-  addSavedItemsToUser,
-  removeSavedItemsFromUser,
-  upsertUser,
-  toggleSavedBusinessForUser,
-  toggleSavedEpisodeForUser,
-  toggleSavedProductForUser,
-} from "../../services/userService.js";
-import { UserMassSaveInput, UserUpsertInput } from "../inputs/userInputs.js";
+import { upsertUser, deleteUser } from "../../services/userService.js";
+import { UserUpsertInput } from "../inputs/userInputs.js";
 
 import {
   createProtocolWithOptionalIds,
@@ -101,6 +94,7 @@ import {
   deleteUserProfile,
   upsertUserProfile,
 } from "../../services/userProfileService.js";
+import { Errors } from "../../lib/errors.js";
 
 const SALT_ROUNDS = 10;
 
@@ -147,6 +141,23 @@ export const Mutation = {
     return upsertUser(args.input);
   },
 
+  deleteUser: async (
+    _p: unknown,
+    args: { userId: string },
+    ctx: GraphQLContext
+  ) => {
+    requireAuth(ctx);
+
+    const user = await ctx.loaders.userById.load(ctx.userId!);
+    if (!user) {
+      throw Errors.internalError("Failed to load user");
+    }
+
+    const deleteResult = await deleteUser(user._id);
+
+    return deleteResult;
+  },
+
   upsertUserProfile: async (
     _p: unknown,
     args: { input: UserProfileUpsertInput },
@@ -191,50 +202,7 @@ export const Mutation = {
     });
     return { token, user };
   },
-  addSavedItemsToUser: async (
-    _p: unknown,
-    args: { input: UserMassSaveInput },
-    ctx: GraphQLContext
-  ) => {
-    requireAuth(ctx); // probably only owner or admin in real life
-    return addSavedItemsToUser(args.input);
-  },
 
-  removeSavedItemsFromUser: async (
-    _p: unknown,
-    args: { input: UserMassSaveInput },
-    ctx: GraphQLContext
-  ) => {
-    requireAuth(ctx);
-    return removeSavedItemsFromUser(args.input);
-  },
-
-  toggleSaveEpisode: async (
-    _parent: unknown,
-    args: { episodeId: string },
-    ctx: GraphQLContext
-  ) => {
-    requireAuth(ctx);
-    return await toggleSavedEpisodeForUser(ctx.userId!, args.episodeId);
-  },
-
-  toggleSaveProduct: async (
-    _parent: unknown,
-    args: { productId: string },
-    ctx: GraphQLContext
-  ) => {
-    requireAuth(ctx);
-    return await toggleSavedProductForUser(ctx.userId!, args.productId);
-  },
-
-  toggleSaveBusiness: async (
-    _parent: unknown,
-    args: { businessId: string },
-    ctx: GraphQLContext
-  ) => {
-    requireAuth(ctx);
-    return await toggleSavedBusinessForUser(ctx.userId!, args.businessId);
-  },
   createBusinessWithRelations: async (
     _parent: unknown,
     args: { input: BusinessCreateRelationsInput },

@@ -7,7 +7,6 @@ import mongoose, {
 } from "mongoose";
 import { MediaLinkSchema, MediaLink } from "./MediaLink.js";
 import { TxOpts } from "./utils/syncLocals.js";
-import { pullFromUsersSaved } from "./utils/usedSavedCleanup.js";
 
 export interface ICompound {
   id: string; // <- now available because of virtual
@@ -103,16 +102,11 @@ CompoundSchema.post(
     if (!doc) return;
     const session = this.getOptions()?.session as ClientSession | undefined;
     const compoundId = doc._id;
-    const { User } = await import("./User.js");
+
     const { Protocol } = await import("./Protocol.js");
     const { Product } = await import("./Product.js");
     const { CaseStudy } = await import("./CaseStudy.js");
-    await pullFromUsersSaved(
-      User,
-      "savedCompounds",
-      compoundId,
-      session ?? undefined
-    );
+
     await Protocol.updateMany(
       { compoundIds: compoundId },
       { $pull: { compoundIds: compoundId } },

@@ -13,13 +13,6 @@ export interface IUser extends Document {
   role?: "admin" | "user";
   mediaLinks?: MediaLink[];
   profile?: IUserProfile;
-  savedEpisodes: mongoose.Types.ObjectId[];
-  savedProducts: mongoose.Types.ObjectId[];
-  savedBusinesses: mongoose.Types.ObjectId[];
-  savedProtocols: mongoose.Types.ObjectId[];
-  savedCompounds: mongoose.Types.ObjectId[];
-  savedCaseStudies: mongoose.Types.ObjectId[];
-  savedPersons: mongoose.Types.ObjectId[];
   comparePassword(plain: string): Promise<boolean>;
 }
 
@@ -45,13 +38,6 @@ const UserSchema = new Schema<IUser, UserModel>(
     name: { type: String },
     mediaLinks: [MediaLinkSchema],
     profile: { type: Schema.Types.ObjectId, ref: "UserProfile" },
-    savedEpisodes: [{ type: Schema.Types.ObjectId, ref: "Episode" }],
-    savedProducts: [{ type: Schema.Types.ObjectId, ref: "Product" }],
-    savedPersons: [{ type: Schema.Types.ObjectId, ref: "Person" }],
-    savedBusinesses: [{ type: Schema.Types.ObjectId, ref: "Business" }],
-    savedCompounds: [{ type: Schema.Types.ObjectId, ref: "Compound" }],
-    savedCaseStudies: [{ type: Schema.Types.ObjectId, ref: "CaseStudy" }],
-    savedProtocols: [{ type: Schema.Types.ObjectId, ref: "Protocol" }],
   },
   { timestamps: true }
 );

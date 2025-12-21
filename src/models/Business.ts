@@ -13,7 +13,6 @@ import {
   diffIdsFromLocals,
   cleanupSyncLocals,
 } from "./utils/syncLocals.js";
-import { pullFromUsersSaved } from "./utils/usedSavedCleanup.js";
 
 // --- Executive subdocument ---
 
@@ -201,10 +200,9 @@ BusinessSchema.post(
     if (!doc) return;
     const session = this.getOptions()?.session as ClientSession | undefined;
     const businessId = doc._id;
-    const { User } = await import("./User.js");
+
     const { Episode } = await import("./Episode.js");
     const { Person } = await import("./Person.js");
-    await pullFromUsersSaved(User, "savedBusinesses", businessId, session);
 
     await Episode.updateMany(
       { sponsorBusinessIds: businessId },

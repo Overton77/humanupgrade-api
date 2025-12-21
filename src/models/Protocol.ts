@@ -1,11 +1,5 @@
-import mongoose, {
-  Schema,
-  Document,
-  Model,
-  HydratedDocument,
-  ClientSession,
-} from "mongoose";
-import { pullFromUsersSaved } from "./utils/usedSavedCleanup.js";
+import mongoose, { Schema, Model, HydratedDocument } from "mongoose";
+
 import {
   getDocSession,
   preloadPrevForPaths,
@@ -136,11 +130,10 @@ ProtocolSchema.post(
   async function (doc: ProtocolDoc | null) {
     if (!doc) return;
     const session = getDocSession(doc);
-    const { User } = await import("./User.js");
+
     const { Compound } = await import("./Compound.js");
     const { Product } = await import("./Product.js");
     const { CaseStudy } = await import("./CaseStudy.js");
-    await pullFromUsersSaved(User, "savedProtocols", doc._id, session);
 
     await Compound.updateMany(
       { protocolIds: doc._id },

@@ -1,18 +1,18 @@
 import { GraphQLScalarType, Kind } from "graphql";
 import { Query } from "./Query.js";
 import { Mutation } from "./Mutation.js";
-import { Episode, IEpisode } from "../../models/Episode.js";
-import { Person, IPerson } from "../../models/Person.js";
+import { Episode, EpisodeDoc } from "../../models/Episode.js";
+import { Person, PersonDoc } from "../../models/Person.js";
 import {
   Business,
-  IBusiness,
+  BusinessDoc,
   IBusinessExecutive,
 } from "../../models/Business.js";
-import { Product, IProduct } from "../../models/Product.js";
-import { Compound, ICompound } from "../../models/Compound.js";
-import { Protocol, IProtocol } from "../../models/Protocol.js";
-import { CaseStudy, ICaseStudy } from "../../models/CaseStudy.js";
-import { IUser } from "../../models/User.js";
+import { Product, ProductDoc } from "../../models/Product.js";
+import { Compound, CompoundDoc } from "../../models/Compound.js";
+import { Protocol, ProtocolDoc } from "../../models/Protocol.js";
+import { CaseStudy, CaseStudyDoc } from "../../models/CaseStudy.js";
+import { UserDoc } from "../../models/User.js";
 import { UserProfile } from "../../models/UserProfile.js";
 
 const DateTimeScalar = new GraphQLScalarType({
@@ -41,43 +41,37 @@ export const resolvers = {
   Mutation,
 
   User: {
-    profile: async (parent: IUser) =>
+    profile: async (parent: UserDoc) =>
       await UserProfile.findOne({ userId: parent._id }),
-    savedEpisodes: async (parent: IUser) =>
-      await Episode.find({ _id: { $in: parent.savedEpisodes } }),
-    savedProducts: async (parent: IUser) =>
-      await Product.find({ _id: { $in: parent.savedProducts } }),
-    savedBusinesses: async (parent: IUser) =>
-      await Business.find({ _id: { $in: parent.savedBusinesses } }),
   },
 
   Episode: {
-    guests: async (parent: IEpisode) =>
+    guests: async (parent: EpisodeDoc) =>
       await Person.find({ _id: { $in: parent.guestIds || [] } }),
-    sponsorBusinesses: async (parent: IEpisode) =>
+    sponsorBusinesses: async (parent: EpisodeDoc) =>
       await Business.find({ _id: { $in: parent.sponsorBusinessIds || [] } }),
-    protocols: async (parent: IEpisode) =>
+    protocols: async (parent: EpisodeDoc) =>
       await Protocol.find({ _id: { $in: parent.protocolIds || [] } }),
   },
 
   Person: {
-    businesses: async (parent: IPerson) =>
+    businesses: async (parent: PersonDoc) =>
       await Business.find({ _id: { $in: parent.businessIds || [] } }),
-    episodes: async (parent: IPerson) =>
+    episodes: async (parent: PersonDoc) =>
       await Episode.find({ _id: { $in: parent.episodeIds || [] } }),
   },
 
   Business: {
-    products: async (parent: IBusiness) =>
+    products: async (parent: BusinessDoc) =>
       await Product.find({ _id: { $in: parent.productIds || [] } }),
-    executives: async (parent: IBusiness) => {
+    executives: async (parent: BusinessDoc) => {
       const executives = await Person.find({
         _id: {
           $in:
             parent.executives.map((e: IBusinessExecutive) => e.personId) || [],
         },
       });
-      return executives.map((e: IPerson) => ({
+      return executives.map((e: PersonDoc) => ({
         person: e,
         title: parent.executives.find(
           (exec: IBusinessExecutive) =>
@@ -89,37 +83,37 @@ export const resolvers = {
         )?.role,
       }));
     },
-    owners: async (parent: IBusiness) =>
+    owners: async (parent: BusinessDoc) =>
       await Person.find({ _id: { $in: parent.ownerIds || [] } }),
-    sponsoredEpisodes: async (parent: IBusiness) =>
+    sponsoredEpisodes: async (parent: BusinessDoc) =>
       await Episode.find({ _id: { $in: parent.sponsorEpisodeIds || [] } }),
   },
 
   Product: {
-    business: async (parent: IProduct) =>
+    business: async (parent: ProductDoc) =>
       await Business.findById(parent.businessId),
-    compounds: async (parent: IProduct) =>
+    compounds: async (parent: ProductDoc) =>
       await Compound.find({ _id: { $in: parent.compoundIds || [] } }),
   },
 
   Compound: {
-    products: async (parent: ICompound) =>
+    products: async (parent: CompoundDoc) =>
       await Product.find({ _id: { $in: parent.productIds || [] } }),
-    caseStudies: async (parent: ICompound) =>
+    caseStudies: async (parent: CompoundDoc) =>
       await CaseStudy.find({ compoundIds: parent._id }),
   },
 
   Protocol: {
-    products: async (parent: IProtocol) =>
+    products: async (parent: ProtocolDoc) =>
       await Product.find({ _id: { $in: parent.productIds || [] } }),
-    compounds: async (parent: IProtocol) =>
+    compounds: async (parent: ProtocolDoc) =>
       await Compound.find({ _id: { $in: parent.compoundIds || [] } }),
   },
 
   CaseStudy: {
-    episodes: async (parent: ICaseStudy) =>
+    episodes: async (parent: CaseStudyDoc) =>
       await Episode.find({ _id: { $in: parent.episodeIds || [] } }),
-    compounds: async (parent: ICaseStudy) =>
+    compounds: async (parent: CaseStudyDoc) =>
       await Compound.find({ _id: { $in: parent.compoundIds || [] } }),
   },
 };
