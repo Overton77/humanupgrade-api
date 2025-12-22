@@ -2,19 +2,21 @@ import { GraphQLScalarType, Kind } from "graphql";
 import { Query } from "./Query.js";
 import { Mutation } from "./Mutation.js";
 import { Episode, EpisodeDoc } from "../../models/Episode.js";
-import { Person, PersonDoc } from "../../models/Person.js";
+import { Person, PersonDoc, IPerson } from "../../models/Person.js";
 import {
   Business,
   BusinessDoc,
   IBusinessExecutive,
 } from "../../models/Business.js";
-import { Product, ProductDoc } from "../../models/Product.js";
-import { Compound, CompoundDoc } from "../../models/Compound.js";
-import { Protocol, ProtocolDoc } from "../../models/Protocol.js";
-import { CaseStudy, CaseStudyDoc } from "../../models/CaseStudy.js";
-import { UserDoc } from "../../models/User.js";
-import { UserProfile } from "../../models/UserProfile.js";
+import { Product, ProductDoc, IProduct } from "../../models/Product.js";
+import { Compound, CompoundDoc, ICompound } from "../../models/Compound.js";
+import { Protocol, ProtocolDoc, IProtocol } from "../../models/Protocol.js";
+import { CaseStudy, CaseStudyDoc, ICaseStudy } from "../../models/CaseStudy.js";
+import { UserDoc, IUser } from "../../models/User.js";
+import { UserProfile, IUserProfile } from "../../models/UserProfile.js";
 import { userSavedResolvers } from "./userSavedResolvers.js";
+import { GraphQLContext } from "../context.js";
+import { HydratedDocument } from "mongoose";
 
 const DateTimeScalar = new GraphQLScalarType({
   name: "DateTime",
@@ -42,80 +44,133 @@ export const resolvers = {
   Mutation,
 
   User: {
-    profile: async (parent: UserDoc) =>
+    profile: async (parent: UserDoc, _args: unknown, ctx: GraphQLContext) =>
       await UserProfile.findOne({ userId: parent._id }),
   },
 
   Episode: {
-    guests: async (parent: EpisodeDoc) =>
-      await Person.find({ _id: { $in: parent.guestIds || [] } }),
-    sponsorBusinesses: async (parent: EpisodeDoc) =>
-      await Business.find({ _id: { $in: parent.sponsorBusinessIds || [] } }),
-    protocols: async (parent: EpisodeDoc) =>
-      await Protocol.find({ _id: { $in: parent.protocolIds || [] } }),
+    guests: async (parent: EpisodeDoc, _args: unknown, ctx: GraphQLContext) =>
+      await ctx.loaders.entities.personById.loadMany(parent.guestIds ?? []),
+    sponsorBusinesses: async (
+      parent: EpisodeDoc,
+      _args: unknown,
+      ctx: GraphQLContext
+    ) =>
+      await ctx.loaders.entities.businessById.loadMany(
+        parent.sponsorBusinessIds ?? []
+      ),
+    protocols: async (
+      parent: EpisodeDoc,
+      _args: unknown,
+      ctx: GraphQLContext
+    ) =>
+      await ctx.loaders.entities.protocolById.loadMany(
+        parent.protocolIds ?? []
+      ),
   },
 
   Person: {
-    businesses: async (parent: PersonDoc) =>
-      await Business.find({ _id: { $in: parent.businessIds || [] } }),
-    episodes: async (parent: PersonDoc) =>
-      await Episode.find({ _id: { $in: parent.episodeIds || [] } }),
+    businesses: async (
+      parent: PersonDoc,
+      _args: unknown,
+      ctx: GraphQLContext
+    ) =>
+      await ctx.loaders.entities.businessById.loadMany(
+        parent.businessIds ?? []
+      ),
+    episodes: async (parent: PersonDoc, _args: unknown, ctx: GraphQLContext) =>
+      await ctx.loaders.entities.episodeById.loadMany(parent.episodeIds ?? []),
   },
 
   Business: {
-    products: async (parent: BusinessDoc) =>
-      await Product.find({ _id: { $in: parent.productIds || [] } }),
-    executives: async (parent: BusinessDoc) => {
-      const executives = await Person.find({
-        _id: {
-          $in:
-            parent.executives.map((e: IBusinessExecutive) => e.personId) || [],
-        },
+    products: async (
+      parent: BusinessDoc,
+      _args: unknown,
+      ctx: GraphQLContext
+    ) =>
+      await ctx.loaders.entities.productById.loadMany(parent.productIds ?? []),
+    executives: async (
+      parent: BusinessDoc,
+      _args: unknown,
+      ctx: GraphQLContext
+    ) => {
+      const ids = parent.executives?.map((e) => e.personId) ?? [];
+      const people = await ctx.loaders.entities.personById.loadMany(ids);
+
+      const docs = people.filter(
+        (p): p is HydratedDocument<IPerson> => !(p instanceof Error) && !!p
+      );
+
+      return docs.map((person) => {
+        const rel = parent.executives.find(
+          (e) => e.personId.toString() === person._id.toString()
+        );
+        return {
+          person,
+          title: rel?.title,
+          role: rel?.role,
+        };
       });
-      return executives.map((e: PersonDoc) => ({
-        person: e,
-        title: parent.executives.find(
-          (exec: IBusinessExecutive) =>
-            exec.personId.toString() === e._id.toString()
-        )?.title,
-        role: parent.executives.find(
-          (exec: IBusinessExecutive) =>
-            exec.personId.toString() === e._id.toString()
-        )?.role,
-      }));
     },
-    owners: async (parent: BusinessDoc) =>
-      await Person.find({ _id: { $in: parent.ownerIds || [] } }),
-    sponsoredEpisodes: async (parent: BusinessDoc) =>
-      await Episode.find({ _id: { $in: parent.sponsorEpisodeIds || [] } }),
+    owners: (parent: BusinessDoc, _args: unknown, ctx: GraphQLContext) =>
+      ctx.loaders.entities.personById.loadMany(parent.ownerIds ?? []),
+
+    sponsoredEpisodes: (
+      parent: BusinessDoc,
+      _args: unknown,
+      ctx: GraphQLContext
+    ) =>
+      ctx.loaders.entities.episodeById.loadMany(parent.sponsorEpisodeIds ?? []),
   },
 
   Product: {
-    business: async (parent: ProductDoc) =>
-      await Business.findById(parent.businessId),
-    compounds: async (parent: ProductDoc) =>
-      await Compound.find({ _id: { $in: parent.compoundIds || [] } }),
+    business: async (parent: ProductDoc, _args: unknown, ctx: GraphQLContext) =>
+      ctx.loaders.entities.businessById.load(parent.businessId),
+    compounds: async (
+      parent: ProductDoc,
+      _args: unknown,
+      ctx: GraphQLContext
+    ) => ctx.loaders.entities.compoundById.loadMany(parent.compoundIds ?? []),
   },
 
   Compound: {
-    products: async (parent: CompoundDoc) =>
-      await Product.find({ _id: { $in: parent.productIds || [] } }),
-    caseStudies: async (parent: CompoundDoc) =>
-      await CaseStudy.find({ compoundIds: parent._id }),
+    products: async (
+      parent: CompoundDoc,
+      _args: unknown,
+      ctx: GraphQLContext
+    ) => ctx.loaders.entities.productById.loadMany(parent.productIds ?? []),
+    caseStudies: async (
+      parent: CompoundDoc,
+      _args: unknown,
+      ctx: GraphQLContext
+    ) => ctx.loaders.entities.caseStudiesByCompoundId.load(parent._id),
   },
 
   Protocol: {
-    products: async (parent: ProtocolDoc) =>
-      await Product.find({ _id: { $in: parent.productIds || [] } }),
-    compounds: async (parent: ProtocolDoc) =>
-      await Compound.find({ _id: { $in: parent.compoundIds || [] } }),
+    products: async (
+      parent: ProtocolDoc,
+      _args: unknown,
+      ctx: GraphQLContext
+    ) => ctx.loaders.entities.productById.loadMany(parent.productIds ?? []),
+    compounds: async (
+      parent: ProtocolDoc,
+      _args: unknown,
+      ctx: GraphQLContext
+    ) => ctx.loaders.entities.compoundById.loadMany(parent.compoundIds ?? []),
   },
 
   CaseStudy: {
-    episodes: async (parent: CaseStudyDoc) =>
-      await Episode.find({ _id: { $in: parent.episodeIds || [] } }),
-    compounds: async (parent: CaseStudyDoc) =>
-      await Compound.find({ _id: { $in: parent.compoundIds || [] } }),
+    episodes: (parent: CaseStudyDoc, _args: unknown, ctx: GraphQLContext) =>
+      ctx.loaders.entities.episodeById.loadMany(parent.episodeIds ?? []),
+
+    compounds: (parent: CaseStudyDoc, _args: unknown, ctx: GraphQLContext) =>
+      ctx.loaders.entities.compoundById.loadMany(parent.compoundIds ?? []),
+
+    products: (parent: CaseStudyDoc, _args: unknown, ctx: GraphQLContext) =>
+      ctx.loaders.entities.productById.loadMany(parent.productIds ?? []),
+
+    protocols: (parent: CaseStudyDoc, _args: unknown, ctx: GraphQLContext) =>
+      ctx.loaders.entities.protocolById.loadMany(parent.protocolIds ?? []),
   },
 
   UserSaved: {

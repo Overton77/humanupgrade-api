@@ -9,8 +9,7 @@ import { IProtocol, Protocol } from "../../models/Protocol.js";
 import { Episode, IEpisode } from "../../models/Episode.js";
 import { CaseStudy, ICaseStudy } from "../../models/CaseStudy.js";
 import { Article, IArticle } from "../../models/Article.js";
-
-type ObjectId = mongoose.Types.ObjectId;
+import { ObjectId, batchByIds } from "./utils.js";
 
 export interface SavedTargetLoaders {
   productById: DataLoader<ObjectId, HydratedDocument<IProduct> | null>;
@@ -23,66 +22,69 @@ export interface SavedTargetLoaders {
   articleById: DataLoader<ObjectId, HydratedDocument<IArticle> | null>;
 }
 
-function idKey(id: mongoose.Types.ObjectId): string {
-  return id.toHexString();
-}
-
-async function batchByIds<TSchema>(
-  model: Model<TSchema>,
-  ids: readonly ObjectId[]
-): Promise<(HydratedDocument<TSchema> | null)[]> {
-  const docs = await model.find({ _id: { $in: ids } });
-  const map = new Map<string, HydratedDocument<TSchema>>(
-    docs.map((d) => [idKey(d._id as ObjectId), d as HydratedDocument<TSchema>])
-  );
-
-  return ids.map((id) => map.get(idKey(id)) ?? null);
-}
-
 export function createSavedTargetLoaders(): SavedTargetLoaders {
   return {
-    productById: new DataLoader<ObjectId, IProduct | null>((ids) =>
-      batchByIds<IProduct>(Product as unknown as mongoose.Model<IProduct>, ids)
+    productById: new DataLoader<ObjectId, HydratedDocument<IProduct> | null>(
+      (ids) =>
+        batchByIds<IProduct>(
+          Product as unknown as mongoose.Model<IProduct>,
+          ids
+        )
     ),
 
-    compoundById: new DataLoader<ObjectId, ICompound | null>((ids) =>
-      batchByIds<ICompound>(
-        Compound as unknown as mongoose.Model<ICompound>,
-        ids
-      )
+    compoundById: new DataLoader<ObjectId, HydratedDocument<ICompound> | null>(
+      (ids) =>
+        batchByIds<ICompound>(
+          Compound as unknown as mongoose.Model<ICompound>,
+          ids
+        )
     ),
 
-    personById: new DataLoader<ObjectId, IPerson | null>((ids) =>
-      batchByIds<IPerson>(Person as unknown as mongoose.Model<IPerson>, ids)
+    personById: new DataLoader<ObjectId, HydratedDocument<IPerson> | null>(
+      (ids) =>
+        batchByIds<IPerson>(Person as unknown as mongoose.Model<IPerson>, ids)
     ),
 
-    businessById: new DataLoader<ObjectId, IBusiness | null>((ids) =>
-      batchByIds<IBusiness>(
-        Business as unknown as mongoose.Model<IBusiness>,
-        ids
-      )
+    businessById: new DataLoader<ObjectId, HydratedDocument<IBusiness> | null>(
+      (ids) =>
+        batchByIds<IBusiness>(
+          Business as unknown as mongoose.Model<IBusiness>,
+          ids
+        )
     ),
 
-    protocolById: new DataLoader<ObjectId, IProtocol | null>((ids) =>
-      batchByIds<IProtocol>(
-        Protocol as unknown as mongoose.Model<IProtocol>,
-        ids
-      )
+    protocolById: new DataLoader<ObjectId, HydratedDocument<IProtocol> | null>(
+      (ids) =>
+        batchByIds<IProtocol>(
+          Protocol as unknown as mongoose.Model<IProtocol>,
+          ids
+        )
     ),
 
-    episodeById: new DataLoader<ObjectId, IEpisode | null>((ids) =>
-      batchByIds<IEpisode>(Episode as unknown as mongoose.Model<IEpisode>, ids)
+    episodeById: new DataLoader<ObjectId, HydratedDocument<IEpisode> | null>(
+      (ids) =>
+        batchByIds<IEpisode>(
+          Episode as unknown as mongoose.Model<IEpisode>,
+          ids
+        )
     ),
 
-    caseStudyById: new DataLoader<ObjectId, ICaseStudy | null>((ids) =>
+    caseStudyById: new DataLoader<
+      ObjectId,
+      HydratedDocument<ICaseStudy> | null
+    >((ids) =>
       batchByIds<ICaseStudy>(
         CaseStudy as unknown as mongoose.Model<ICaseStudy>,
         ids
       )
     ),
 
-    articleById: new DataLoader<ObjectId, IArticle | null>((ids) =>
-      batchByIds<IArticle>(Article as unknown as mongoose.Model<IArticle>, ids)
+    articleById: new DataLoader<ObjectId, HydratedDocument<IArticle> | null>(
+      (ids) =>
+        batchByIds<IArticle>(
+          Article as unknown as mongoose.Model<IArticle>,
+          ids
+        )
     ),
   };
 }

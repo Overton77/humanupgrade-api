@@ -677,8 +677,10 @@ type CaseStudy {
   mediaLinks: [MediaLink!]
   url: String
   sourceType: String!
-  episodes: [Episode!]!
-  compounds: [Compound!]!
+  episodes: [Episode!]
+  compounds: [Compound!]
+  products: [Product!]
+  protocols: [Protocol!]
 }
 
 input CaseStudyCreateWithOptionalIdsInput {

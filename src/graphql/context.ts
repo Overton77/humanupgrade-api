@@ -4,6 +4,7 @@ import { getUserByIdCached, type Role } from "../services/auth.js";
 
 import { createSavedTargetLoaders } from "./loaders/savedTargetLoaders.js";
 import { SavedTargetLoaders } from "./loaders/savedTargetLoaders.js";
+import { createEntityLoaders, EntityLoaders } from "./loaders/entityLoaders.js";
 
 export interface GraphQLContext {
   userId: string | null;
@@ -12,6 +13,7 @@ export interface GraphQLContext {
   loaders: {
     userById: DataLoader<string, IUser | null>;
     savedTargets: SavedTargetLoaders;
+    entities: EntityLoaders;
   };
 
   requestId?: string;
@@ -40,6 +42,7 @@ export function createContext(params: {
     loaders: {
       userById,
       savedTargets: createSavedTargetLoaders(),
+      entities: createEntityLoaders(),
     },
     requestId,
   };
