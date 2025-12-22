@@ -1,4 +1,5 @@
 import { GraphQLError } from "graphql";
+import mongoose from "mongoose";
 
 /**
  * Error codes for the application
@@ -46,13 +47,21 @@ export enum ErrorCode {
  */
 export interface AppErrorExtensions {
   code: ErrorCode;
+
+  /** REST-like meaning, for client + debugging. GraphQL HTTP response often remains 200. */
+  httpStatus?: number;
+
   field?: string;
   entityId?: string;
   entityType?: string;
+
+  /** Never return this to clients in formatError. */
   originalError?: unknown;
+
   timestamp?: string;
   requestId?: string;
-  [key: string]: unknown; // Index signature for GraphQL compatibility
+
+  [key: string]: unknown;
 }
 
 /**
@@ -63,19 +72,34 @@ export class AppError extends GraphQLError {
   public readonly extensions: AppErrorExtensions;
 
   constructor(message: string, extensions: AppErrorExtensions) {
+    const timestamp = new Date().toISOString();
     super(message, {
       extensions: {
         ...extensions,
-        timestamp: new Date().toISOString(),
+        timestamp,
       },
     });
+
     this.name = "AppError";
     this.code = extensions.code;
     this.extensions = {
       ...extensions,
-      timestamp: new Date().toISOString(),
+      timestamp,
     };
   }
+}
+
+/**
+ * Helper: create AppError with default httpStatus if missing
+ */
+function appError(
+  message: string,
+  extensions: Omit<AppErrorExtensions, "timestamp"> & { timestamp?: string }
+): AppError {
+  return new AppError(message, {
+    ...extensions,
+    timestamp: extensions.timestamp ?? new Date().toISOString(),
+  });
 }
 
 /**
@@ -83,84 +107,113 @@ export class AppError extends GraphQLError {
  */
 export const Errors = {
   notFound: (entityType: string, entityId?: string) =>
-    new AppError(`${entityType} not found${entityId ? `: ${entityId}` : ""}`, {
+    appError(`${entityType} not found${entityId ? `: ${entityId}` : ""}`, {
       code: ErrorCode.ENTITY_NOT_FOUND,
+      httpStatus: 404,
+      entityType,
+      entityId,
+    }),
+
+  // If you ever want per-entity codes later, keep this helper
+  entityNotFound: (code: ErrorCode, entityType: string, entityId?: string) =>
+    appError(`${entityType} not found${entityId ? `: ${entityId}` : ""}`, {
+      code,
+      httpStatus: 404,
       entityType,
       entityId,
     }),
 
   validation: (message: string, field?: string) =>
-    new AppError(message, {
+    appError(message, {
       code: ErrorCode.VALIDATION_ERROR,
+      httpStatus: 400,
       field,
     }),
 
   invalidInput: (message: string, field?: string) =>
-    new AppError(message, {
+    appError(message, {
       code: ErrorCode.INVALID_INPUT,
+      httpStatus: 400,
       field,
     }),
 
   duplicate: (entityType: string, identifier: string) =>
-    new AppError(`${entityType} already exists: ${identifier}`, {
+    appError(`${entityType} already exists: ${identifier}`, {
       code: ErrorCode.DUPLICATE_ENTITY,
+      httpStatus: 409,
       entityType,
     }),
 
   unauthenticated: (message: string = "Not authenticated") =>
-    new AppError(message, {
+    appError(message, {
       code: ErrorCode.UNAUTHENTICATED,
+      httpStatus: 401,
     }),
 
   forbidden: (message: string = "Forbidden") =>
-    new AppError(message, {
+    appError(message, {
       code: ErrorCode.FORBIDDEN,
+      httpStatus: 403,
     }),
 
   invalidCredentials: () =>
-    new AppError("Invalid credentials", {
+    appError("Invalid credentials", {
       code: ErrorCode.INVALID_CREDENTIALS,
+      httpStatus: 401,
     }),
 
   invalidToken: () =>
-    new AppError("Invalid token", {
+    appError("Invalid token", {
       code: ErrorCode.INVALID_TOKEN,
+      httpStatus: 401,
     }),
 
   databaseError: (message: string, originalError?: unknown) =>
-    new AppError(message, {
+    appError(message, {
       code: ErrorCode.DATABASE_ERROR,
+      httpStatus: 500,
       originalError,
     }),
 
   embeddingError: (message: string, originalError?: unknown) =>
-    new AppError(message, {
+    appError(message, {
       code: ErrorCode.EMBEDDING_ERROR,
+      httpStatus: 502,
       originalError,
     }),
 
   externalServiceError: (message: string, originalError?: unknown) =>
-    new AppError(message, {
+    appError(message, {
       code: ErrorCode.EXTERNAL_SERVICE_ERROR,
+      httpStatus: 502,
       originalError,
     }),
 
   invalidOperation: (message: string) =>
-    new AppError(message, {
+    appError(message, {
       code: ErrorCode.INVALID_OPERATION,
+      httpStatus: 400,
     }),
 
   relationshipError: (message: string) =>
-    new AppError(message, {
+    appError(message, {
       code: ErrorCode.RELATIONSHIP_ERROR,
+      httpStatus: 400,
+    }),
+
+  operationNotAllowed: (message: string = "Operation not allowed") =>
+    appError(message, {
+      code: ErrorCode.OPERATION_NOT_ALLOWED,
+      httpStatus: 403,
     }),
 
   internalError: (
     message: string = "An internal error occurred",
     originalError?: unknown
   ) =>
-    new AppError(message, {
+    appError(message, {
       code: ErrorCode.INTERNAL_SERVER_ERROR,
+      httpStatus: 500,
       originalError,
     }),
 };
@@ -173,16 +226,48 @@ export function isAppError(error: unknown): error is AppError {
 }
 
 /**
+ * Narrow: Mongo duplicate key
+ */
+function isMongoDuplicateKeyError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const err = error as { code?: unknown };
+  return err.code === 11000;
+}
+
+/**
+ * Narrow: Mongoose/Mongo error
+ */
+function isMongoOrMongooseError(error: unknown): boolean {
+  if (error instanceof mongoose.Error) return true;
+  if (!error || typeof error !== "object") return false;
+
+  const err = error as { name?: unknown };
+  return (
+    typeof err.name === "string" &&
+    (err.name.includes("Mongo") || err.name.includes("Mongoose"))
+  );
+}
+
+/**
  * Convert any error to an AppError
  */
 export function toAppError(
   error: unknown,
   defaultMessage: string = "An error occurred"
 ): AppError {
-  if (isAppError(error)) {
-    return error;
+  if (isAppError(error)) return error;
+
+  // Handle duplicate key errors as DUPLICATE_ENTITY (common in unique indexes)
+  if (isMongoDuplicateKeyError(error)) {
+    return Errors.duplicate("Entity", "duplicate key");
   }
 
+  // Classify mongoose/mongo errors as DATABASE_ERROR
+  if (isMongoOrMongooseError(error)) {
+    return Errors.databaseError(defaultMessage, error);
+  }
+
+  // Fallback
   if (error instanceof Error) {
     return Errors.internalError(defaultMessage, error);
   }

@@ -21,7 +21,7 @@ export async function validateEntitiesExist<T>(
 
   for (const id of ids) {
     if (!existingSet.has(id)) {
-      throw Errors.notFound(entityType, id); // use your AppError path
+      throw Errors.notFound(entityType, id);
     }
   }
 }

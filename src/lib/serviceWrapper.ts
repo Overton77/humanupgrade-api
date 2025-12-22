@@ -1,4 +1,10 @@
-import { AppError, ErrorCode } from "./errors.js";
+import {
+  AppError,
+  Errors,
+  ErrorCode,
+  toAppError,
+  isAppError,
+} from "./errors.js";
 import { logError, logServiceCall } from "./logger.js";
 import type { LogContext } from "./logger.js";
 
@@ -13,8 +19,7 @@ export async function withErrorHandling<T>(
 ): Promise<T> {
   try {
     logServiceCall(serviceName, operation, context);
-    const result = await fn();
-    return result;
+    return await fn();
   } catch (error) {
     logError(error, {
       operation,
@@ -22,26 +27,12 @@ export async function withErrorHandling<T>(
       ...context,
     });
 
-    // Re-throw AppErrors as-is
-    if (error instanceof AppError) {
+    if (isAppError(error)) {
       throw error;
     }
 
-    // Wrap unexpected errors
-    if (error instanceof Error) {
-      throw new AppError(
-        `Unexpected error in ${serviceName}.${operation}: ${error.message}`,
-        {
-          code: ErrorCode.DATABASE_ERROR,
-          originalError: error,
-        }
-      );
-    }
-
-    throw new AppError(`Unexpected error in ${serviceName}.${operation}`, {
-      code: ErrorCode.DATABASE_ERROR,
-      originalError: error,
-    });
+    // Normalize everything else
+    throw toAppError(error, `Unexpected error in ${serviceName}.${operation}`);
   }
 }
 
@@ -56,8 +47,7 @@ export function withErrorHandlingSync<T>(
 ): T {
   try {
     logServiceCall(serviceName, operation, context);
-    const result = fn();
-    return result;
+    return fn();
   } catch (error) {
     logError(error, {
       operation,
@@ -69,19 +59,6 @@ export function withErrorHandlingSync<T>(
       throw error;
     }
 
-    if (error instanceof Error) {
-      throw new AppError(
-        `Unexpected error in ${serviceName}.${operation}: ${error.message}`,
-        {
-          code: ErrorCode.DATABASE_ERROR,
-          originalError: error,
-        }
-      );
-    }
-
-    throw new AppError(`Unexpected error in ${serviceName}.${operation}`, {
-      code: ErrorCode.DATABASE_ERROR,
-      originalError: error,
-    });
+    throw toAppError(error, `Unexpected error in ${serviceName}.${operation}`);
   }
 }

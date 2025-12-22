@@ -20,6 +20,7 @@ export const UserRoleSchema = z.enum(["admin", "user"]);
  * User upsert input
  */
 export const UserUpsertInputSchema = z.object({
+  userId: z.string().optional(),
   email: z.email("Invalid email address"),
   password: z
     .string()

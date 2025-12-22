@@ -110,7 +110,8 @@ export interface BusinessCreateRelationsInput extends BusinessScalarFields {
   productsNested?: BusinessProductNestedInput[];
   sponsorEpisodesNested?: BusinessEpisodeNestedInput[];
 }
-export interface BusinessUpdateRelationFieldsInput {
+export interface BusinessUpdateRelationFieldsInput
+  extends BusinessScalarUpdateFields {
   id: string;
 
   ownerIds?: string[];

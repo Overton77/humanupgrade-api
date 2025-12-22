@@ -652,6 +652,11 @@ class BusinessService extends BaseService<
 
     const {
       id,
+      name,
+      description,
+      website,
+      biography,
+      mediaLinks,
       ownerIds,
       ownersNested,
       productIds,
@@ -785,6 +790,15 @@ class BusinessService extends BaseService<
           );
         }
 
+        if (name !== undefined) business.name = name;
+        if (description !== undefined) business.description = description;
+        if (website !== undefined) business.website = website;
+        if (biography !== undefined) business.biography = biography;
+        if (mediaLinks !== undefined) {
+          business.mediaLinks = mediaLinks.filter(
+            (m: MediaLink): m is MediaLink => !!m.url
+          );
+        }
         await business.save({ session });
 
         return business;

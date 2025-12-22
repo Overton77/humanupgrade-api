@@ -1,8 +1,8 @@
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
-import { GraphQLError } from "graphql";
 import { env } from "../config/env.js";
 import { User, type IUser } from "../models/User.js";
+import { Errors } from "../lib/errors.js";
 
 export type Role = "admin" | "user";
 
@@ -25,16 +25,14 @@ export function getIdentityFromAuthHeader(
 
   try {
     const decoded = jwt.verify(token, env.jwtSecret) as AuthTokenPayload;
-
     if (!mongoose.Types.ObjectId.isValid(decoded.userId)) return null;
-
     return decoded;
   } catch {
     return null;
   }
 }
 
-const USER_CACHE_TTL_MS = 60_000; // 60s is a good start
+const USER_CACHE_TTL_MS = 60_000;
 const userCache = new Map<string, { value: IUser | null; expiresAt: number }>();
 
 export async function getUserByIdCached(userId: string): Promise<IUser | null> {
@@ -50,35 +48,70 @@ export async function getUserByIdCached(userId: string): Promise<IUser | null> {
   return value;
 }
 
-export function requireAuth(ctx: { userId?: string | null }): void {
-  if (!ctx.userId) {
-    throw new GraphQLError("Not Authenticated", {
-      extensions: { code: "UNAUTHENTICATED" },
-    });
-  }
+/**
+ * Minimal shape for GraphQLContext guards (so auth.ts doesn't import graphql/context.ts)
+ */
+export interface AuthContextLike {
+  userId: string | null;
+  role: Role | null;
+  loaders?: {
+    userById?: { load: (id: string) => Promise<IUser | null> };
+  };
 }
 
-export function requireAdmin(ctx: {
-  userId?: string | null;
-  role?: Role | null;
-}): void {
+export function isAuthenticated(ctx: AuthContextLike): boolean {
+  return !!ctx.userId;
+}
+
+export function isAdmin(ctx: AuthContextLike): boolean {
+  return ctx.role === "admin";
+}
+
+/**
+ * Require authenticated user; returns userId (string)
+ */
+export function requireAuth(ctx: AuthContextLike): string {
+  if (!ctx.userId) throw Errors.unauthenticated();
+  return ctx.userId;
+}
+
+/**
+ * Require admin role
+ */
+export function requireAdmin(ctx: AuthContextLike): void {
   requireAuth(ctx);
-  if (ctx.role !== "admin") {
-    throw new GraphQLError("Forbidden", {
-      extensions: { code: "FORBIDDEN" },
-    });
-  }
+  if (!isAdmin(ctx)) throw Errors.forbidden("Admin access required");
 }
 
+/**
+ * Require the request user to match target user, unless admin.
+ */
 export function requireSelfOrAdmin(
-  ctx: { userId?: string | null; role?: Role | null },
+  ctx: AuthContextLike,
   targetUserId: string
 ): void {
   requireAuth(ctx);
-  if (ctx.role === "admin") return;
-  if (ctx.userId !== targetUserId) {
-    throw new GraphQLError("Forbidden", {
-      extensions: { code: "FORBIDDEN" },
-    });
+  if (isAdmin(ctx)) return;
+  if (ctx.userId !== targetUserId) throw Errors.forbidden();
+}
+
+/**
+ * Optional helper: require authenticated + load the actual user doc (via loader if available).
+ * This keeps your resolver code DRY.
+ */
+export async function requireUser(ctx: AuthContextLike): Promise<IUser> {
+  const userId = requireAuth(ctx);
+
+  // Prefer DataLoader if present
+  const loader = ctx.loaders?.userById;
+  const user = loader
+    ? await loader.load(userId)
+    : await getUserByIdCached(userId);
+
+  if (!user) {
+    // This implies token references a user that doesn't exist anymore
+    throw Errors.notFound("User", userId);
   }
+
+  return user;
 }
