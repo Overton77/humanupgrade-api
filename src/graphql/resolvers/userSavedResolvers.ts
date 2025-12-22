@@ -17,7 +17,7 @@ import {
   unsaveEntity,
   getSavedEntities,
 } from "../../services/userSavedService.js";
-import { requireSelfOrAdmin } from "../../services/auth.js";
+import { requireSelfOrAdmin, requireAuth } from "../../services/auth.js";
 
 type HasTypename = { __typename: string };
 
@@ -40,6 +40,7 @@ export const userSavedResolvers = {
       args: { filter?: SavedEntitiesFilterInput; page?: CursorPageInput },
       ctx: GraphQLContext
     ) => {
+      requireSelfOrAdmin(ctx, ctx.userId!);
       const user = await ctx.loaders.userById.load(ctx.userId!);
       if (!user) throw Errors.internalError("Failed to load user");
 
@@ -65,6 +66,7 @@ export const userSavedResolvers = {
       args: { input: SaveEntityInput },
       ctx: GraphQLContext
     ) => {
+      requireAuth(ctx);
       const user = await ctx.loaders.userById.load(ctx.userId!);
       if (!user) throw Errors.internalError("Failed to load user");
       return saveEntity(user._id, args.input);
@@ -75,6 +77,7 @@ export const userSavedResolvers = {
       args: { input: UnsaveEntityInput },
       ctx: GraphQLContext
     ) => {
+      requireSelfOrAdmin(ctx, ctx.userId!);
       const user = await ctx.loaders.userById.load(ctx.userId!);
       if (!user) throw Errors.internalError("Failed to load user");
       return unsaveEntity(user._id, args.input);

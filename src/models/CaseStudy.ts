@@ -40,7 +40,6 @@ const CaseStudySchema = new Schema<ICaseStudy, CaseStudyModel>(
   { timestamps: true }
 );
 
-// id virtual
 CaseStudySchema.virtual("id").get(function () {
   return this._id.toHexString();
 });
