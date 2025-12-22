@@ -174,14 +174,14 @@ export const BusinessCreateWithRelationsInputSchema =
     executives: z.array(BusinessExecutiveRelationInputSchema).optional(),
   });
 
-export const BusinessUpdateWithRelationFieldsInputSchema = z.object({
-  id: ObjectIdSchema,
-  ownerIds: ObjectIdArraySchema.optional(),
-  ownersNested: z.array(BusinessOwnerNestedInputSchema).optional(),
-  executivesNested: z.array(BusinessExecutiveNestedInputSchema).optional(),
-  productIds: ObjectIdArraySchema.optional(),
-  productsNested: z.array(BusinessProductNestedInputSchema).optional(),
-  executives: z.array(BusinessExecutiveRelationInputSchema).optional(),
-  sponsorEpisodeIds: ObjectIdArraySchema.optional(),
-  sponsorEpisodesNested: z.array(BusinessEpisodeNestedInputSchema).optional(),
-});
+export const BusinessUpdateWithRelationFieldsInputSchema =
+  BusinessScalarUpdateFieldsSchema.extend({
+    ownerIds: ObjectIdArraySchema.optional(),
+    ownersNested: z.array(BusinessOwnerNestedInputSchema).optional(),
+    executivesNested: z.array(BusinessExecutiveNestedInputSchema).optional(),
+    productIds: ObjectIdArraySchema.optional(),
+    productsNested: z.array(BusinessProductNestedInputSchema).optional(),
+    executives: z.array(BusinessExecutiveRelationInputSchema).optional(),
+    sponsorEpisodeIds: ObjectIdArraySchema.optional(),
+    sponsorEpisodesNested: z.array(BusinessEpisodeNestedInputSchema).optional(),
+  });

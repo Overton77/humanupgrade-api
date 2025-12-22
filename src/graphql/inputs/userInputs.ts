@@ -3,6 +3,7 @@ import { MediaLink } from "../../models/MediaLink.js";
 export interface MediaLinkInput extends MediaLink {}
 
 export interface UserUpsertInput {
+  userId?: string;
   email: string;
   password?: string; // if provided, (re)hash and set
   provider?: "local" | "google" | "github" | "apple";

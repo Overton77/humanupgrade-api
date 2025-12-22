@@ -22,42 +22,110 @@ import mongoose from "mongoose";
 
 const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS || "10", 10);
 
+function normEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+// TODO add self edit this is Admin upsert user
+
 class UserService extends BaseService<IUser, UserDoc, UserModel> {
   constructor() {
     super(User, "userService", "User");
   }
 
   async upsertUser(input: UserUpsertInput): Promise<IUser> {
-    const validated = validateInput(
-      UserUpsertInputSchema,
-      input,
-      "UserUpsertInput"
-    );
+    const v = validateInput(UserUpsertInputSchema, input, "UserUpsertInput");
 
-    const { email, password, provider, providerId, name, role, mediaLinks } =
-      validated;
+    const {
+      userId,
+      email,
+      password,
+      provider,
+      providerId,
+      name,
+      role,
+      mediaLinks,
+    } = v;
 
-    const user = await User.findOne({ email });
+    if (!userId && !email) {
+      throw Errors.invalidInput("Either userId or email is required", "email");
+    }
+
+    const targetEmail = email ? normEmail(email) : undefined;
+
+    // 1) Load user by userId or email
+    let user: IUser | null = null;
+
+    if (userId) {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw Errors.invalidInput("Invalid userId", "userId");
+      }
+      user = await User.findById(userId);
+      if (!user) throw Errors.notFound("User", userId);
+    } else if (targetEmail) {
+      user = await User.findOne({ email: targetEmail });
+    }
+
+    // 2) If not found, create
     if (!user) {
-      throw Errors.notFound("User", email);
-    }
+      // Creating a user requires email
+      if (!targetEmail) {
+        throw Errors.invalidInput(
+          "Email is required to create a user",
+          "email"
+        );
+      }
 
-    if (name !== undefined) user.name = name;
-    if (role !== undefined) user.role = role;
-    if (provider !== undefined) user.provider = provider;
-    if (providerId !== undefined) user.providerId = providerId;
+      // If password isn't provided for local users, you can decide policy
+      // For now: allow create without password only if provider != local
+      const creatingProvider = provider ?? "local";
+      if (creatingProvider === "local" && !password) {
+        throw Errors.invalidInput(
+          "Password is required for local user creation",
+          "password"
+        );
+      }
 
-    if (mediaLinks !== undefined) {
-      const valid = mediaLinks.filter((m): m is MediaLink => !!m.url);
-      user.mediaLinks = mergeUniqueBy(
-        user.mediaLinks ?? [],
-        valid,
-        (m) => m.url
-      );
-    }
+      user = new User({
+        email: targetEmail,
+        provider: creatingProvider,
+        providerId,
+        name,
+        role: role ?? "user",
+        mediaLinks: [],
+      });
 
-    if (password) {
-      user.passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+      if (password) {
+        user.passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+      }
+    } else {
+      if (targetEmail && targetEmail !== normEmail(user.email)) {
+        const existing = await User.findOne({ email: targetEmail }).select(
+          "_id"
+        );
+        if (existing && existing._id.toString() !== user._id.toString()) {
+          throw Errors.duplicate("User", targetEmail);
+        }
+        user.email = targetEmail;
+      }
+
+      if (provider !== undefined) user.provider = provider;
+      if (providerId !== undefined) user.providerId = providerId;
+      if (name !== undefined) user.name = name;
+      if (role !== undefined) user.role = role;
+
+      if (mediaLinks !== undefined) {
+        const valid = mediaLinks.filter((m): m is MediaLink => !!m?.url);
+        user.mediaLinks = mergeUniqueBy(
+          user.mediaLinks ?? [],
+          valid,
+          (m) => m.url
+        );
+      }
+
+      if (password) {
+        user.passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+      }
     }
 
     await user.save();

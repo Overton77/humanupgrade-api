@@ -66,7 +66,11 @@ import {
   CaseStudyUpdateWithOptionalIdsInput,
 } from "../inputs/caseStudyInputs.js";
 
-import { requireAuth, requireAdmin } from "../../services/auth.js";
+import {
+  requireAdmin,
+  requireSelfOrAdmin,
+  requireUser,
+} from "../../services/auth.js";
 import { upsertUser, deleteUser } from "../../services/userService.js";
 import { UserUpsertInput } from "../inputs/userInputs.js";
 
@@ -139,8 +143,9 @@ export const Mutation = {
     args: { input: UserUpsertInput },
     ctx: GraphQLContext
   ) => {
-    requireAdmin(ctx);
-    return upsertUser(args.input);
+    const currentUser = await requireUser(ctx);
+    requireSelfOrAdmin(ctx, args.input.userId ?? currentUser._id.toString());
+    return await upsertUser(args.input);
   },
 
   deleteUser: async (
@@ -148,9 +153,9 @@ export const Mutation = {
     args: { userId: string },
     ctx: GraphQLContext
   ) => {
-    requireAuth(ctx);
+    requireSelfOrAdmin(ctx, args.userId);
 
-    const user = await ctx.loaders.userById.load(ctx.userId!);
+    const user = await requireUser(ctx);
     if (!user) {
       throw Errors.internalError("Failed to load user");
     }
@@ -165,7 +170,8 @@ export const Mutation = {
     args: { input: UserProfileUpsertInput },
     ctx: GraphQLContext
   ) => {
-    requireAuth(ctx);
+    const currentUser = await requireUser(ctx);
+    requireSelfOrAdmin(ctx, currentUser._id.toString());
     return await upsertUserProfile(args.input);
   },
 
@@ -174,15 +180,10 @@ export const Mutation = {
     args: { userId: string },
     ctx: GraphQLContext
   ) => {
-    requireAuth(ctx);
+    const currentUser = await requireUser(ctx);
+    requireSelfOrAdmin(ctx, currentUser._id.toString());
 
-    const user = await ctx.loaders.userById.load(ctx.userId!);
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    return await deleteUserProfile(user._id.toString());
+    return await deleteUserProfile(currentUser._id.toString());
   },
   login: async (
     _parent: unknown,
@@ -211,6 +212,8 @@ export const Mutation = {
     ctx: GraphQLContext
   ) => {
     // args.input shape matches BusinessCreateWithOptionalIdsInput
+
+    requireAdmin(ctx);
     const business = await createBusinessWithRelations(args.input);
     return business;
   },
@@ -220,6 +223,7 @@ export const Mutation = {
     args: { input: BusinessUpdateWithOptionalIdsInput },
     ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const business = await updateBusinessWithOptionalIds(args.input);
     return business;
   },
@@ -229,6 +233,7 @@ export const Mutation = {
     args: { input: BusinessUpdateRelationFieldsInput },
     ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const business = await updateBusinessWithRelationFields(args.input);
     return business;
   },
@@ -240,6 +245,7 @@ export const Mutation = {
     args: { input: ProductCreateWithOptionalIdsInput },
     ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const product = await createProductWithOptionalIds(args.input);
     return product;
   },
@@ -249,6 +255,7 @@ export const Mutation = {
     args: { input: ProductUpdateWithOptionalIdsInput },
     ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const product = await updateProductWithOptionalIds(args.input);
     return product;
   },
@@ -258,6 +265,7 @@ export const Mutation = {
     args: { input: ProductUpdateRelationFieldsInput },
     ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const product = await updateProductWithRelationFields(args.input);
     return product;
   },
@@ -265,8 +273,9 @@ export const Mutation = {
   deleteProduct: async (
     _parent: unknown,
     args: { id: string },
-    _ctx: GraphQLContext
+    ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const product = await deleteProduct(args.id);
     return product;
   },
@@ -278,6 +287,7 @@ export const Mutation = {
     args: { input: PersonScalarFields },
     ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const person = await createPerson(args.input);
     return person;
   },
@@ -287,11 +297,17 @@ export const Mutation = {
     args: { input: PersonScalarUpdateFields },
     ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const person = await updatePerson(args.input);
     return person;
   },
 
-  deletePerson: async (_parent: unknown, args: { id: string }, _ctx: any) => {
+  deletePerson: async (
+    _parent: unknown,
+    args: { id: string },
+    ctx: GraphQLContext
+  ) => {
+    requireAdmin(ctx);
     const person = await deletePerson(args.id);
     return person;
   },
@@ -303,6 +319,7 @@ export const Mutation = {
     args: { input: EpisodeCreateWithOptionalIdsInput },
     ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const episode = await createEpisodeWithOptionalIds(args.input);
     return episode;
   },
@@ -312,6 +329,7 @@ export const Mutation = {
     args: { input: EpisodeUpdateWithOptionalIdsInput },
     ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const episode = await updateEpisodeWithOptionalIds(args.input);
     return episode;
   },
@@ -321,6 +339,7 @@ export const Mutation = {
     args: { input: EpisodeUpdateRelationFieldsInput },
     ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const episode = await updateEpisodeWithRelationFields(args.input);
     return episode;
   },
@@ -330,6 +349,7 @@ export const Mutation = {
     args: { identifier: string },
     ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const episode = await deleteEpisodeByPageUrlOrId(args.identifier);
     if (!episode) {
       throw new Error(`Episode not found with identifier: ${args.identifier}`);
@@ -342,6 +362,7 @@ export const Mutation = {
     _args: unknown,
     ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const result = await deleteAllEpisodes();
     return result;
   },
@@ -353,6 +374,7 @@ export const Mutation = {
     args: { input: CompoundCreateWithOptionalIdsInput },
     ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const compound = await createCompoundWithOptionalIds(args.input);
     return compound;
   },
@@ -362,6 +384,7 @@ export const Mutation = {
     args: { input: CompoundUpdateWithOptionalIdsInput },
     ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const compound = await updateCompoundWithOptionalIds(args.input);
     return compound;
   },
@@ -371,6 +394,7 @@ export const Mutation = {
     args: { input: CompoundUpdateRelationFieldsInput },
     ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const compound = await updateCompoundWithRelationFields(args.input);
     return compound;
   },
@@ -380,6 +404,7 @@ export const Mutation = {
     args: { id: string },
     ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const compound = await deleteCompound(args.id);
     return compound;
   },
@@ -387,8 +412,9 @@ export const Mutation = {
   createCaseStudy: async (
     _parent: unknown,
     args: { input: CaseStudyCreateWithOptionalIdsInput },
-    _ctx: GraphQLContext
+    ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const caseStudy = await createCaseStudyWithOptionalIds(args.input);
     return caseStudy;
   },
@@ -396,8 +422,9 @@ export const Mutation = {
   updateCaseStudy: async (
     _parent: unknown,
     args: { input: CaseStudyUpdateWithOptionalIdsInput },
-    _ctx: GraphQLContext
+    ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const caseStudy = await updateCaseStudyWithOptionalIds(args.input);
     return caseStudy;
   },
@@ -407,8 +434,9 @@ export const Mutation = {
   createProtocol: async (
     _parent: unknown,
     args: { input: ProtocolCreateWithOptionalIdsInput },
-    _ctx: GraphQLContext
+    ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const protocol = await createProtocolWithOptionalIds(args.input);
     return protocol;
   },
@@ -416,8 +444,9 @@ export const Mutation = {
   updateProtocol: async (
     _parent: unknown,
     args: { input: ProtocolUpdateWithOptionalIdsInput },
-    _ctx: GraphQLContext
+    ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const protocol = await updateProtocolWithOptionalIds(args.input);
     return protocol;
   },
@@ -425,8 +454,9 @@ export const Mutation = {
   updateProtocolRelations: async (
     _parent: unknown,
     args: { input: ProtocolUpdateRelationFieldsInput },
-    _ctx: GraphQLContext
+    ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const protocol = await updateProtocolWithRelationFields(args.input);
     return protocol;
   },
@@ -435,6 +465,7 @@ export const Mutation = {
     args: { productId: string },
     ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const product = await embedProductDescription(args.productId);
     if (!product) throw new Error("Product not found");
     return product;
@@ -444,6 +475,7 @@ export const Mutation = {
     args: { id: string },
     ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const business = await embedBusinessDescription(args.id);
     if (!business) throw new Error("Business not found");
     return business;
@@ -453,6 +485,7 @@ export const Mutation = {
     args: { id: string },
     ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const person = await embedPersonBio(args.id);
     if (!person) throw new Error("Person not found");
     return person;
@@ -460,8 +493,9 @@ export const Mutation = {
   deleteBusiness: async (
     _parent: unknown,
     args: { id: string },
-    _ctx: GraphQLContext
+    ctx: GraphQLContext
   ) => {
+    requireAdmin(ctx);
     const business = await deleteBusiness(args.id);
     return business;
   },

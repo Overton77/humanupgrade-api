@@ -20,6 +20,7 @@ import { getIdentityFromAuthHeader, Role } from "./services/auth.js";
 import { AppError, ErrorCode, isAppError } from "./lib/errors.js";
 import { logger, logGraphQLOperation, logError } from "./lib/logger.js";
 import { GraphQLFormattedError } from "graphql";
+import { buildFormatError } from "./graphql/formatError.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,60 +70,7 @@ async function startServer() {
   const apolloServer = new ApolloServer<GraphQLContext>({
     schema,
     introspection: true,
-    formatError: (formattedError: GraphQLFormattedError, error: unknown) => {
-      // Log the error
-      const errorMessage = formattedError.message;
-      const errorCode = formattedError.extensions?.code as string | undefined;
-      const path = formattedError.path;
-      const requestId = formattedError.extensions?.requestId as
-        | string
-        | undefined;
-
-      logError(error, {
-        graphqlError: true,
-        message: errorMessage,
-        code: errorCode,
-        path: path ? path.join(".") : undefined,
-        requestId,
-      });
-
-      if (isAppError(error)) {
-        return {
-          ...formattedError,
-          extensions: {
-            ...formattedError.extensions,
-            code: error.code,
-            requestId,
-          },
-        };
-      }
-
-      if (process.env.NODE_ENV === "production") {
-        const isInternalError =
-          errorCode === "INTERNAL_SERVER_ERROR" ||
-          !errorCode ||
-          errorCode === "DATABASE_ERROR";
-
-        if (isInternalError) {
-          return {
-            ...formattedError,
-            message: "An internal error occurred",
-            extensions: {
-              code: ErrorCode.INTERNAL_SERVER_ERROR,
-              requestId,
-            },
-          };
-        }
-      }
-
-      return {
-        ...formattedError,
-        extensions: {
-          ...formattedError.extensions,
-          requestId,
-        },
-      };
-    },
+    formatError: buildFormatError(),
     plugins: [
       ApolloServerPluginDrainHttpServer({ httpServer }),
 

@@ -1,5 +1,4 @@
 import winston from "winston";
-import { env } from "../config/env.js";
 
 /**
  * Log context type for additional metadata

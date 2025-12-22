@@ -170,6 +170,7 @@ input MediaLinkInput {
 }
 
 input UserUpsertInput {
+  userId: ID
   email: String!
   password: String
   provider: UserProvider
@@ -192,6 +193,7 @@ input UserCreateInput {
 input BusinessCreateRelationsInput {
   name: String!
   description: String
+  biography: String
   website: String
   mediaLinks: [MediaLinkInput!]
   ownerIds: [ID!]
@@ -284,6 +286,12 @@ input BusinessExecutiveNestedInput {
 
 input BusinessUpdateRelationFieldsInput {
   id: ID!
+
+  name: String
+  description: String
+  website: String
+  biography: String
+  mediaLinks: [MediaLinkInput!]
 
   ownerIds: [ID!]
   ownersNested: [BusinessOwnerNestedInput!]

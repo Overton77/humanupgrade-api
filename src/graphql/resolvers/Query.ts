@@ -15,17 +15,18 @@ import { getMe } from "../../services/userProfileService.js";
 import { GraphQLContext } from "../context.js";
 import { Errors } from "../../lib/errors.js";
 import { userSavedResolvers } from "./userSavedResolvers.js";
+import { requireUser } from "../../services/auth.js";
 
 export const Query = {
   ...userSavedResolvers.Query,
-  me: (_parent: unknown, _args: unknown, ctx: GraphQLContext) => {
-    return ctx.userId ? ctx.loaders.userById.load(ctx.userId) : null;
+  me: async (_parent: unknown, _args: unknown, ctx: GraphQLContext) => {
+    if (!ctx.userId) return null;
+
+    return await ctx.loaders.userById.load(ctx.userId);
   },
   myProfile: async (_parent: unknown, _args: unknown, ctx: GraphQLContext) => {
-    const user = await ctx.loaders.userById.load(ctx.userId!);
-    if (!user) {
-      throw Errors.notFound("User not found");
-    }
+    const user = await requireUser(ctx);
+
     return await getMe(user);
   },
 
