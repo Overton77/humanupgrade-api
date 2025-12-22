@@ -1,0 +1,278 @@
+---
+description: "Centralized error handling using AppError class and Errors factory functions. All errors must use AppError with appropriate ErrorCode and HTTP status codes for GraphQL clarity."
+alwaysApply: true
+---
+
+# Error Handling Pattern
+
+This API uses a **centralized error handling system** built on GraphQL errors with structured error codes and HTTP status codes. All errors must go through the `AppError` class and `Errors` factory functions.
+
+## Core Principle
+
+> **Never throw raw errors. Always use `AppError` via `Errors` factory functions. This ensures consistent error structure, proper logging, and meaningful client responses.**
+
+## Error Architecture
+
+### AppError Class
+
+`AppError` extends `GraphQLError` and provides structured error information:
+
+- **Error Code**: Categorized error type (`ErrorCode` enum)
+- **HTTP Status**: REST-like status code for clarity (even in GraphQL)
+- **Extensions**: Additional context (field, entityId, entityType, etc.)
+- **Timestamp**: Automatic timestamp on all errors
+
+**Reference**: @src/lib/errors.ts
+
+### ErrorCode Enum
+
+All error types are defined in the `ErrorCode` enum:
+
+```typescript
+export enum ErrorCode {
+  // Authentication & Authorization
+  UNAUTHENTICATED = "UNAUTHENTICATED",
+  FORBIDDEN = "FORBIDDEN",
+  INVALID_TOKEN = "INVALID_TOKEN",
+  INVALID_CREDENTIALS = "INVALID_CREDENTIALS",
+
+  // Not Found
+  USER_NOT_FOUND = "USER_NOT_FOUND",
+  BUSINESS_NOT_FOUND = "BUSINESS_NOT_FOUND",
+  PRODUCT_NOT_FOUND = "PRODUCT_NOT_FOUND",
+  // ... more entity-specific codes
+  ENTITY_NOT_FOUND = "ENTITY_NOT_FOUND",
+
+  // Validation
+  VALIDATION_ERROR = "VALIDATION_ERROR",
+  INVALID_INPUT = "INVALID_INPUT",
+  DUPLICATE_ENTITY = "DUPLICATE_ENTITY",
+
+  // Business Logic
+  INVALID_OPERATION = "INVALID_OPERATION",
+  RELATIONSHIP_ERROR = "RELATIONSHIP_ERROR",
+
+  // External Services
+  EMBEDDING_ERROR = "EMBEDDING_ERROR",
+  DATABASE_ERROR = "DATABASE_ERROR",
+  EXTERNAL_SERVICE_ERROR = "EXTERNAL_SERVICE_ERROR",
+
+  // Server Errors
+  INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR",
+}
+```
+
+## HTTP Status Codes in GraphQL
+
+**Why HTTP status codes in GraphQL?**
+
+Even though GraphQL typically returns HTTP 200 for all responses (with errors in the response body), we include HTTP status codes in error extensions for:
+
+1. **Client clarity**: Clients can interpret error severity
+2. **Debugging**: Easier to understand error types in logs
+3. **Monitoring**: Status codes help with error categorization
+4. **Future REST compatibility**: If we add REST endpoints, status codes are ready
+
+The `formatError` function in GraphQL includes `httpStatus` in error extensions, which clients can use for handling.
+
+**Reference**: @src/graphql/formatError.ts
+
+## Errors Factory Functions
+
+Use the `Errors` object factory functions to create properly structured errors:
+
+```typescript
+// Not Found
+throw Errors.notFound("Business", businessId);
+throw Errors.entityNotFound(ErrorCode.BUSINESS_NOT_FOUND, "Business", id);
+
+// Validation
+throw Errors.validation("Invalid business name", "name");
+throw Errors.invalidInput("Email is required", "email");
+
+// Authentication & Authorization
+throw Errors.unauthenticated("Not authenticated");
+throw Errors.forbidden("Permission denied");
+throw Errors.invalidCredentials();
+
+// Business Logic
+throw Errors.duplicate("User", email);
+throw Errors.invalidOperation("Cannot delete business with active products");
+throw Errors.relationshipError("Invalid relationship");
+
+// External Services
+throw Errors.databaseError("Failed to save", originalError);
+throw Errors.embeddingError("Failed to generate embedding", originalError);
+throw Errors.externalServiceError("Service unavailable", originalError);
+
+// Internal
+throw Errors.internalError("Unexpected error", originalError);
+```
+
+**Reference**: @src/lib/errors.ts
+
+## Error Handling in Services
+
+### Using withErrorHandling Wrapper
+
+Wrap service methods with `withErrorHandling()` to automatically:
+
+- Log service calls
+- Catch and normalize errors
+- Preserve AppError instances
+- Convert unknown errors to AppError
+
+**Reference**: @src/lib/serviceWrapper.ts
+
+**Example from BaseService**:
+
+```typescript
+async findById(id: string, opts?: { session?: ClientSession }): Promise<TDoc> {
+  return withErrorHandling(
+    "findById",
+    this.serviceName,
+    async () => {
+      const doc = await this.model.findById(id).session(session ?? null);
+      if (!doc) throw Errors.notFound(this.entityName, id);
+      return doc as TDoc;
+    },
+    { id, ...context }
+  );
+}
+```
+
+### Direct Error Throwing
+
+In service methods, throw errors directly using `Errors` factory:
+
+```typescript
+async createBusiness(input: BusinessCreateInput): Promise<IBusiness> {
+  const validated = validateInput(BusinessCreateSchema, input, "BusinessCreateInput");
+
+  const existing = await Business.findOne({ name: validated.name });
+  if (existing) {
+    throw Errors.duplicate("Business", validated.name);
+  }
+
+  // ... rest of logic
+}
+```
+
+## Error Normalization
+
+### toAppError Function
+
+The `toAppError()` function converts any unknown error to an `AppError`:
+
+- **AppError**: Returns as-is
+- **Mongo duplicate key (11000)**: Converts to `Errors.duplicate()`
+- **Mongoose/Mongo errors**: Converts to `Errors.databaseError()`
+- **Generic Error**: Converts to `Errors.internalError()`
+- **Unknown**: Converts to `Errors.internalError()`
+
+**Reference**: @src/lib/errors.ts - `toAppError()` function
+
+### GraphQL formatError
+
+The `formatError` function in Apollo Server:
+
+1. Normalizes all errors to `AppError` using `toAppError()`
+2. Logs errors with context
+3. Sanitizes error messages in production (hides internal error details)
+4. Includes `httpStatus` and `code` in extensions
+5. Removes `originalError` from client responses
+
+**Reference**: @src/graphql/formatError.ts
+
+## Error Response Structure
+
+All errors follow this structure in GraphQL responses:
+
+```json
+{
+  "errors": [
+    {
+      "message": "Business not found: 507f1f77bcf86cd799439011",
+      "extensions": {
+        "code": "BUSINESS_NOT_FOUND",
+        "httpStatus": 404,
+        "entityType": "Business",
+        "entityId": "507f1f77bcf86cd799439011",
+        "timestamp": "2024-01-15T10:30:00.000Z",
+        "requestId": "req-123"
+      },
+      "path": ["business"]
+    }
+  ],
+  "data": null
+}
+```
+
+## Rules for Error Handling
+
+### ✅ CORRECT
+
+```typescript
+// Use Errors factory functions
+if (!business) {
+  throw Errors.notFound("Business", businessId);
+}
+
+// Wrap service methods
+return withErrorHandling(
+  "createBusiness",
+  "businessService",
+  async () => {
+    // ... logic
+  },
+  { input }
+);
+
+// Pass original errors for context
+try {
+  await generateEmbedding(text);
+} catch (error) {
+  throw Errors.embeddingError("Failed to generate embedding", error);
+}
+```
+
+### ❌ INCORRECT
+
+```typescript
+// ❌ Don't throw raw errors
+throw new Error("Business not found");
+throw "Business not found";
+
+// ❌ Don't catch and rethrow without context
+catch (error) {
+  throw error; // Loses context
+}
+
+// ✅ Always use Errors factory
+throw Errors.notFound("Business", businessId);
+throw Errors.databaseError("Failed to save", error);
+```
+
+## Error Code Selection Guide
+
+| Scenario                     | Error Code                     | HTTP Status | Factory Function                                 |
+| ---------------------------- | ------------------------------ | ----------- | ------------------------------------------------ |
+| Entity doesn't exist         | `ENTITY_NOT_FOUND` or specific | 404         | `Errors.notFound()` or `Errors.entityNotFound()` |
+| Input validation fails       | `VALIDATION_ERROR`             | 400         | `Errors.validation()`                            |
+| Invalid input format         | `INVALID_INPUT`                | 400         | `Errors.invalidInput()`                          |
+| Duplicate entity             | `DUPLICATE_ENTITY`             | 409         | `Errors.duplicate()`                             |
+| Not authenticated            | `UNAUTHENTICATED`              | 401         | `Errors.unauthenticated()`                       |
+| Not authorized               | `FORBIDDEN`                    | 403         | `Errors.forbidden()`                             |
+| Invalid credentials          | `INVALID_CREDENTIALS`          | 401         | `Errors.invalidCredentials()`                    |
+| Business rule violation      | `INVALID_OPERATION`            | 400         | `Errors.invalidOperation()`                      |
+| Relationship error           | `RELATIONSHIP_ERROR`           | 400         | `Errors.relationshipError()`                     |
+| Database error               | `DATABASE_ERROR`               | 500         | `Errors.databaseError()`                         |
+| External API failure         | `EXTERNAL_SERVICE_ERROR`       | 502         | `Errors.externalServiceError()`                  |
+| Embedding generation failure | `EMBEDDING_ERROR`              | 502         | `Errors.embeddingError()`                        |
+| Unexpected error             | `INTERNAL_SERVER_ERROR`        | 500         | `Errors.internalError()`                         |
+
+## Reference Files
+
+- @src/lib/errors.ts - Core error classes and factory functions
+- @src/lib/serviceWrapper.ts - Error handling wrapper
+- @src/graphql/formatError.ts - GraphQL error formatting

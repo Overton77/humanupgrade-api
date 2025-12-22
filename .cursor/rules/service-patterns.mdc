@@ -1,0 +1,379 @@
+---
+description: "Service layer patterns: extend BaseService, validate inputs with Zod, use transactions for multi-step operations, handle errors properly, and enforce authentication/authorization rules."
+globs:
+  - "src/services/**/*.ts"
+alwaysApply: false
+---
+
+# Service Pattern Rules
+
+Services implement all business logic and data operations. They follow strict patterns for consistency, error handling, validation, and authorization.
+
+## Core Principles
+
+1. **Extend BaseService** for all entity services
+2. **Validate all inputs** using Zod schemas via `validateInput()`
+3. **Use transactions** for multi-model, multi-step operations
+4. **Handle errors** with `withErrorHandling()` wrapper
+5. **Enforce authorization** based on operation type
+
+## BaseService Pattern
+
+All entity services must extend `BaseService<TSchema, TDoc, TModel>`:
+
+```typescript
+import { BaseService } from "./BaseService.js";
+import {
+  Business,
+  IBusiness,
+  BusinessDoc,
+  BusinessModel,
+} from "../models/Business.js";
+
+class BusinessService extends BaseService<
+  IBusiness,
+  BusinessDoc,
+  BusinessModel
+> {
+  constructor() {
+    super(Business, "businessService", "Business");
+  }
+
+  // Custom service methods here
+}
+
+export const businessService = new BusinessService();
+```
+
+**BaseService provides**:
+
+- `findById(id, opts?)` - Find with error handling and session support
+- `findByIdOrNull(id, opts?)` - Find without throwing if not found
+- `deleteById(id, opts?)` - Delete with hooks and session support
+- `validateEntities(model, ids, entityType, opts?)` - Validate entity existence
+
+**Reference**: @src/services/BaseService.ts
+
+## Input Validation Pattern
+
+All service methods must validate inputs using Zod schemas:
+
+```typescript
+import { validateInput } from "../lib/validation.js";
+import { BusinessCreateSchema } from "../graphql/inputs/schemas/businessSchemas.js";
+import { BusinessCreateInput } from "../graphql/inputs/businessInputs.js";
+
+async createBusiness(input: BusinessCreateInput): Promise<IBusiness> {
+  // Validate input - throws Errors.validation if invalid
+  const validated = validateInput(
+    BusinessCreateSchema,
+    input,
+    "BusinessCreateInput"
+  );
+
+  // Use validated input (now type-safe)
+  const business = await Business.create(validated);
+  return business;
+}
+```
+
+**Rules**:
+
+- Always use `validateInput()` before using input data
+- Import schemas from `graphql/inputs/schemas/`
+- Import input types from `graphql/inputs/`
+- The validated result is type-safe and matches the schema
+
+**Reference**: @src/lib/validation.ts
+
+## Transaction Pattern
+
+Use `withTransaction()` for operations that touch multiple models or require atomicity:
+
+```typescript
+import { withTransaction } from "../lib/transactions.js";
+
+async createBusinessWithRelations(
+  input: BusinessCreateRelationsInput
+): Promise<IBusiness> {
+  return withTransaction(
+    async (session) => {
+      // All operations use session
+      const business = await Business.create([input], { session });
+
+      if (input.ownersNested) {
+        const owners = await Person.create(input.ownersNested, { session });
+        business.ownerIds = owners.map(o => o._id);
+      }
+
+      await business.save({ session });
+      return business;
+    },
+    { operation: "createBusinessWithRelations", businessId: business._id }
+  );
+}
+```
+
+**Rules**:
+
+- Use `withTransaction()` for multi-model operations
+- This is not a hard rule. Refer to @api/.cursor/rules/transactions.mdc for more information.
+- Pass `session` to all database operations inside transaction
+- Include operation name in context for logging
+- Transactions automatically handle rollback on error
+
+**Reference**: @src/lib/transactions.ts
+
+## Error Handling Pattern
+
+Wrap service methods with `withErrorHandling()` for automatic error normalization:
+
+```typescript
+import { withErrorHandling } from "../lib/serviceWrapper.js";
+
+async findById(id: string, opts?: { session?: ClientSession }): Promise<TDoc> {
+  return withErrorHandling(
+    "findById",
+    this.serviceName,
+    async () => {
+      const doc = await this.model.findById(id).session(session ?? null);
+      if (!doc) throw Errors.notFound(this.entityName, id);
+      return doc as TDoc;
+    },
+    { id, ...context }
+  );
+}
+```
+
+**Rules**:
+
+- Use `withErrorHandling()` for all public service methods
+- BaseService methods already use this wrapper
+- Custom methods should also use it
+- Pass operation name, service name, and context
+
+**Reference**: @src/lib/serviceWrapper.ts
+
+## Authentication & Authorization
+
+Services don't enforce auth directly - that's handled in resolvers. However, services must be designed knowing which operations require what level of access.
+
+### Authorization Rules
+
+**Admin Required** (enforced in resolvers):
+
+- **Create** operations for official entities: Business, Product, Person, Episode, Compound, CaseStudy
+- **Update** operations for official entities
+- **Delete** operations for official entities
+- **Exception**: User and Protocol entities have different rules (see below)
+
+**Authenticated Required**:
+
+- User profile operations (create/update/delete own profile)
+- User saved entities (save/unsave)
+- User-specific queries (e.g., `me`, `myProfile`, `savedEntities`)
+
+**Public** (no authentication):
+
+- Query operations: `businesses`, `products`, `people`, `episodes`, etc.
+- Search operations: `vectorSearchProducts`, `vectorSearchBusinesses`, `vectorSearchPeople`
+- Single entity queries: `business(id)`, `product(id)`, etc.
+- **Note**: Rate limiting will be implemented for public operations
+
+**User/Protocol Special Cases**:
+
+- User CRUD: Requires `requireSelfOrAdmin()` - users can modify themselves, admins can modify anyone
+- Protocol CRUD: Rules to be defined (currently follows admin pattern, but may change)
+
+### Auth Helper Functions
+
+Resolvers use these functions from `@src/services/auth.ts`:
+
+```typescript
+// Require any authenticated user
+requireAuth(ctx); // throws if not authenticated
+
+// Require admin role
+requireAdmin(ctx); // throws if not admin
+
+// Require user to match target OR be admin
+requireSelfOrAdmin(ctx, targetUserId); // throws if not self and not admin
+
+// Require authenticated and return user doc
+const user = await requireUser(ctx); // throws if not authenticated or user not found
+```
+
+**Reference**: @src/services/auth.ts
+
+**Example in Resolver**:
+
+```typescript
+// In Mutation.ts
+createBusinessWithRelations: async (_parent, args, ctx) => {
+  requireAdmin(ctx); // Enforce admin requirement
+  return await createBusinessWithRelations(args.input);
+},
+
+businesses: async (_parent, args, ctx) => {
+  // No auth check - public query
+  return await Business.find({}).skip(offset).limit(limit);
+},
+
+myProfile: async (_parent, args, ctx) => {
+  const user = await requireUser(ctx); // Require authentication
+  return await getMe(user);
+}
+```
+
+## Service Method Patterns
+
+### Create Pattern
+
+```typescript
+async createBusinessWithRelations(
+  input: BusinessCreateRelationsInput
+): Promise<IBusiness> {
+  // 1. Validate input
+  const validated = validateInput(
+    BusinessCreateWithRelationsInputSchema,
+    input,
+    "BusinessCreateRelationsInput"
+  );
+
+  // 2. Use transaction for multi-step operations
+  return withTransaction(
+    async (session) => {
+      // 3. Create main entity
+      const business = await Business.create([validated], { session });
+
+      // 4. Handle nested relations
+      if (validated.ownersNested) {
+        const owners = await Person.create(validated.ownersNested, { session });
+        business.ownerIds = owners.map(o => o._id);
+      }
+
+      await business.save({ session });
+      return business;
+    },
+    { operation: "createBusinessWithRelations" }
+  );
+}
+```
+
+### Update Pattern
+
+```typescript
+async updateBusinessWithOptionalIds(
+  input: BusinessUpdateWithOptionalIdsInput
+): Promise<IBusiness> {
+  const validated = validateInput(
+    BusinessUpdateWithOptionalIdsInputSchema,
+    input,
+    "BusinessUpdateWithOptionalIdsInput"
+  );
+
+  return withTransaction(
+    async (session) => {
+      const business = await this.findById(validated.id, { session });
+
+      // Update fields
+      if (validated.name !== undefined) business.name = validated.name;
+      if (validated.ownerIds !== undefined) business.ownerIds = toObjectIds(validated.ownerIds);
+
+      await business.save({ session });
+      return business;
+    },
+    { operation: "updateBusinessWithOptionalIds", businessId: validated.id }
+  );
+}
+```
+
+### Delete Pattern
+
+```typescript
+async deleteBusiness(id: string): Promise<BusinessDoc> {
+  return withTransaction(
+    async (session) => {
+      // Use BaseService method which handles hooks
+      const business = await this.deleteById(id, { session });
+      return business;
+    },
+    { operation: "deleteBusiness", businessId: id }
+  );
+}
+```
+
+## Rules Summary
+
+### ✅ CORRECT Patterns
+
+```typescript
+// Extend BaseService
+class BusinessService extends BaseService<
+  IBusiness,
+  BusinessDoc,
+  BusinessModel
+> {
+  constructor() {
+    super(Business, "businessService", "Business");
+  }
+}
+
+// Validate all inputs
+const validated = validateInput(Schema, input, "InputName");
+
+// Use transactions for multi-step operations
+return withTransaction(
+  async (session) => {
+    // ... operations with session
+  },
+  { operation: "operationName" }
+);
+
+// Wrap with error handling (BaseService does this automatically)
+return withErrorHandling(
+  "methodName",
+  "serviceName",
+  async () => {
+    // ... logic
+  },
+  { context }
+);
+```
+
+### ❌ INCORRECT Patterns
+
+```typescript
+// ❌ Don't skip BaseService without good reason
+class BusinessService {
+  // Missing BaseService benefits
+}
+
+// ❌ Don't skip validation
+async createBusiness(input: BusinessCreateInput) {
+  const business = await Business.create(input); // No validation!
+}
+
+// ❌ Don't skip transactions for multi-model operations
+async createBusinessWithOwners(input) {
+  const business = await Business.create(input);
+  const owners = await Person.create(input.owners); // Not atomic!
+}
+
+// ❌ Don't skip error handling wrapper
+async findById(id: string) {
+  return await Business.findById(id); // No error normalization
+}
+```
+
+The User based services currently don't extend the Base Service. This is yet to be implemented.
+
+## Reference Files
+
+- @src/services/BaseService.ts - Base service class
+- @src/services/businessService.ts - Complete service example
+- @src/services/auth.ts - Authentication and authorization helpers
+- @src/lib/validation.ts - Input validation utility
+- @src/lib/transactions.ts - Transaction wrapper
+- @src/lib/serviceWrapper.ts - Error handling wrapper
+- @src/graphql/resolvers/Mutation.ts - Authorization enforcement examples

@@ -1,0 +1,265 @@
+---
+description: "Enforces layered architecture pattern: Models → Input Types → Validators → Services → Resolvers. Each layer has distinct responsibilities and must not mix concerns."
+globs:
+  - "src/models/**/*.ts"
+  - "src/graphql/inputs/**/*.ts"
+  - "src/graphql/inputs/schemas/**/*.ts"
+  - "src/services/**/*.ts"
+  - "src/graphql/resolvers/**/*.ts"
+alwaysApply: false
+---
+
+# Layered Architecture Pattern
+
+This API follows a strict **layered architecture** where each layer has a single, well-defined responsibility. Code must stay within its layer's boundaries and responsibilities.
+
+## Architecture Layers (Bottom to Top)
+
+```
+┌─────────────────────────────────────┐
+│  Resolvers (Transport/Orchestration)│  ← GraphQL entry point
+├─────────────────────────────────────┤
+│  Services (Business Logic)          │  ← Core business operations
+├─────────────────────────────────────┤
+│  Input Validators (Zod Schemas)     │  ← Runtime validation
+├─────────────────────────────────────┤
+│  Input Types (TypeScript Interfaces)│  ← API-facing contracts
+├─────────────────────────────────────┤
+│  DB Models (Mongoose Schemas)       │  ← Persistence layer
+└─────────────────────────────────────┘
+```
+
+## Layer Responsibilities
+
+### 1. DB Models (`src/models/`)
+
+**Purpose**: Define MongoDB schemas and document structure.
+
+**Responsibilities**:
+
+- Define Mongoose schemas with field types, validation, indexes
+- Define TypeScript interfaces (`IEntity`, `EntityDoc`, `EntityModel`)
+- Implement virtual fields (e.g., `id` getter)
+- Document relationship sync methods (canonical vs mirror fields)
+- NO business logic, NO GraphQL concerns
+
+**Reference Examples**:
+
+- @src/models/Business.ts - Mongoose schema with relationships
+- @src/models/Person.ts - Simple entity with virtual `id`
+- @src/models/User.ts - User model with authentication fields
+
+**Rules**:
+
+- All models must have virtual `id` field: `schema.virtual("id").get(function() { return this._id.toHexString(); })`
+- Use `{ timestamps: true }` for createdAt/updatedAt
+- Document canonical vs mirror relationship fields in comments
+- Export: `IEntity`, `EntityDoc`, `EntityModel` types
+
+### 2. Input Types (`src/graphql/inputs/`)
+
+**Purpose**: Define TypeScript interfaces for GraphQL inputs (API contracts).
+
+**Responsibilities**:
+
+- Define input interfaces (e.g., `BusinessCreateRelationsInput`)
+- Separate scalar fields from relation fields
+- Provide both "with optional IDs" and "nested" input variants
+- NO validation logic, NO business logic
+
+**Reference Examples**:
+
+- @src/graphql/inputs/businessInputs.ts - Complete input type definitions
+- @src/graphql/inputs/personInputs.ts - Simpler entity inputs
+- @src/graphql/inputs/userInputs.ts - User-specific inputs
+
+**Rules**:
+
+- One file per entity: `{entity}Inputs.ts`
+- Separate scalar vs relation inputs clearly
+- Use descriptive names: `CreateWithOptionalIds`, `UpdateWithRelationFields`
+- Import types from models when needed (e.g., `MediaLink`)
+
+### 3. Input Validators (`src/graphql/inputs/schemas/`)
+
+**Purpose**: Define Zod schemas for runtime validation of inputs.
+
+**Responsibilities**:
+
+- Create Zod schemas matching input types
+- Use shared validators from `lib/validation.ts` (ObjectIdSchema, UrlSchema, etc.)
+- Export schemas for use in services
+- NO business logic, NO database operations
+
+**Reference Examples**:
+
+- @src/graphql/inputs/schemas/businessSchemas.ts - Zod validation schemas
+- @src/graphql/inputs/schemas/personSchemas.ts - Person validation
+- @src/lib/validation.ts - Shared validation utilities
+
+**Rules**:
+
+- One file per entity: `{entity}Schemas.ts`
+- Import shared validators: `ObjectIdSchema`, `ObjectIdArraySchema`, `OptionalUrlSchema`
+- Match input type structure exactly
+- Use `.extend()`, `.partial()`, `.optional()` appropriately
+
+### 4. Services (`src/services/`)
+
+**Purpose**: Implement all business logic and data operations.
+
+**Responsibilities**:
+
+- Extend `BaseService<TSchema, TDoc, TModel>`
+- Validate inputs using `validateInput()` from `lib/validation.ts`
+- Use `withTransaction()` for multi-step operations
+- Handle relationship syncing (canonical ↔ mirror fields)
+- NO GraphQL-specific code, NO direct resolver logic
+
+**Reference Examples**:
+
+- @src/services/businessService.ts - Complex service with relationships
+- @src/services/BaseService.ts - Base class with common operations
+- @src/services/personService.ts - Simpler entity service
+- @src/lib/transactions.ts - Transaction wrapper
+- @src/lib/validation.ts - Input validation utility
+
+**Rules**:
+
+- All services must extend `BaseService`
+- Always validate inputs: `validateInput(Schema, input, "InputName")`
+- Use `withTransaction()` for operations touching multiple collections
+- Pass `session` to all DB operations within transactions
+- Use `withErrorHandling()` wrapper (from BaseService or serviceWrapper)
+- Document relationship rules in service class comments
+
+### 5. Resolvers (`src/graphql/resolvers/`)
+
+**Purpose**: GraphQL transport layer - orchestrate service calls.
+
+**Responsibilities**:
+
+- Import and call service functions
+- Use data loaders for N+1 prevention (`ctx.loaders`)
+- Handle authentication/authorization (e.g., `requireUser(ctx)`)
+- Transform GraphQL args to service inputs
+- NO business logic, NO direct database queries
+
+**Reference Examples**:
+
+- @src/graphql/resolvers/Mutation.ts - Mutation resolvers calling services
+- @src/graphql/resolvers/Query.ts - Query resolvers
+- @src/graphql/resolvers/index.ts - Type resolvers using loaders
+- @src/graphql/loaders/entityLoaders.ts - DataLoader implementations
+
+**Rules**:
+
+- Resolvers should be thin - delegate to services immediately
+- Use `ctx.loaders` for fetching related entities (prevents N+1)
+- Never query models directly in resolvers (use services or loaders)
+- Import service functions, not service classes
+- Handle auth in resolvers: `requireUser(ctx)` from `services/auth.ts`
+
+## Layer Interaction Rules
+
+### ✅ CORRECT Flow
+
+```typescript
+// Resolver (top layer)
+export const Mutation = {
+  createBusiness: async (_parent, args, ctx) => {
+    const input = args.input as BusinessCreateRelationsInput;
+    return await createBusinessWithRelations(input); // → Service
+  },
+};
+
+// Service (middle layer)
+export async function createBusinessWithRelations(
+  input: BusinessCreateRelationsInput
+): Promise<IBusiness> {
+  const validated = validateInput(
+    BusinessCreateWithRelationsInputSchema, // → Validator
+    input,
+    "BusinessCreateRelationsInput"
+  );
+  // ... business logic using Business model
+}
+```
+
+### ❌ INCORRECT Patterns
+
+**Don't put business logic in resolvers:**
+
+```typescript
+// ❌ BAD: Resolver doing business logic
+export const Mutation = {
+  createBusiness: async (_parent, args) => {
+    const business = await Business.create(args.input); // Direct DB access
+    await Person.updateMany({ _id: { $in: args.ownerIds } }, ...); // Business logic
+    return business;
+  }
+};
+```
+
+**Don't query models directly in resolvers:**
+
+```typescript
+// ❌ BAD: Direct model query in resolver
+export const Query = {
+  business: async (_parent, args) => {
+    return await Business.findById(args.id); // Should use service or loader
+  },
+};
+```
+
+**Don't put validation in models:**
+
+```typescript
+// ❌ BAD: Business validation in model
+BusinessSchema.pre("save", function () {
+  if (this.name.length < 3) throw new Error("Too short"); // Should be in Zod schema
+});
+```
+
+**Don't mix GraphQL types with models:**
+
+```typescript
+// ❌ BAD: GraphQL concerns in model
+const BusinessSchema = new Schema({
+  // ... fields
+  graphqlType: { type: String, default: "Business" }, // Wrong layer
+});
+```
+
+## File Organization
+
+```
+src/
+├── models/              # Layer 1: DB Models
+│   ├── Business.ts
+│   ├── Person.ts
+│   └── ...
+├── graphql/
+│   ├── inputs/          # Layer 2: Input Types
+│   │   ├── businessInputs.ts
+│   │   └── schemas/     # Layer 3: Validators
+│   │       ├── businessSchemas.ts
+│   │       └── ...
+│   └── resolvers/       # Layer 5: Resolvers
+│       ├── Mutation.ts
+│       └── Query.ts
+└── services/            # Layer 4: Services
+    ├── BaseService.ts
+    ├── businessService.ts
+    └── ...
+```
+
+## When Adding New Features
+
+1. **Start at the bottom**: Define/update the Model
+2. **Define Input Types**: Create interfaces in `graphql/inputs/`
+3. **Create Validators**: Add Zod schemas in `graphql/inputs/schemas/`
+4. **Implement Service**: Add business logic in `services/`
+5. **Wire Resolver**: Add GraphQL entry point in `resolvers/`
+
+Each step should only depend on layers below it.

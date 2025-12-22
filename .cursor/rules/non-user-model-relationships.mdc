@@ -1,0 +1,354 @@
+---
+description: "Documents bidirectional relationship synchronization pattern: canonical fields (source of truth) vs mirror fields (computed cache). Sync methods live on mirror side, triggered by pre/post hooks on canonical side using syncLocals utilities."
+globs:
+  - "src/models/**/*.ts"
+alwaysApply: false
+---
+
+# Model Relationship Synchronization Pattern
+
+This API uses a **canonical + mirror** pattern for bidirectional relationships. One side owns the truth (canonical), the other maintains a computed cache (mirror) that stays in sync automatically.
+
+## Core Principle
+
+> **The sync method lives on the Model with the mirror field, and is called from pre/post hooks on the Model with the canonical field.**
+
+## Relationship Table
+
+All relationships follow this pattern. Reference: @api/personal_docs/full_relation_table.md
+
+| Relationship                     | Canonical (Source of Truth)                          | Mirror (Computed Cache)      | Sync Method Location                        | Hook Location            |
+| -------------------------------- | ---------------------------------------------------- | ---------------------------- | ------------------------------------------- | ------------------------ |
+| Product → Business               | `Product.businessId`                                 | `Business.productIds`        | `Business.syncProductsForBusiness()`        | `Product` pre/post save  |
+| Episode ↔ Business (sponsors)    | `Episode.sponsorBusinessIds`                         | `Business.sponsorEpisodeIds` | `Business.syncSponsorEpisodesForBusiness()` | `Episode` pre/post save  |
+| Episode ↔ Person (guests)        | `Episode.guestIds`                                   | `Person.episodeIds`          | `Person.syncEpisodesForPerson()`            | `Episode` pre/post save  |
+| Protocol ↔ Product               | `Protocol.productIds`                                | `Product.protocolIds`        | `Product.syncProtocolsForProduct()`         | `Protocol` pre/post save |
+| Protocol ↔ Compound              | `Protocol.compoundIds`                               | `Compound.protocolIds`       | `Compound.syncProtocolsForCompound()`       | `Protocol` pre/post save |
+| Product ↔ Compound               | `Product.compoundIds`                                | `Compound.productIds`        | `Compound.syncProductsForCompound()`        | `Product` pre/post save  |
+| Business ↔ Person (owners+execs) | `Business.ownerIds` + `Business.executives.personId` | `Person.businessIds`         | `Person.syncBusinessesForPerson()`          | `Business` pre/post save |
+
+## Implementation Pattern
+
+### 1. Define Sync Method on Mirror Side
+
+The sync method is a **static method** on the Model interface that recomputes the mirror field by querying all documents where the canonical field references the given ID.
+
+**Example: Business.productIds (mirror) synced from Product.businessId (canonical)**
+
+```typescript
+// In Business.ts (mirror side)
+export interface BusinessModel extends Model<IBusiness> {
+  syncProductsForBusiness(
+    businessId: mongoose.Types.ObjectId,
+    opts?: TxOpts
+  ): Promise<void>;
+}
+
+BusinessSchema.statics.syncProductsForBusiness = async function (
+  businessId,
+  opts
+) {
+  const { Product } = await import("./Product.js");
+
+  // Find all Products where businessId matches (canonical field)
+  const products = await Product.find({ businessId })
+    .select("_id")
+    .lean()
+    .session(opts?.session ?? null);
+
+  const productIds = products.map((p: any) => p._id);
+
+  // Update mirror field on Business
+  await this.updateOne(
+    { _id: businessId },
+    { $set: { productIds } },
+    { session: opts?.session }
+  );
+};
+```
+
+**Reference Examples**:
+
+- @src/models/Business.ts - `syncProductsForBusiness()`, `syncSponsorEpisodesForBusiness()`
+- @src/models/Product.ts - `syncProtocolsForProduct()`
+- @src/models/Compound.ts - `syncProductsForCompound()`, `syncProtocolsForCompound()`
+- @src/models/Person.ts - `syncEpisodesForPerson()`, `syncBusinessesForPerson()`
+
+### 2. Use Pre/Post Hooks on Canonical Side
+
+The canonical model uses Mongoose pre/post save hooks to detect changes and trigger sync methods on affected mirror models.
+
+**Key Utilities from syncLocals.ts**:
+
+- `preloadPrevForPaths()` - Loads previous values before save (in `pre("save")`)
+- `diffIdsFromLocals()` - Computes diff between old and new IDs (in `post("save")`)
+- `cleanupSyncLocals()` - Cleans up temporary state after sync
+- `getDocSession()` - Gets session from document for transaction support
+
+**Example: Product.businessId (canonical) triggers Business sync**
+
+```typescript
+// In Product.ts (canonical side)
+import {
+  preloadPrevForPaths,
+  diffIdsFromLocals,
+  cleanupSyncLocals,
+  getDocSession,
+} from "./utils/syncLocals.js";
+
+// PRE: Load previous values before save
+ProductSchema.pre("save", async function (this: ProductDoc) {
+  await preloadPrevForPaths(this, ["businessId", "compoundIds"]);
+});
+
+// POST: Detect changes and trigger syncs
+ProductSchema.post("save", async function (doc: ProductDoc) {
+  const session = getDocSession(doc);
+
+  // Check if businessId changed
+  {
+    const { touched, allIdStrings } = diffIdsFromLocals(doc, "businessId");
+
+    if (touched) {
+      const { Business } = await import("./Business.js");
+
+      // Sync both old and new business (in case businessId changed)
+      for (const idStr of allIdStrings) {
+        await Business.syncProductsForBusiness(
+          new mongoose.Types.ObjectId(idStr),
+          { session }
+        );
+      }
+    }
+  }
+
+  // Check if compoundIds changed
+  {
+    const { touched, allIdStrings } = diffIdsFromLocals(doc, "compoundIds");
+
+    if (touched) {
+      const { Compound } = await import("./Compound.js");
+
+      for (const idStr of allIdStrings) {
+        await Compound.syncProductsForCompound(
+          new mongoose.Types.ObjectId(idStr),
+          { session }
+        );
+      }
+    }
+  }
+
+  // Clean up temporary state
+  cleanupSyncLocals(doc, ["businessId", "compoundIds"]);
+});
+```
+
+**Reference Examples**:
+
+- @src/models/Product.ts - Pre/post hooks for `businessId`, `compoundIds`
+- @src/models/Business.ts - Pre/post hooks for `ownerIds`, `executives.personId`
+- @src/models/Protocol.ts - Pre/post hooks for `productIds`, `compoundIds`
+- @src/models/utils/syncLocals.ts - Core utilities
+
+### 3. Handle Deletions
+
+When a document is deleted, clean up both canonical references and trigger mirror recomputation.
+
+**Pattern for `findOneAndDelete` hook**:
+
+```typescript
+ProductSchema.post("findOneAndDelete", async function (doc: ProductDoc | null) {
+  if (!doc) return;
+  const session = this.getOptions()?.session as ClientSession | undefined;
+
+  // 1. Clean up one-way references (canonical fields on other models)
+  await CaseStudy.updateMany(
+    { productIds: doc._id },
+    { $pull: { productIds: doc._id } },
+    { session }
+  );
+
+  // 2. Clean up canonical fields (if this model has canonical fields)
+  await Protocol.updateMany(
+    { productIds: doc._id },
+    { $pull: { productIds: doc._id } },
+    { session }
+  );
+
+  // 3. Recompute mirrors (do NOT $pull mirror fields directly)
+  if (doc.businessId) {
+    await Business.syncProductsForBusiness(doc.businessId, { session });
+  }
+
+  // For array canonical fields, sync all affected mirrors
+  const compoundIds = doc.compoundIds ?? [];
+  for (const compoundId of compoundIds) {
+    await Compound.syncProductsForCompound(compoundId, { session });
+  }
+});
+```
+
+**Reference Examples**:
+
+- @src/models/Product.ts - Delete cleanup pattern
+- @src/models/Business.ts - Delete cleanup pattern
+- @src/models/Person.ts - Delete cleanup pattern
+
+## Rules for Adding New Relationships
+
+### Step 1: Identify Canonical vs Mirror
+
+- **Canonical**: The field that is directly set/updated by business logic
+- **Mirror**: The field that should automatically reflect the inverse relationship
+
+**Example**: If `Product.businessId` is set directly, it's canonical. `Business.productIds` is the mirror.
+
+### Step 2: Add Sync Method to Mirror Model
+
+```typescript
+// In MirrorModel.ts
+export interface MirrorModel extends Model<IMirror> {
+  syncCanonicalsForMirror(
+    mirrorId: mongoose.Types.ObjectId,
+    opts?: TxOpts
+  ): Promise<void>;
+}
+
+MirrorSchema.statics.syncCanonicalsForMirror = async function (mirrorId, opts) {
+  const { CanonicalModel } = await import("./CanonicalModel.js");
+
+  // Query canonical model where it references mirrorId
+  const canonicals = await CanonicalModel.find({ mirrorId })
+    .select("_id")
+    .lean()
+    .session(opts?.session ?? null);
+
+  const canonicalIds = canonicals.map((c: any) => c._id);
+
+  // Update mirror field
+  await this.updateOne(
+    { _id: mirrorId },
+    { $set: { canonicalIds } },
+    { session: opts?.session }
+  );
+};
+```
+
+### Step 3: Add Hooks to Canonical Model
+
+```typescript
+// In CanonicalModel.ts
+import {
+  preloadPrevForPaths,
+  diffIdsFromLocals,
+  cleanupSyncLocals,
+  getDocSession,
+} from "./utils/syncLocals.js";
+
+// PRE hook: Load previous values
+CanonicalSchema.pre("save", async function (this: CanonicalDoc) {
+  await preloadPrevForPaths(this, ["mirrorId"]);
+});
+
+// POST hook: Trigger sync if changed
+CanonicalSchema.post("save", async function (doc: CanonicalDoc) {
+  const session = getDocSession(doc);
+
+  const { touched, allIdStrings } = diffIdsFromLocals(doc, "mirrorId");
+
+  if (touched) {
+    const { MirrorModel } = await import("./MirrorModel.js");
+
+    for (const idStr of allIdStrings) {
+      await MirrorModel.syncCanonicalsForMirror(
+        new mongoose.Types.ObjectId(idStr),
+        { session }
+      );
+    }
+  }
+
+  cleanupSyncLocals(doc, ["mirrorId"]);
+});
+```
+
+### Step 4: Handle Array Canonical Fields
+
+For array fields (e.g., `Product.compoundIds[]`), sync all affected mirrors:
+
+```typescript
+{
+  const { touched, allIdStrings } = diffIdsFromLocals(doc, "compoundIds");
+
+  if (touched) {
+    const { Compound } = await import("./Compound.js");
+
+    // Sync all compounds that were in old or new array
+    for (const idStr of allIdStrings) {
+      await Compound.syncProductsForCompound(
+        new mongoose.Types.ObjectId(idStr),
+        { session }
+      );
+    }
+  }
+}
+```
+
+### Step 5: Handle Nested Paths
+
+For nested fields (e.g., `Business.executives.personId`), use dot notation:
+
+```typescript
+await preloadPrevForPaths(this, ["ownerIds", "executives.personId"]);
+
+// Later in post hook:
+const { touched, allIdStrings } = diffIdsFromLocals(doc, "executives.personId");
+```
+
+## Transaction Support
+
+All sync methods and hooks support transactions:
+
+1. **Get session from document**: `const session = getDocSession(doc);`
+2. **Pass session to sync method**: `{ session }` in `TxOpts`
+3. **Pass session to DB operations**: `.session(opts?.session ?? null)`
+
+This ensures all relationship updates happen atomically within transactions.
+
+## Common Patterns
+
+### Pattern 1: One-to-Many (Product → Business)
+
+- **Canonical**: `Product.businessId` (single reference)
+- **Mirror**: `Business.productIds[]` (array of all products)
+- **Sync**: Find all Products with `businessId = X`, set `Business.productIds`
+
+### Pattern 2: Many-to-Many (Protocol ↔ Product)
+
+- **Canonical**: `Protocol.productIds[]` (array on Protocol)
+- **Mirror**: `Product.protocolIds[]` (array on Product)
+- **Sync**: When Protocol changes, sync affected Products. When Product changes, sync affected Protocols.
+
+### Pattern 3: Complex (Business ↔ Person with Executives)
+
+- **Canonical**: `Business.ownerIds[]` + `Business.executives[].personId`
+- **Mirror**: `Person.businessIds[]`
+- **Sync**: Find all Businesses where person appears as owner OR executive, set `Person.businessIds`
+
+## Important Notes
+
+1. **Never directly modify mirror fields** - They are computed automatically
+2. **Always use sync methods** - Don't manually update mirror fields
+3. **Handle both old and new IDs** - When a canonical field changes, sync both the old and new mirror (using `allIdStrings`)
+4. **Use transactions** - Always pass session through for atomicity
+5. **Clean up on delete** - Remove canonical references and recompute mirrors
+6. **Document in comments** - Mark canonical vs mirror fields clearly in model interfaces
+
+## Reference Files
+
+- @api/personal_docs/full_relation_table.md - Complete relationship table
+- @src/models/utils/syncLocals.ts - Core sync utilities
+- @src/models/Business.ts - Complex example with multiple relationships
+- @src/models/Product.ts - Example with multiple canonical fields
+- @src/models/Protocol.ts - Many-to-many example
+- @src/models/Compound.ts - Multiple mirror fields example
+- @src/models/Person.ts - Multiple relationships example

@@ -1,0 +1,424 @@
+---
+description: "MongoDB transaction patterns: use withTransaction() for multi-model operations, pass sessions to all DB operations, retrieve sessions in middleware. Transactions ensure atomicity for complex operations."
+globs:
+  - "src/services/**/*.ts"
+  - "src/models/**/*.ts"
+alwaysApply: false
+---
+
+# Transaction Patterns
+
+MongoDB transactions ensure **atomicity** for multi-model, multi-step operations. All operations within a transaction either succeed together or fail together (rollback).
+
+## When to Use Transactions
+
+Use transactions for operations that:
+
+1. **Touch multiple models** - Creating/updating entities across different collections
+2. **Require atomicity** - All-or-nothing operations (e.g., create business with nested owners/products)
+3. **Update relationships** - Operations that modify bidirectional relationships
+4. **Complex business logic** - Multi-step operations that must be consistent
+
+**Examples**:
+
+- Creating a Business with nested Owners, Products, and Episodes
+- Updating a Product and syncing related Business mirror fields
+- Deleting an entity and cleaning up all related references
+
+**Reference**: @src/services/businessService.ts - `createBusinessWithRelations()`
+
+## Transaction Wrapper: `withTransaction()`
+
+The `withTransaction()` function wraps operations in a MongoDB transaction:
+
+```typescript
+import { withTransaction } from "../lib/transactions.js";
+
+async createBusinessWithRelations(
+  input: BusinessCreateRelationsInput
+): Promise<IBusiness> {
+  return withTransaction(
+    async (session) => {
+      // All operations inside use session
+      const business = await Business.create([input], { session });
+
+      if (input.ownersNested) {
+        const owners = await Person.create(input.ownersNested, { session });
+        business.ownerIds = owners.map(o => o._id);
+      }
+
+      await business.save({ session });
+      return business;
+    },
+    { operation: "createBusinessWithRelations", businessName: input.name }
+  );
+}
+```
+
+**Key Points**:
+
+- `withTransaction()` creates and manages the session
+- The callback receives `session: ClientSession`
+- All database operations inside must use the session
+- Transaction automatically commits on success or rolls back on error
+- Include operation name in context for logging
+
+**Reference**: @src/lib/transactions.ts
+
+## Passing Sessions to Database Operations
+
+### Model Operations
+
+All Mongoose operations support session via `.session()` or options:
+
+```typescript
+// Query operations
+await Business.findById(id).session(session ?? null);
+await Business.findOne({ name }).session(session ?? null);
+await Business.find({ ownerIds: personId }).session(session ?? null);
+
+// Create operations
+await Business.create([data], { session });
+
+// Update operations
+await business.save({ session });
+await Business.updateOne({ _id }, { $set: data }, { session });
+await Business.updateMany(
+  { ownerIds: id },
+  { $pull: { ownerIds: id } },
+  { session }
+);
+
+// Delete operations
+await Business.findOneAndDelete({ _id }, { session });
+```
+
+**Pattern**: Always pass `session ?? null` for queries, `{ session }` for options
+
+### Service Methods
+
+Service methods should accept session in options:
+
+```typescript
+async findById(
+  id: string,
+  opts?: { session?: ClientSession; context?: LogContext }
+): Promise<TDoc> {
+  const { session, context } = opts ?? {};
+  return withErrorHandling(
+    "findById",
+    this.serviceName,
+    async () => {
+      const doc = await this.model.findById(id).session(session ?? null);
+      if (!doc) throw Errors.notFound(this.entityName, id);
+      return doc as TDoc;
+    },
+    { id, ...context }
+  );
+}
+```
+
+**Reference**: @src/services/BaseService.ts
+
+## Static Methods with Optional Sessions
+
+Model static methods (like sync methods) accept optional sessions via `TxOpts`:
+
+```typescript
+import { TxOpts } from "./utils/syncLocals.js";
+
+export interface BusinessModel extends Model<IBusiness> {
+  syncProductsForBusiness(
+    businessId: mongoose.Types.ObjectId,
+    opts?: TxOpts // { session?: ClientSession }
+  ): Promise<void>;
+}
+
+BusinessSchema.statics.syncProductsForBusiness = async function (
+  businessId,
+  opts
+) {
+  const { Product } = await import("./Product.js");
+
+  // Use session if provided, null otherwise
+  const products = await Product.find({ businessId })
+    .select("_id")
+    .lean()
+    .session(opts?.session ?? null);
+
+  const productIds = products.map((p: any) => p._id);
+
+  // Pass session in options
+  await this.updateOne(
+    { _id: businessId },
+    { $set: { productIds } },
+    { session: opts?.session }
+  );
+};
+```
+
+**Pattern**:
+
+- Static methods accept `opts?: TxOpts` where `TxOpts = { session?: ClientSession }`
+- Use `opts?.session ?? null` for query operations
+- Use `{ session: opts?.session }` for update/delete operations
+- Methods work both inside and outside transactions
+
+**Reference**: @src/models/Business.ts - `syncProductsForBusiness()`, `syncSponsorEpisodesForBusiness()`
+
+## Retrieving Sessions in Middleware
+
+Mongoose middleware (pre/post hooks) can retrieve the session from the document or query context.
+
+### In Pre/Post Save Hooks
+
+Use `getDocSession()` to get session from document:
+
+```typescript
+import { getDocSession } from "./utils/syncLocals.js";
+
+ProductSchema.pre("save", async function (this: ProductDoc) {
+  // Get session from document if present
+  const session = getDocSession(this);
+
+  // Use session in operations
+  await preloadPrevForPaths(this, ["businessId", "compoundIds"]);
+});
+
+ProductSchema.post("save", async function (doc: ProductDoc) {
+  const session = getDocSession(doc);
+
+  // Use session when calling static methods
+  if (doc.businessId) {
+    await Business.syncProductsForBusiness(doc.businessId, { session });
+  }
+});
+```
+
+**How it works**: `getDocSession(doc)` calls `doc.$session?.()` which returns the session if the document was created/saved within a transaction.
+
+**Reference**: @src/models/utils/syncLocals.ts - `getDocSession()`
+
+### In Pre/Post Delete Hooks
+
+Use `this.getOptions()?.session` to get session from query context:
+
+```typescript
+ProductSchema.post("findOneAndDelete", async function (doc: ProductDoc | null) {
+  if (!doc) return;
+
+  // Get session from query options
+  const session = this.getOptions()?.session as ClientSession | undefined;
+
+  // Use session in cleanup operations
+  await CaseStudy.updateMany(
+    { productIds: doc._id },
+    { $pull: { productIds: doc._id } },
+    { session }
+  );
+
+  // Recompute mirrors with session
+  if (doc.businessId) {
+    await Business.syncProductsForBusiness(doc.businessId, { session });
+  }
+});
+```
+
+**Pattern**:
+
+- `pre/post("save")` hooks: Use `getDocSession(doc)`
+- `pre/post("findOneAndDelete")` hooks: Use `this.getOptions()?.session`
+- Always pass session to operations inside hooks
+
+**Reference**: @src/models/Product.ts - Delete hook example
+
+## Complete Transaction Example
+
+Here's a complete example showing all patterns:
+
+```typescript
+// Service method
+async createBusinessWithRelations(
+  input: BusinessCreateRelationsInput
+): Promise<IBusiness> {
+  return withTransaction(
+    async (session) => {
+      // 1. Validate related entities exist (with session)
+      if (input.ownerIds?.length) {
+        await this.validateEntities(Person, input.ownerIds, "Owner", { session });
+      }
+
+      // 2. Create main entity (with session)
+      const [business] = await Business.create([{
+        name: input.name,
+        ownerIds: toObjectIds(input.ownerIds ?? []),
+      }], { session });
+
+      // 3. Create nested entities (with session)
+      if (input.ownersNested?.length) {
+        const owners = await Person.create(input.ownersNested, { session });
+        business.ownerIds.push(...owners.map(o => o._id));
+      }
+
+      // 4. Save with session (triggers hooks with session)
+      await business.save({ session });
+
+      // 5. Update related entities (with session)
+      if (input.productIds?.length) {
+        await Product.updateMany(
+          { _id: { $in: input.productIds } },
+          { $set: { businessId: business._id } },
+          { session }
+        );
+      }
+
+      // 6. Call static sync methods (with session)
+      await Business.syncProductsForBusiness(business._id, { session });
+
+      return business;
+    },
+    { operation: "createBusinessWithRelations", businessName: input.name }
+  );
+}
+```
+
+**Inside the transaction**:
+
+1. All operations use the session
+2. When `business.save({ session })` is called, the document has the session attached
+3. Post-save hooks can retrieve session via `getDocSession(doc)`
+4. Static methods receive session via `opts?.session`
+5. If any operation fails, entire transaction rolls back
+
+**Reference**: @src/services/businessService.ts - `createBusinessWithRelations()`
+
+## Transaction Helper Functions
+
+### Sequential Operations
+
+For operations that must run in order:
+
+```typescript
+import { withTransactionSequential } from "../lib/transactions.js";
+
+return withTransactionSequential(
+  [
+    async (session) => await createBusiness(input1, { session }),
+    async (session) => await createProduct(input2, { session }),
+    async (session) => await createPerson(input3, { session }),
+  ],
+  { operation: "createMultipleEntities" }
+);
+```
+
+### Retry with Backoff
+
+For transient failures:
+
+```typescript
+import { withTransactionRetry } from "../lib/transactions.js";
+
+return withTransactionRetry(
+  async (session) => {
+    // ... operations
+  },
+  {
+    maxRetries: 3,
+    initialDelay: 100,
+    maxDelay: 1000,
+    context: { operation: "createBusiness" },
+  }
+);
+```
+
+**Note**: `withTransactionParallel()` actually runs sequentially (MongoDB limitation). Use it for code clarity, but operations will be sequential.
+
+**Reference**: @src/lib/transactions.ts
+
+## Rules Summary
+
+### ✅ CORRECT Patterns
+
+```typescript
+// Use withTransaction for multi-model operations
+return withTransaction(async (session) => {
+  // Pass session to all operations
+  await Business.create([data], { session });
+  await business.save({ session });
+  await Business.findById(id).session(session ?? null);
+  await Business.updateOne({ _id }, { $set: data }, { session });
+
+  // Pass session to static methods
+  await Business.syncProductsForBusiness(id, { session });
+}, { operation: "operationName" });
+
+// Static methods accept optional session
+staticMethod(id: ObjectId, opts?: TxOpts) {
+  await Model.find({}).session(opts?.session ?? null);
+}
+
+// Middleware retrieves session
+post("save", async function(doc) {
+  const session = getDocSession(doc);
+  // Use session
+});
+
+post("findOneAndDelete", async function(doc) {
+  const session = this.getOptions()?.session;
+  // Use session
+});
+```
+
+### ❌ INCORRECT Patterns
+
+```typescript
+// ❌ Don't skip transactions for multi-model operations
+async createBusinessWithOwners(input) {
+  const business = await Business.create(input);
+  const owners = await Person.create(input.owners); // Not atomic!
+}
+
+// ❌ Don't forget to pass session
+return withTransaction(async (session) => {
+  await Business.create([data]); // Missing { session }
+  await business.save(); // Missing { session }
+});
+
+// ❌ Don't create new sessions inside transactions
+return withTransaction(async (session) => {
+  const newSession = await mongoose.startSession(); // Wrong!
+  // Use the provided session
+});
+
+// ❌ Don't skip session in static methods
+staticMethod(id: ObjectId) {
+  await Model.find({}); // Should use opts?.session ?? null
+}
+```
+
+## When NOT to Use Transactions
+
+Transactions are **not needed** for:
+
+1. **Single model operations** - Simple create/update/delete on one entity
+2. **Read-only operations** - Queries that don't modify data
+3. **Independent operations** - Operations that don't need to be atomic together
+
+**Example - No transaction needed**:
+
+```typescript
+async findById(id: string): Promise<BusinessDoc> {
+  // Single read operation - no transaction needed
+  const doc = await Business.findById(id);
+  if (!doc) throw Errors.notFound("Business", id);
+  return doc;
+}
+```
+
+## Reference Files
+
+- @src/lib/transactions.ts - Transaction wrapper and helpers
+- @src/models/utils/syncLocals.ts - `getDocSession()` utility
+- @src/services/businessService.ts - Complete transaction examples
+- @src/models/Business.ts - Static methods with `TxOpts`
+- @src/models/Product.ts - Middleware session retrieval
