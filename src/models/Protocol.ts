@@ -6,6 +6,14 @@ import {
   diffIdsFromLocals,
   cleanupSyncLocals,
 } from "./utils/syncLocals.js";
+import {
+  EvidenceRefSchema,
+  ISafetyBucket,
+  IEvidenceRef,
+  IProtocolStepGroup,
+  ProtocolStepGroupSchema,
+  SafetyBucketSchema,
+} from "./ProtocolParts.js";
 
 export type ProtocolCategory =
   | "sleep"
@@ -19,32 +27,46 @@ export type ProtocolCategory =
   | "health"
   | "other";
 
-export interface IProtocol {
-  id: string; // virtual
+export interface IProtocol extends Document {
+  id: string;
   name: string;
   description?: string;
+
   productIds: mongoose.Types.ObjectId[];
   compoundIds: mongoose.Types.ObjectId[];
-  categories: ProtocolCategory[];
+
+  categories: string[];
   goals: string[];
+
+  // legacy
   steps: string[];
-  cautions?: string[];
-  aliases?: string[];
+
+  // new
+  stepsStructured: IProtocolStepGroup[];
+  evidenceRefs: IEvidenceRef[];
+  safety?: ISafetyBucket;
+
+  cautions: string[];
+  aliases: string[];
   sourceUrl?: string;
+
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export type ProtocolDoc = HydratedDocument<IProtocol>;
-
 export interface ProtocolModel extends Model<IProtocol> {}
 
 const ProtocolSchema = new Schema<IProtocol, ProtocolModel>(
   {
     name: { type: String, required: true, unique: true, index: true },
     description: { type: String },
+
     productIds: [{ type: Schema.Types.ObjectId, ref: "Product", index: true }],
     compoundIds: [
       { type: Schema.Types.ObjectId, ref: "Compound", index: true },
     ],
+
     categories: [
       {
         type: String,
@@ -64,22 +86,27 @@ const ProtocolSchema = new Schema<IProtocol, ProtocolModel>(
         index: true,
       },
     ],
+
     goals: [{ type: String }],
-    steps: [{ type: String }],
-    cautions: [{ type: String }],
+
+    // legacy strings
+    steps: [{ type: String, default: [] }],
+
+    // structured v1
+    stepsStructured: { type: [ProtocolStepGroupSchema], default: [] },
+    evidenceRefs: { type: [EvidenceRefSchema], default: [] },
+    safety: { type: SafetyBucketSchema, default: undefined },
+
+    cautions: [{ type: String, default: [] }],
     aliases: [{ type: String, index: true }],
     sourceUrl: { type: String },
   },
   { timestamps: true }
 );
 
-// -----------------------------------------------------
-// 🔥 Add this virtual so id = _id (same as Person)
-// -----------------------------------------------------
 ProtocolSchema.virtual("id").get(function () {
   return this._id.toHexString();
 });
-
 ProtocolSchema.set("toJSON", { virtuals: true });
 ProtocolSchema.set("toObject", { virtuals: true });
 

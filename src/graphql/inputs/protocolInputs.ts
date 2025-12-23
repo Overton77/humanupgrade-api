@@ -1,5 +1,10 @@
 import { MediaLink } from "../../models/MediaLink.js";
 import { ProtocolCategory } from "../../models/Protocol.js";
+import {
+  ProtocolStepGroupInput,
+  EvidenceRefInput,
+  SafetyBucketInput,
+} from "./protocolPartsInputs.js";
 
 export interface ProtocolScalarFields {
   name: string;
@@ -10,6 +15,9 @@ export interface ProtocolScalarFields {
   cautions: string[];
   aliases: string[];
   sourceUrl?: string;
+  stepsStructured?: ProtocolStepGroupInput[];
+  evidenceRefs?: EvidenceRefInput[];
+  safety?: SafetyBucketInput;
 }
 
 export interface ProtocolScalarUpdateFields {
@@ -21,6 +29,12 @@ export interface ProtocolScalarUpdateFields {
   cautions?: string[];
   aliases?: string[];
   sourceUrl?: string;
+  stepsStructured?: ProtocolStepGroupInput[];
+  evidenceRefs?: EvidenceRefInput[];
+  /** NEW: EvidenceRefs update behavior */
+  overwriteEvidenceRefs?: boolean; // default true if evidenceRefs provided
+  addToEvidenceRefs?: boolean;
+  safety?: SafetyBucketInput;
 }
 
 /** Simple create: scalars + optional product/compound IDs */

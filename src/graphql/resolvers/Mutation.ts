@@ -100,11 +100,11 @@ import {
 } from "../../services/userProfileService.js";
 import { Errors } from "../../lib/errors.js";
 import { userSavedResolvers } from "./userSavedResolvers.js";
+import { userProtocolResolvers } from "./userProtocolResolvers.js";
 
 const SALT_ROUNDS = 10;
 
 export const Mutation = {
-  ...userSavedResolvers.Mutation,
   register: async (
     _parent: unknown,
     args: {
@@ -499,4 +499,6 @@ export const Mutation = {
     const business = await deleteBusiness(args.id);
     return business;
   },
+  ...userSavedResolvers.Mutation,
+  ...userProtocolResolvers.Mutation,
 };

@@ -16,9 +16,11 @@ import { GraphQLContext } from "../context.js";
 import { Errors } from "../../lib/errors.js";
 import { userSavedResolvers } from "./userSavedResolvers.js";
 import { requireUser } from "../../services/auth.js";
+import { userProtocolResolvers } from "./userProtocolResolvers.js";
 
 export const Query = {
   ...userSavedResolvers.Query,
+  ...userProtocolResolvers.Query,
   me: async (_parent: unknown, _args: unknown, ctx: GraphQLContext) => {
     if (!ctx.userId) return null;
 

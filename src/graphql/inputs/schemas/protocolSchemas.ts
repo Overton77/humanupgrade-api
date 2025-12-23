@@ -6,10 +6,11 @@ import {
   ObjectIdArraySchema,
   OptionalUrlSchema,
 } from "../../../lib/validation.js";
-
-/**
- * Protocol scalar fields
- */
+import {
+  ProtocolStepGroupInputSchema,
+  EvidenceRefInputSchema,
+  SafetyBucketInputSchema,
+} from "./protocolPartsSchemas.js";
 
 export const ProtocolCategoryCoerceSchema = z
   .string()
@@ -27,15 +28,31 @@ export const ProtocolScalarFieldsSchema = z.object({
   cautions: z.array(z.string()).optional(),
   aliases: z.array(z.string()).optional(),
   sourceUrl: OptionalUrlSchema,
+  stepsStructured: z.array(ProtocolStepGroupInputSchema).optional(),
+  evidenceRefs: z.array(EvidenceRefInputSchema).optional(),
+  safety: SafetyBucketInputSchema.optional(),
 });
 
 /**
  * Protocol scalar update fields
  */
 export const ProtocolScalarUpdateFieldsSchema =
-  ProtocolScalarFieldsSchema.partial().extend({
-    id: ObjectIdSchema,
-  });
+  ProtocolScalarFieldsSchema.partial()
+    .extend({
+      id: ObjectIdSchema,
+      overwriteEvidenceRefs: z.boolean().optional(),
+      addToEvidenceRefs: z.boolean().optional(),
+    })
+    .superRefine((val, ctx) => {
+      if (val.overwriteEvidenceRefs && val.addToEvidenceRefs) {
+        ctx.addIssue({
+          code: "custom",
+          message:
+            "Choose either overwriteEvidenceRefs or addToEvidenceRefs (not both)",
+          path: ["overwriteEvidenceRefs"],
+        });
+      }
+    });
 
 /**
  * Protocol create with optional IDs
@@ -50,7 +67,7 @@ export const ProtocolCreateWithOptionalIdsInputSchema =
  * Protocol update with optional IDs
  */
 export const ProtocolUpdateWithOptionalIdsInputSchema =
-  ProtocolScalarUpdateFieldsSchema.extend({
+  ProtocolScalarUpdateFieldsSchema.safeExtend({
     productIds: ObjectIdArraySchema.optional(),
     compoundIds: ObjectIdArraySchema.optional(),
   });

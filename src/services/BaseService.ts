@@ -1,4 +1,4 @@
-import { Model, HydratedDocument, ClientSession } from "mongoose";
+import mongoose, { Model, HydratedDocument, ClientSession } from "mongoose";
 import { Errors } from "../lib/errors.js";
 import { withErrorHandling } from "../lib/serviceWrapper.js";
 import { validateEntitiesExist } from "./utils/validation.js";
@@ -17,6 +17,10 @@ export abstract class BaseService<
     this.model = model;
     this.serviceName = serviceName;
     this.entityName = entityName;
+  }
+
+  protected toObjectId(id: string): mongoose.Types.ObjectId {
+    return new mongoose.Types.ObjectId(id);
   }
 
   async findById(
@@ -79,7 +83,7 @@ export abstract class BaseService<
       this.serviceName,
       async () => {
         const doc = await this.model.findOneAndDelete(
-          { _id: id } as any,
+          { _id: id },
           session ? { session } : undefined
         );
         if (!doc) throw Errors.notFound(this.entityName, id);

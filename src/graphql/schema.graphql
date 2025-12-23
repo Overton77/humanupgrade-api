@@ -1,5 +1,161 @@
 scalar DateTime
 
+enum UserProtocolStatus {
+  draft
+  active
+  archived
+}
+
+enum UserGoalType {
+  sleep
+  energy
+  fatLoss
+  cognition
+  longevity
+  strength
+  stress
+  recovery
+  other
+}
+
+enum ProtocolStepItemType {
+  PRODUCT
+  COMPOUND
+  ACTION
+}
+
+enum ProtocolTimeOfDay {
+  morning
+  midday
+  evening
+  bedtime
+  any
+}
+
+enum EvidenceRefType {
+  episode
+  caseStudy
+  article
+  external
+}
+
+type ProtocolStepItem {
+  type: ProtocolStepItemType!
+  refId: ID
+  nameOverride: String
+  dosage: String
+  timing: String
+  notes: String
+}
+
+type ProtocolStepGroup {
+  label: String
+  timeOfDay: ProtocolTimeOfDay
+  items: [ProtocolStepItem!]!
+}
+
+type EvidenceRef {
+  type: EvidenceRefType!
+  refId: ID
+  label: String
+  url: String
+  episodeId: ID
+  timestamps: [Int!]!
+  notes: String
+}
+
+type SafetyBucket {
+  warnings: [String!]!
+  contraindications: [String!]!
+  interactions: [String!]!
+  notes: String
+}
+
+type UserProtocol {
+  id: ID!
+  userId: ID!
+  title: String!
+  goalType: UserGoalType
+  status: UserProtocolStatus!
+
+  sourceProtocolId: ID
+
+  stepsStructured: [ProtocolStepGroup!]!
+  evidenceRefs: [EvidenceRef!]!
+  safety: SafetyBucket
+
+  lastEditedAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input ProtocolStepItemInput {
+  type: ProtocolStepItemType!
+  refId: ID
+  nameOverride: String
+  dosage: String
+  timing: String
+  notes: String
+}
+
+input CursorPageInput {
+  first: Int!
+  after: String
+}
+
+input ProtocolStepGroupInput {
+  label: String
+  timeOfDay: ProtocolTimeOfDay
+  items: [ProtocolStepItemInput!]!
+}
+
+input EvidenceRefInput {
+  type: EvidenceRefType!
+  refId: ID
+  label: String
+  url: String
+  episodeId: ID
+  timestamps: [Int!]
+  notes: String
+}
+
+input SafetyBucketInput {
+  warnings: [String!]
+  contraindications: [String!]
+  interactions: [String!]
+  notes: String
+}
+
+input CreateUserProtocolInput {
+  title: String!
+  goalType: UserGoalType
+  status: UserProtocolStatus
+  sourceProtocolId: ID
+  stepsStructured: [ProtocolStepGroupInput!]
+  evidenceRefs: [EvidenceRefInput!]
+  safety: SafetyBucketInput
+}
+
+input UpdateUserProtocolInput {
+  id: ID!
+  title: String
+  goalType: UserGoalType
+  status: UserProtocolStatus
+  stepsStructured: [ProtocolStepGroupInput!]
+  evidenceRefs: [EvidenceRefInput!]
+  safety: SafetyBucketInput
+}
+
+type UserProtocolConnection {
+  edges: [UserProtocolEdge!]!
+  pageInfo: PageInfo!
+}
+
+type UserProtocolEdge {
+  cursor: String!
+  node: UserProtocol!
+}
+
 enum ArticleSourceType {
   human_upgrade
   external
@@ -488,6 +644,11 @@ input ProtocolUpdateWithIdsInput {
   sourceUrl: String
   productIds: [ID!]
   compoundIds: [ID!]
+  stepsStructured: [ProtocolStepGroupInput!]
+  evidenceRefs: [EvidenceRefInput!]
+  safety: SafetyBucketInput
+  overwriteEvidenceRefs: Boolean
+  addToEvidenceRefs: Boolean
 }
 
 input ProtocolProductNestedInput {
@@ -657,6 +818,9 @@ type Protocol {
   goals: [String!]!
   steps: [String!]!
   cautions: [String!]!
+  stepsStructured: [ProtocolStepGroup!]
+  evidenceRefs: [EvidenceRef!]!
+  safety: SafetyBucket
   aliases: [String!]!
   sourceUrl: String
   products: [Product!]!
@@ -747,6 +911,44 @@ type UserSaved {
   target: SavedTargetUnion
 }
 
+"""
+Relay-style pagination info
+"""
+type PageInfo {
+  hasNextPage: Boolean!
+  endCursor: String
+}
+
+"""
+Cursor pagination input (matches your usage: first + after)
+"""
+input CursorPageInput {
+  first: Int!
+  after: String
+}
+
+"""
+UserSaved connection types
+"""
+type UserSavedConnection {
+  edges: [UserSavedEdge!]!
+  pageInfo: PageInfo!
+}
+
+type UserSavedEdge {
+  cursor: String!
+  node: UserSaved!
+}
+
+"""
+Filter input for user protocols listing
+"""
+input UserProtocolsFilterInput {
+  status: UserProtocolStatus
+  goalType: UserGoalType
+  search: String
+}
+
 union SavedTargetUnion =
     Product
   | Compound
@@ -779,26 +981,6 @@ input SavedEntitiesFilterInput {
   pinned: Boolean
 }
 
-input CursorPageInput {
-  first: Int = 20
-  after: String
-}
-
-type PageInfo {
-  hasNextPage: Boolean!
-  endCursor: String
-}
-
-type UserSavedEdge {
-  cursor: String!
-  node: UserSaved!
-}
-
-type UserSavedConnection {
-  edges: [UserSavedEdge!]!
-  pageInfo: PageInfo!
-}
-
 type Query {
   me: User
   myProfile: UserProfile
@@ -826,6 +1008,11 @@ type Query {
     filter: SavedEntitiesFilterInput
     page: CursorPageInput
   ): UserSavedConnection!
+
+  myUserProtocols(
+    filter: UserProtocolsFilterInput
+    page: CursorPageInput
+  ): UserProtocolConnection!
 }
 
 type AuthPayload {
@@ -915,6 +1102,11 @@ type Mutation {
   createProtocol(input: ProtocolCreateWithIdsInput!): Protocol!
   updateProtocol(input: ProtocolUpdateWithIdsInput!): Protocol
   updateProtocolRelations(input: ProtocolUpdateRelationFieldsInput!): Protocol
+  deleteProtocol(id: ID!): Protocol!
+
+  createUserProtocol(input: CreateUserProtocolInput!): UserProtocol!
+  updateUserProtocol(input: UpdateUserProtocolInput!): UserProtocol
+  deleteUserProtocol(id: ID!): Boolean!
 
   # --- Vector management ---
 

@@ -8,6 +8,11 @@ import {
 import { Product } from "../models/Product.js";
 import { Compound } from "../models/Compound.js";
 import { Business } from "../models/Business.js";
+import { Article } from "../models/Article.js";
+import { CaseStudy } from "../models/CaseStudy.js";
+import { Episode } from "../models/Episode.js";
+import type { IEvidenceRef } from "../models/ProtocolParts.js";
+import { withTransaction } from "../lib/transactions.js";
 
 import {
   ProtocolCreateWithOptionalIdsInput,
@@ -26,8 +31,7 @@ import {
 } from "../graphql/inputs/schemas/protocolSchemas.js";
 
 import { validateInput } from "../lib/validation.js";
-import { withTransaction } from "../lib/transactions.js";
-import { BaseService } from "./BaseService.js";
+import { BaseProtocolService } from "./BaseProtocolService.js";
 import { Errors } from "../lib/errors.js";
 
 import {
@@ -37,7 +41,7 @@ import {
 } from "./utils/merging.js";
 import { MediaLink } from "../models/MediaLink.js";
 
-class ProtocolService extends BaseService<
+class ProtocolService extends BaseProtocolService<
   IProtocol,
   ProtocolDoc,
   ProtocolModel
@@ -66,6 +70,9 @@ class ProtocolService extends BaseService<
       sourceUrl,
       productIds,
       compoundIds,
+      stepsStructured,
+      evidenceRefs,
+      safety,
     } = validated;
 
     return withTransaction(
@@ -80,6 +87,12 @@ class ProtocolService extends BaseService<
             session,
           });
         }
+        if (stepsStructured?.length) {
+          await this.validateStepsStructured(stepsStructured, session);
+        }
+        if (evidenceRefs?.length) {
+          await this.validateEvidenceRefs(evidenceRefs, session);
+        }
 
         const [protocol] = await Protocol.create(
           [
@@ -91,6 +104,9 @@ class ProtocolService extends BaseService<
               steps,
               cautions: cautions ?? [],
               aliases: aliases ?? [],
+              stepsStructured: this.normalizeStepsStructured(stepsStructured),
+              evidenceRefs: this.normalizeEvidenceRefs(evidenceRefs),
+              safety: this.normalizeSafetyBucket(safety),
               sourceUrl,
               productIds: productIds
                 ? productIds.map((id) => new mongoose.Types.ObjectId(id))
@@ -131,6 +147,11 @@ class ProtocolService extends BaseService<
       sourceUrl,
       productIds,
       compoundIds,
+      stepsStructured,
+      addToEvidenceRefs,
+      overwriteEvidenceRefs,
+      evidenceRefs,
+      safety,
     } = validated;
 
     return withTransaction(
@@ -167,6 +188,52 @@ class ProtocolService extends BaseService<
             protocol.compoundIds,
             compoundIds
           );
+        }
+
+        if (stepsStructured?.length) {
+          await this.validateStepsStructured(stepsStructured, session);
+        }
+
+        if (evidenceRefs?.length) {
+          await this.validateEvidenceRefs(evidenceRefs, session);
+        }
+
+        const normalizedSteps =
+          stepsStructured === undefined
+            ? undefined
+            : this.normalizeStepsStructured(stepsStructured);
+        const normalizedEvidence =
+          evidenceRefs === undefined
+            ? undefined
+            : this.normalizeEvidenceRefs(evidenceRefs);
+        const normalizedSafety =
+          safety === undefined ? undefined : this.normalizeSafetyBucket(safety);
+
+        if (normalizedSteps !== undefined)
+          protocol.stepsStructured = normalizedSteps;
+
+        if (normalizedEvidence !== undefined) {
+          const doAdd = addToEvidenceRefs === true;
+          const doOverwrite = overwriteEvidenceRefs === true || !doAdd;
+
+          if (doAdd) {
+            protocol.evidenceRefs = mergeUniqueBy(
+              protocol.evidenceRefs ?? [],
+              normalizedEvidence,
+              (e: IEvidenceRef) => {
+                const ref = e.refId?.toHexString() ?? "";
+                const ep = e.episodeId?.toHexString() ?? "";
+                const url = e.url ?? "";
+                return `${e.type}:${ref}:${ep}:${url}`;
+              }
+            );
+          } else if (doOverwrite) {
+            protocol.evidenceRefs = normalizedEvidence;
+          }
+        }
+
+        if (normalizedSafety !== undefined) {
+          protocol.safety = normalizedSafety;
         }
 
         await protocol.save({ session });
@@ -422,6 +489,15 @@ class ProtocolService extends BaseService<
         return protocol;
       },
       { operation: "updateProtocolWithRelationFields", protocolId: id }
+    );
+  }
+
+  async deleteProtocol(id: string): Promise<ProtocolDoc | null> {
+    return withTransaction(
+      async (session) => {
+        return await this.deleteById(id, { session });
+      },
+      { operation: "deleteProtocol", protocolId: id }
     );
   }
 }
