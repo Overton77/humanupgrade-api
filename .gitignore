@@ -59,9 +59,10 @@ package-lock.json
 *.code-workspace
 *.sublime-*
 *.iml
+pnpm-lock.yaml 
 
-# Optional lockfiles - pnpm
-pnpm-lock.yaml
+!sdks/**/pnpm-lock.yaml
+
 
 # Mac System
 .DS_Store

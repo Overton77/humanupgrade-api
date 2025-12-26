@@ -32,23 +32,16 @@ jobs:
           node-version: "22"
           registry-url: "https://npm.pkg.github.com"
 
-      # Install/activate pnpm so it's actually available on PATH
-      # (This is the piece that fixes "Unable to locate executable file: pnpm")
       - name: Enable pnpm (corepack)
         run: |
           corepack enable
           corepack prepare pnpm@9.15.0 --activate
           pnpm --version
 
-      # Optional caching (safe to keep separate from setup-node)
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pnpm-store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('sdks/ts-sdk/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-
+      - name: Verify pnpm lockfile exists
+        run: |
+          ls -la
+          test -f pnpm-lock.yaml || (echo "pnpm-lock.yaml missing in sdks/ts-sdk. Commit it or disable frozen lockfile." && exit 1)
 
       - name: Install deps
         run: pnpm install --frozen-lockfile
@@ -86,8 +79,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-          cache: "pip"
-          cache-dependency-path: sdks/py-sdk/pyproject.toml
 
       - name: Install build & codegen deps
         run: |
@@ -99,7 +90,6 @@ jobs:
           VERSION: 0.1.${{ github.run_number }}
         run: |
           echo "Publishing version: $VERSION"
-
           python - <<'PY'
           import os, re, pathlib
           version = os.environ["VERSION"]
@@ -107,20 +97,49 @@ jobs:
           txt = p.read_text(encoding="utf-8")
           txt2 = re.sub(r'(?m)^version\s*=\s*"[^\"]+"', f'version = "{version}"', txt, count=1)
           if txt2 == txt:
-            raise SystemExit("Could not find version = \"...\" line in pyproject.toml")
+            raise SystemExit('Could not find version = "..." line in pyproject.toml')
           p.write_text(txt2, encoding="utf-8")
           print("Updated pyproject.toml version to", version)
           PY
 
+      - name: Clean build outputs
+        run: |
+          rm -rf dist build *.egg-info .pytest_cache || true
+          find . -maxdepth 3 -name "*.egg-info" -exec rm -rf {} + || true
+
       - name: Run codegen
         run: ariadne-codegen
+
+      - name: Ensure package is importable (src layout)
+        run: |
+          test -d src/hu_graphql_client || (echo "Missing src/hu_graphql_client directory" && exit 1)
+          test -f src/hu_graphql_client/__init__.py || echo "" > src/hu_graphql_client/__init__.py
+          ls -la src/hu_graphql_client
 
       - name: Build wheel + sdist
         run: python -m build
 
-      # Catch metadata issues BEFORE publish (fixes your current failure mode)
-      - name: Validate dist metadata
+      - name: Validate dist metadata (twine)
         run: python -m twine check dist/*
+
+      - name: Print wheel METADATA (debug)
+        run: |
+          python - <<'PY'
+          import glob, zipfile
+          whls = glob.glob("dist/*.whl")
+          print("Wheels:", whls)
+          for whl in whls:
+            with zipfile.ZipFile(whl) as z:
+              meta_paths = [p for p in z.namelist() if p.endswith("METADATA")]
+              print("METADATA paths:", meta_paths)
+              for mp in meta_paths:
+                data = z.read(mp).decode("utf-8", "replace")
+                # print first 80 lines for sanity
+                lines = data.splitlines()
+                print("----", whl, mp, "----")
+                for line in lines[:80]:
+                  print(line)
+          PY
 
       - name: Publish to GitHub Packages (Python)
         uses: pypa/gh-action-pypi-publish@v1.12.2
