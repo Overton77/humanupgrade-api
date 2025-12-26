@@ -61,11 +61,12 @@ jobs:
         run: pnpm publish --no-git-checks --access restricted
 
   publish-python:
-    name: Publish Python SDK to GitHub Packages (PyPI)
+    name: Publish Python SDK to PyPI
     runs-on: ubuntu-latest
+    environment: pypi
     permissions:
       contents: read
-      packages: write
+      id-token: write
 
     defaults:
       run:
@@ -89,7 +90,6 @@ jobs:
         env:
           VERSION: 0.1.${{ github.run_number }}
         run: |
-          echo "Publishing version: $VERSION"
           python - <<'PY'
           import os, re, pathlib
           version = os.environ["VERSION"]
@@ -100,16 +100,6 @@ jobs:
             raise SystemExit('Could not find version = "..." line in pyproject.toml')
           p.write_text(txt2, encoding="utf-8")
           print("Updated pyproject.toml version to", version)
-          PY
-
-      - name: Show pyproject version (sanity)
-        run: |
-          python - <<'PY'
-          import tomllib
-          with open("pyproject.toml", "rb") as f:
-            data = tomllib.load(f)
-          print("project.name:", data["project"]["name"])
-          print("project.version:", data["project"]["version"])
           PY
 
       - name: Clean build outputs
@@ -124,37 +114,12 @@ jobs:
         run: |
           test -d src/hu_graphql_client || (echo "Missing src/hu_graphql_client directory" && exit 1)
           test -f src/hu_graphql_client/__init__.py || echo "" > src/hu_graphql_client/__init__.py
-          ls -la src/hu_graphql_client
 
-      - name: Build wheel + sdist (verbose)
-        run: python -m build -v
-
-      - name: Print wheel METADATA (debug)
-        run: |
-          python - <<'PY'
-          import glob, zipfile
-          whls = glob.glob("dist/*.whl")
-          print("Wheels:", whls)
-          if not whls:
-            raise SystemExit("No wheel found in dist/")
-          for whl in whls:
-            with zipfile.ZipFile(whl) as z:
-              meta_paths = [p for p in z.namelist() if p.endswith("METADATA")]
-              print("METADATA paths:", meta_paths)
-              for mp in meta_paths:
-                data = z.read(mp).decode("utf-8", "replace")
-                print("----", whl, mp, "----")
-                print(data.splitlines()[0:80])
-          PY
+      - name: Build wheel + sdist
+        run: python -m build
 
       - name: Validate dist metadata (twine)
         run: python -m twine check dist/*
 
-      - name: Publish to GitHub Packages (Python) via twine
-        env:
-          TWINE_USERNAME: ${{ github.actor }}
-          TWINE_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python -m twine upload \
-            --repository-url "https://pypi.pkg.github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/" \
-            dist/*
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
