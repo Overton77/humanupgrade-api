@@ -78,7 +78,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.12"
 
       - name: Install build & codegen deps
         run: |
@@ -102,6 +102,16 @@ jobs:
           print("Updated pyproject.toml version to", version)
           PY
 
+      - name: Show pyproject version (sanity)
+        run: |
+          python - <<'PY'
+          import tomllib
+          with open("pyproject.toml", "rb") as f:
+            data = tomllib.load(f)
+          print("project.name:", data["project"]["name"])
+          print("project.version:", data["project"]["version"])
+          PY
+
       - name: Clean build outputs
         run: |
           rm -rf dist build *.egg-info .pytest_cache || true
@@ -116,11 +126,8 @@ jobs:
           test -f src/hu_graphql_client/__init__.py || echo "" > src/hu_graphql_client/__init__.py
           ls -la src/hu_graphql_client
 
-      - name: Build wheel + sdist
-        run: python -m build
-
-      - name: Validate dist metadata (twine)
-        run: python -m twine check dist/*
+      - name: Build wheel + sdist (verbose)
+        run: python -m build -v
 
       - name: Print wheel METADATA (debug)
         run: |
@@ -128,18 +135,20 @@ jobs:
           import glob, zipfile
           whls = glob.glob("dist/*.whl")
           print("Wheels:", whls)
+          if not whls:
+            raise SystemExit("No wheel found in dist/")
           for whl in whls:
             with zipfile.ZipFile(whl) as z:
               meta_paths = [p for p in z.namelist() if p.endswith("METADATA")]
               print("METADATA paths:", meta_paths)
               for mp in meta_paths:
                 data = z.read(mp).decode("utf-8", "replace")
-                # print first 80 lines for sanity
-                lines = data.splitlines()
                 print("----", whl, mp, "----")
-                for line in lines[:80]:
-                  print(line)
+                print(data.splitlines()[0:80])
           PY
+
+      - name: Validate dist metadata (twine)
+        run: python -m twine check dist/*
 
       - name: Publish to GitHub Packages (Python)
         uses: pypa/gh-action-pypi-publish@v1.12.2
