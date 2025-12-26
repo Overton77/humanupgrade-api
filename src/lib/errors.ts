@@ -40,6 +40,10 @@ export enum ErrorCode {
 
   // Server Errors
   INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR",
+
+  // Rate Limit
+
+  RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED",
 }
 
 /**
@@ -96,10 +100,11 @@ function appError(
   message: string,
   extensions: Omit<AppErrorExtensions, "timestamp"> & { timestamp?: string }
 ): AppError {
+  const timestamp = extensions.timestamp ?? new Date().toISOString();
   return new AppError(message, {
     ...extensions,
-    timestamp: extensions.timestamp ?? new Date().toISOString(),
-  });
+    timestamp,
+  } as AppErrorExtensions);
 }
 
 /**
@@ -112,6 +117,19 @@ export const Errors = {
       httpStatus: 404,
       entityType,
       entityId,
+    }),
+
+  rateLimitExceeded: (details?: {
+    retryAfterSeconds?: number;
+    key?: string;
+    operation?: string;
+  }) =>
+    appError("Rate limit exceeded", {
+      code: ErrorCode.RATE_LIMIT_EXCEEDED,
+      httpStatus: 429,
+      retryAfter: details?.retryAfterSeconds,
+      key: details?.key,
+      operation: details?.operation,
     }),
 
   // If you ever want per-entity codes later, keep this helper
@@ -248,9 +266,6 @@ function isMongoOrMongooseError(error: unknown): boolean {
   );
 }
 
-/**
- * Convert any error to an AppError
- */
 export function toAppError(
   error: unknown,
   defaultMessage: string = "An error occurred"

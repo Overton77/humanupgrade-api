@@ -18,20 +18,7 @@ import {
   getSavedEntities,
 } from "../../services/userSavedService.js";
 import { requireSelfOrAdmin, requireAuth } from "../../services/auth.js";
-
-type HasTypename = { __typename: string };
-
-export function withTypename<TName extends string>(
-  doc: HydratedDocument<unknown> | null,
-  typename: TName,
-  options: ToObjectOptions = { virtuals: true }
-): ({ __typename: TName } & Record<string, unknown>) | null {
-  if (!doc) return null;
-  return {
-    ...(doc.toObject(options) as Record<string, unknown>),
-    __typename: typename,
-  };
-}
+import { withTypename, type HasTypename } from "./utils.js";
 
 export const userSavedResolvers = {
   Query: {
@@ -90,12 +77,7 @@ export const userSavedResolvers = {
 
     target: async (parent: IUserSaved, _: any, ctx: GraphQLContext) => {
       requireSelfOrAdmin(ctx, parent.userId.toHexString());
-      const loaders = ctx?.loaders?.savedTargets;
-      if (!loaders)
-        throw Errors.internalError(
-          "Missing savedTargets loaders",
-          new Error("Missing loaders")
-        );
+      const loaders = ctx.loaders.entities;
 
       const id = parent.targetRef.id as unknown as mongoose.Types.ObjectId;
 

@@ -21,12 +21,16 @@ import { AppError, ErrorCode, isAppError } from "./lib/errors.js";
 import { logger, logGraphQLOperation, logError } from "./lib/logger.js";
 import { GraphQLFormattedError } from "graphql";
 import { buildFormatError } from "./graphql/formatError.js";
+import { graphqlRateLimitPlugin } from "./lib/rateLimit/graphqlRateLimitPlugin.js";
+import { initRedis } from "./lib/redisClient.js";
+import { graphqlRedisRateLimitPlugin } from "./lib/rateLimit/rateLimitPlugin.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function startServer() {
   await connectToDatabase(env.dbName);
+  await initRedis();
 
   const schemaPath = path.join(__dirname, "graphql", "schema.graphql");
   const typeDefs = readFileSync(schemaPath, "utf8");
@@ -37,6 +41,8 @@ async function startServer() {
   });
 
   const app = express();
+
+  app.set("trust proxy", 1);
   const httpServer = createServer(app);
 
   const wsServer = new WebSocketServer({
@@ -56,10 +62,13 @@ async function startServer() {
 
         const identity = getIdentityFromAuthHeader(authHeader);
 
+        const ip = ctx.extra?.request?.socket?.remoteAddress ?? "unknown";
+
         return createContext({
           userId: identity?.userId ?? null,
           role: (identity?.role as Role) ?? null,
           requestId,
+          ip,
         });
       },
     },
@@ -73,7 +82,7 @@ async function startServer() {
     formatError: buildFormatError(),
     plugins: [
       ApolloServerPluginDrainHttpServer({ httpServer }),
-
+      graphqlRedisRateLimitPlugin(),
       {
         async serverWillStart() {
           return {
@@ -100,9 +109,12 @@ async function startServer() {
         const authHeader = req.headers.authorization;
         const identity = getIdentityFromAuthHeader(authHeader);
 
+        const ip = req.ip;
+
         const ctx = createContext({
           userId: identity?.userId ?? null,
           role: (identity?.role as Role) ?? null,
+          ip: req.ip ?? "unknown",
           requestId,
         });
 
@@ -112,6 +124,7 @@ async function startServer() {
           {
             requestId,
             userId: ctx.userId ?? undefined,
+            ip: ctx.ip,
             method: req.method,
             path: req.path,
           }

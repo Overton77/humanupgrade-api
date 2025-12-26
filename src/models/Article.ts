@@ -3,7 +3,7 @@ import { MediaLinkSchema, MediaLink } from "./MediaLink.js";
 
 export type ArticleSourceType = "human-upgrade" | "external";
 
-export interface IArticle extends Document {
+export interface IArticle {
   id: string;
 
   title: string;

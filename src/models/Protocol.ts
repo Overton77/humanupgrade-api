@@ -89,10 +89,8 @@ const ProtocolSchema = new Schema<IProtocol, ProtocolModel>(
 
     goals: [{ type: String }],
 
-    // legacy strings
     steps: [{ type: String, default: [] }],
 
-    // structured v1
     stepsStructured: { type: [ProtocolStepGroupSchema], default: [] },
     evidenceRefs: { type: [EvidenceRefSchema], default: [] },
     safety: { type: SafetyBucketSchema, default: undefined },

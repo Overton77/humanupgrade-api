@@ -39,6 +39,8 @@ enum EvidenceRefType {
   external
 }
 
+union ProtocolStepItemEntity = Product | Compound
+
 type ProtocolStepItem {
   type: ProtocolStepItemType!
   refId: ID
@@ -46,6 +48,7 @@ type ProtocolStepItem {
   dosage: String
   timing: String
   notes: String
+  itemEntity: ProtocolStepItemEntity
 }
 
 type ProtocolStepGroup {
@@ -53,6 +56,8 @@ type ProtocolStepGroup {
   timeOfDay: ProtocolTimeOfDay
   items: [ProtocolStepItem!]!
 }
+
+union EvidenceRefEntity = Article | CaseStudy | Episode | External
 
 type EvidenceRef {
   type: EvidenceRefType!
@@ -62,6 +67,7 @@ type EvidenceRef {
   episodeId: ID
   timestamps: [Int!]!
   notes: String
+  evidenceRefEntity: EvidenceRefEntity
 }
 
 type SafetyBucket {
@@ -892,6 +898,11 @@ enum SaveSource {
   other
 }
 
+type External {
+  url: String
+  label: String
+}
+
 type UserSaved {
   id: ID!
   userId: ID!
@@ -952,11 +963,11 @@ input UserProtocolsFilterInput {
 union SavedTargetUnion =
     Product
   | Compound
+  | CaseStudy
+  | Protocol
   | Person
   | Business
-  | Protocol
   | Episode
-  | CaseStudy
   | Article
 
 input SaveEntityInput {

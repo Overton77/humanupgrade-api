@@ -15,6 +15,7 @@ import { CaseStudy, CaseStudyDoc, ICaseStudy } from "../../models/CaseStudy.js";
 import { UserDoc, IUser } from "../../models/User.js";
 import { UserProfile, IUserProfile } from "../../models/UserProfile.js";
 import { userSavedResolvers } from "./userSavedResolvers.js";
+import { userProtocolResolvers } from "./userProtocolResolvers.js";
 import { GraphQLContext } from "../context.js";
 import { HydratedDocument } from "mongoose";
 
@@ -179,5 +180,21 @@ export const resolvers = {
 
   SavedTargetUnion: {
     ...userSavedResolvers.SavedTargetUnion,
+  },
+
+  EvidenceRef: {
+    ...userProtocolResolvers.EvidenceRef,
+  },
+
+  EvidenceRefEntity: {
+    ...userProtocolResolvers.EvidenceRefEntity,
+  },
+
+  ProtocolStepItem: {
+    ...userProtocolResolvers.ProtocolStepItem,
+  },
+
+  ProtocolStepItemEntity: {
+    ...userProtocolResolvers.ProtocolStepItemEntity,
   },
 };
