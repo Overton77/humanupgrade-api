@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { env } from "../config/env.js";
 import { User, type IUser } from "../models/User.js";
 import { Errors } from "../lib/errors.js";
+import { GraphQLContext } from "../graphql/context.js";
 
 export type Role = "admin" | "user";
 
@@ -11,8 +12,29 @@ export interface AuthTokenPayload {
   role: Role;
 }
 
-export function signAuthToken(payload: AuthTokenPayload): string {
-  return jwt.sign(payload, env.jwtSecret, { expiresIn: "7d" });
+export function signAccessToken(payload: AuthTokenPayload): string {
+  const options: jwt.SignOptions = {
+    expiresIn: env.accessTokenTtl ?? "10m",
+  };
+  return jwt.sign(payload, env.jwtSecret, options);
+}
+
+export function setRefreshCookieFromContext(
+  ctx: GraphQLContext,
+  value: string,
+  expiresAt: Date
+) {
+  const res = ctx.res;
+  if (!res) return;
+
+  res.cookie(env.refreshCookieName, value, {
+    httpOnly: true,
+    secure: env.cookieSecure === true,
+    sameSite: (env.cookieSameSite as "lax" | "strict" | "none") ?? "lax",
+    path: "/auth/refresh",
+    expires: expiresAt,
+    domain: env.cookieDomain || undefined,
+  });
 }
 
 export function getIdentityFromAuthHeader(
@@ -24,7 +46,10 @@ export function getIdentityFromAuthHeader(
   if (scheme !== "Bearer" || !token) return null;
 
   try {
-    const decoded = jwt.verify(token, env.jwtSecret) as AuthTokenPayload;
+    const decoded = jwt.verify(
+      token,
+      env.jwtSecret as jwt.Secret
+    ) as AuthTokenPayload;
     if (!mongoose.Types.ObjectId.isValid(decoded.userId)) return null;
     return decoded;
   } catch {
@@ -48,46 +73,26 @@ export async function getUserByIdCached(userId: string): Promise<IUser | null> {
   return value;
 }
 
-/**
- * Minimal shape for GraphQLContext guards (so auth.ts doesn't import graphql/context.ts)
- */
-export interface AuthContextLike {
-  userId: string | null;
-  role: Role | null;
-  loaders?: {
-    userById?: { load: (id: string) => Promise<IUser | null> };
-  };
-}
-
-export function isAuthenticated(ctx: AuthContextLike): boolean {
+export function isAuthenticated(ctx: GraphQLContext): boolean {
   return !!ctx.userId;
 }
 
-export function isAdmin(ctx: AuthContextLike): boolean {
+export function isAdmin(ctx: GraphQLContext): boolean {
   return ctx.role === "admin";
 }
 
-/**
- * Require authenticated user; returns userId (string)
- */
-export function requireAuth(ctx: AuthContextLike): string {
+export function requireAuth(ctx: GraphQLContext): string {
   if (!ctx.userId) throw Errors.unauthenticated();
   return ctx.userId;
 }
 
-/**
- * Require admin role
- */
-export function requireAdmin(ctx: AuthContextLike): void {
+export function requireAdmin(ctx: GraphQLContext): void {
   requireAuth(ctx);
   if (!isAdmin(ctx)) throw Errors.forbidden("Admin access required");
 }
 
-/**
- * Require the request user to match target user, unless admin.
- */
 export function requireSelfOrAdmin(
-  ctx: AuthContextLike,
+  ctx: GraphQLContext,
   targetUserId: string
 ): void {
   requireAuth(ctx);
@@ -95,21 +100,15 @@ export function requireSelfOrAdmin(
   if (ctx.userId !== targetUserId) throw Errors.forbidden();
 }
 
-/**
- * Optional helper: require authenticated + load the actual user doc (via loader if available).
- * This keeps your resolver code DRY.
- */
-export async function requireUser(ctx: AuthContextLike): Promise<IUser> {
+export async function requireUser(ctx: GraphQLContext): Promise<IUser> {
   const userId = requireAuth(ctx);
 
-  // Prefer DataLoader if present
   const loader = ctx.loaders?.userById;
   const user = loader
     ? await loader.load(userId)
     : await getUserByIdCached(userId);
 
   if (!user) {
-    // This implies token references a user that doesn't exist anymore
     throw Errors.notFound("User", userId);
   }
 

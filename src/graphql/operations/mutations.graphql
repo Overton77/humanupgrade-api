@@ -1,10 +1,86 @@
+# --- Auth Mutations ---
+
+mutation Register($email: String!, $password: String!, $name: String) {
+  register(email: $email, password: $password, name: $name) {
+    token
+    user {
+      id
+      email
+      name
+      role
+    }
+  }
+}
+
+mutation Login($email: String!, $password: String!) {
+  login(email: $email, password: $password) {
+    token
+    user {
+      id
+      email
+      name
+      role
+    }
+  }
+}
+
+# --- User Profile Mutations ---
+
+mutation UpsertUserProfile($input: UserProfileUpsertInput!) {
+  upsertUserProfile(input: $input) {
+    id
+    userId
+    goals {
+      goalType
+      priority
+      notes
+    }
+    experienceLevel
+    dietStyle
+    avoidances
+    timeBudget
+    preferredFormats
+    topicInterests
+    entityPreferences {
+      likedEntityIds
+      hiddenEntityIds
+      blockedEntityIds
+    }
+    createdAt
+    updatedAt
+  }
+}
+
+mutation DeleteUserProfile($userId: ID!) {
+  deleteUserProfile(userId: $userId) {
+    deletedCount
+  }
+}
+
+mutation DeleteUser($userId: ID!) {
+  deleteUser(userId: $userId) {
+    message
+    success
+  }
+}
+
+mutation UpsertUser($input: UserUpsertInput!) {
+  upsertUser(input: $input) {
+    id
+    email
+    name
+    role
+  }
+}
+
 # --- Business Mutations ---
 
-mutation CreateBusiness($input: BusinessCreateWithIdsInput!) {
-  createBusiness(input: $input) {
+mutation CreateBusinessWithRelations($input: BusinessCreateRelationsInput!) {
+  createBusinessWithRelations(input: $input) {
     id
     name
     description
+    website
   }
 }
 
@@ -13,6 +89,7 @@ mutation UpdateBusiness($input: BusinessUpdateWithIdsInput!) {
     id
     name
     description
+    website
   }
 }
 
@@ -20,6 +97,14 @@ mutation UpdateBusinessRelations($input: BusinessUpdateRelationFieldsInput!) {
   updateBusinessRelations(input: $input) {
     id
     name
+    description
+    website
+  }
+}
+
+mutation DeleteBusiness($id: ID!) {
+  deleteBusiness(id: $id) {
+    deletedCount
   }
 }
 
@@ -30,6 +115,7 @@ mutation CreateProduct($input: ProductCreateWithIdsInput!) {
     id
     name
     description
+    ingredients
   }
 }
 
@@ -38,6 +124,7 @@ mutation UpdateProduct($input: ProductUpdateWithIdsInput!) {
     id
     name
     description
+    ingredients
   }
 }
 
@@ -45,31 +132,57 @@ mutation UpdateProductRelations($input: ProductUpdateRelationFieldsInput!) {
   updateProductRelations(input: $input) {
     id
     name
+    description
+  }
+}
+
+mutation DeleteProduct($id: ID!) {
+  deleteProduct(id: $id) {
+    id
+    name
+  }
+}
+
+mutation EmbedProductDescription($productId: ID!) {
+  embedProductDescription(productId: $productId) {
+    id
+    name
+    description
   }
 }
 
 # --- Person Mutations ---
 
-mutation CreatePerson($input: PersonCreateWithIdsInput!) {
+mutation CreatePerson($input: PersonCreateInput!) {
   createPerson(input: $input) {
     id
     name
     role
+    bio
   }
 }
 
-mutation UpdatePerson($input: PersonUpdateWithIdsInput!) {
+mutation UpdatePerson($input: PersonUpdateInput!) {
   updatePerson(input: $input) {
     id
     name
     role
+    bio
   }
 }
 
-mutation UpdatePersonRelations($input: PersonUpdateRelationFieldsInput!) {
-  updatePersonRelations(input: $input) {
+mutation DeletePerson($id: ID!) {
+  deletePerson(id: $id) {
     id
     name
+  }
+}
+
+mutation EmbedPersonBio($personId: ID!) {
+  embedPersonBio(personId: $personId) {
+    id
+    name
+    bio
   }
 }
 
@@ -80,6 +193,7 @@ mutation CreateEpisode($input: EpisodeCreateWithIdsInput!) {
     id
     episodeTitle
     channelName
+    episodeNumber
   }
 }
 
@@ -88,6 +202,7 @@ mutation UpdateEpisode($input: EpisodeUpdateWithIdsInput!) {
     id
     episodeTitle
     channelName
+    episodeNumber
   }
 }
 
@@ -95,6 +210,20 @@ mutation UpdateEpisodeRelations($input: EpisodeUpdateRelationFieldsInput!) {
   updateEpisodeRelations(input: $input) {
     id
     episodeTitle
+    channelName
+  }
+}
+
+mutation DeleteEpisode($identifier: String!) {
+  deleteEpisode(identifier: $identifier) {
+    id
+    episodeTitle
+  }
+}
+
+mutation DeleteAllEpisodes {
+  deleteAllEpisodes {
+    deletedCount
   }
 }
 
@@ -105,6 +234,7 @@ mutation CreateCompound($input: CompoundCreateWithIdsInput!) {
     id
     name
     description
+    aliases
   }
 }
 
@@ -113,6 +243,7 @@ mutation UpdateCompound($input: CompoundUpdateWithIdsInput!) {
     id
     name
     description
+    aliases
   }
 }
 
@@ -120,7 +251,291 @@ mutation UpdateCompoundRelations($input: CompoundUpdateRelationFieldsInput!) {
   updateCompoundRelations(input: $input) {
     id
     name
+    description
   }
+}
+
+mutation DeleteCompound($id: ID!) {
+  deleteCompound(id: $id) {
+    id
+    name
+  }
+}
+
+# --- Protocol Mutations ---
+
+mutation CreateProtocol($input: ProtocolCreateWithIdsInput!) {
+  createProtocol(input: $input) {
+    id
+    name
+    description
+    categories
+    goals
+  }
+}
+
+mutation UpdateProtocol($input: ProtocolUpdateWithIdsInput!) {
+  updateProtocol(input: $input) {
+    id
+    name
+    description
+    categories
+    goals
+    steps
+    cautions
+    aliases
+    sourceUrl
+    stepsStructured {
+      label
+      timeOfDay
+      items {
+        type
+        refId
+        nameOverride
+        dosage
+        timing
+        notes
+        itemEntity {
+          __typename
+          ... on Product {
+            id
+            name
+            description
+          }
+          ... on Compound {
+            id
+            name
+            description
+          }
+        }
+      }
+    }
+    evidenceRefs {
+      type
+      refId
+      label
+      url
+      episodeId
+      timestamps
+      notes
+      evidenceRefEntity {
+        __typename
+        ... on Article {
+          id
+          title
+          articleSummary: summary
+        }
+        ... on CaseStudy {
+          id
+          title
+          summary
+        }
+        ... on Episode {
+          id
+          episodeTitle
+          channelName
+        }
+        ... on External {
+          url
+          label
+        }
+      }
+    }
+    safety {
+      warnings
+      contraindications
+      interactions
+      notes
+    }
+    products {
+      id
+      name
+    }
+    compounds {
+      id
+      name
+    }
+  }
+}
+
+mutation UpdateProtocolRelations($input: ProtocolUpdateRelationFieldsInput!) {
+  updateProtocolRelations(input: $input) {
+    id
+    name
+    products {
+      id
+      name
+    }
+    compounds {
+      id
+      name
+    }
+  }
+}
+
+mutation DeleteProtocol($id: ID!) {
+  deleteProtocol(id: $id) {
+    id
+    name
+  }
+}
+
+# --- User Protocol Mutations ---
+
+mutation CreateUserProtocol($input: CreateUserProtocolInput!) {
+  createUserProtocol(input: $input) {
+    id
+    userId
+    title
+    goalType
+    status
+    sourceProtocolId
+    stepsStructured {
+      label
+      timeOfDay
+      items {
+        type
+        refId
+        nameOverride
+        dosage
+        timing
+        notes
+        itemEntity {
+          __typename
+          ... on Product {
+            id
+            name
+            description
+          }
+          ... on Compound {
+            id
+            name
+            description
+          }
+        }
+      }
+    }
+    evidenceRefs {
+      type
+      refId
+      label
+      url
+      episodeId
+      timestamps
+      notes
+      evidenceRefEntity {
+        __typename
+        ... on Article {
+          id
+          title
+          articleSummary: summary
+        }
+        ... on CaseStudy {
+          id
+          title
+          summary
+        }
+        ... on Episode {
+          id
+          episodeTitle
+          channelName
+        }
+        ... on External {
+          url
+          label
+        }
+      }
+    }
+    safety {
+      warnings
+      contraindications
+      interactions
+      notes
+    }
+    lastEditedAt
+    createdAt
+    updatedAt
+  }
+}
+
+mutation UpdateUserProtocol($input: UpdateUserProtocolInput!) {
+  updateUserProtocol(input: $input) {
+    id
+    userId
+    title
+    goalType
+    status
+    sourceProtocolId
+    stepsStructured {
+      label
+      timeOfDay
+      items {
+        type
+        refId
+        nameOverride
+        dosage
+        timing
+        notes
+        itemEntity {
+          __typename
+          ... on Product {
+            id
+            name
+            description
+          }
+          ... on Compound {
+            id
+            name
+            description
+          }
+        }
+      }
+    }
+    evidenceRefs {
+      type
+      refId
+      label
+      url
+      episodeId
+      timestamps
+      notes
+      evidenceRefEntity {
+        __typename
+        ... on Article {
+          id
+          title
+          articleSummary: summary
+        }
+        ... on CaseStudy {
+          id
+          title
+          summary
+        }
+        ... on Episode {
+          id
+          episodeTitle
+          channelName
+        }
+        ... on External {
+          url
+          label
+        }
+      }
+    }
+    safety {
+      warnings
+      contraindications
+      interactions
+      notes
+    }
+    lastEditedAt
+    createdAt
+    updatedAt
+  }
+}
+
+mutation DeleteUserProtocol($id: ID!) {
+  deleteUserProtocol(id: $id)
 }
 
 # --- CaseStudy Mutations ---
@@ -130,6 +545,8 @@ mutation CreateCaseStudy($input: CaseStudyCreateWithOptionalIdsInput!) {
     id
     title
     summary
+    url
+    sourceType
   }
 }
 
@@ -138,5 +555,38 @@ mutation UpdateCaseStudy($input: CaseStudyUpdateWithOptionalIdsInput!) {
     id
     title
     summary
+    url
+    sourceType
   }
+}
+
+# --- Business Embedding Mutations ---
+
+mutation EmbedBusinessDescription($businessId: ID!) {
+  embedBusinessDescription(businessId: $businessId) {
+    id
+    name
+    description
+  }
+}
+
+# --- User Saved Entities Mutations ---
+
+mutation SaveEntity($input: SaveEntityInput!) {
+  saveEntity(input: $input) {
+    id
+    userId
+    targetType
+    targetId
+    note
+    tags
+    pinned
+    source
+    createdAt
+    updatedAt
+  }
+}
+
+mutation UnsaveEntity($input: UnsaveEntityInput!) {
+  unsaveEntity(input: $input)
 }

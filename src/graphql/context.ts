@@ -1,6 +1,7 @@
 import DataLoader from "dataloader";
 import type { IUser } from "../models/User.js";
 import { getUserByIdCached, type Role } from "../services/auth.js";
+import { type Request, type Response } from "express";
 
 import { createEntityLoaders, EntityLoaders } from "./loaders/entityLoaders.js";
 
@@ -15,12 +16,16 @@ export interface GraphQLContext {
   };
 
   requestId?: string;
+  req?: Request;
+  res?: Response;
 }
 
 export function createContext(params: {
   userId: string | null;
   role: Role | null;
   requestId?: string;
+  req?: Request;
+  res?: Response;
   ip: string;
 }): GraphQLContext {
   const { userId, role, requestId, ip } = params;
@@ -44,5 +49,7 @@ export function createContext(params: {
       entities: createEntityLoaders(),
     },
     requestId,
+    req: params.req,
+    res: params.res,
   };
 }

@@ -34,7 +34,7 @@ export interface ArticleModel extends Model<IArticle> {}
 const ArticleSchema = new Schema<IArticle, ArticleModel>(
   {
     title: { type: String, required: true, index: true },
-    summary: { type: String },
+    summary: { type: String, required: true },
     url: { type: String, index: true },
 
     sourceType: {

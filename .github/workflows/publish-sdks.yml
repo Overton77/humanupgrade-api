@@ -12,10 +12,10 @@ on:
 
 jobs:
   publish-npm:
-    name: Publish TS/React SDK to npm (GitHub Packages)
+    name: Publish TS/React SDK to GitHub Packages (npm)
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       packages: write
 
     defaults:
@@ -26,57 +26,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Detect relevant changes
-        id: changed_graphql
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          CHANGED_FILES="$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} || true)"
-          echo "Changed files:"
-          echo "$CHANGED_FILES"
-
-          if echo "$CHANGED_FILES" | grep -E '^src/graphql/schema\.graphql$|^src/graphql/operations/|^sdks/ts-sdk/codegen\.ts$|^sdks/py-sdk/pyproject\.toml$'; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           registry-url: "https://npm.pkg.github.com"
+          cache: "pnpm"
+          cache-dependency-path: sdks/ts-sdk/pnpm-lock.yaml
 
-      - name: Install dependencies
-        if: steps.changed_graphql.outputs.changed == 'true'
-        run: npm install
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
-      - name: Bump TS SDK version (patch)
-        if: steps.changed_graphql.outputs.changed == 'true'
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Set version from run number
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          npm version patch --no-git-tag-version
-
-          git add package.json package-lock.json || true
-          git commit -m "chore: bump TS SDK version [skip ci]" || echo "No changes to commit"
-          git push || echo "Could not push version bump (maybe branch is protected)"
+          VERSION="0.1.${GITHUB_RUN_NUMBER}"
+          echo "Publishing version: $VERSION"
+          pnpm pkg set version="$VERSION"
 
       - name: Build & codegen
-        if: steps.changed_graphql.outputs.changed == 'true'
-        run: npm run prepare
+        run: pnpm run prepare
 
       - name: Publish package
-        if: steps.changed_graphql.outputs.changed == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm publish --access restricted
+        run: pnpm publish --no-git-checks --access restricted
 
   publish-python:
-    name: Publish Python SDK to private registry
+    name: Publish Python SDK to GitHub Packages (PyPI)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -90,46 +71,44 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Detect relevant changes
-        id: changed_graphql
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          CHANGED_FILES="$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} || true)"
-          echo "Changed files:"
-          echo "$CHANGED_FILES"
-
-          if echo "$CHANGED_FILES" | grep -E '^src/graphql/schema\.graphql$|^src/graphql/operations/|^sdks/ts-sdk/codegen\.ts$|^sdks/py-sdk/pyproject\.toml$'; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Setup Python
-        if: steps.changed_graphql.outputs.changed == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: sdks/py-sdk/pyproject.toml
 
       - name: Install build & codegen deps
-        if: steps.changed_graphql.outputs.changed == 'true'
         run: |
           python -m pip install --upgrade pip
           pip install ariadne-codegen build
 
+      - name: Set version from run number
+        run: |
+          VERSION="0.1.${GITHUB_RUN_NUMBER}"
+          echo "Publishing version: $VERSION"
+
+          python - <<'PY'
+          import os, re, pathlib
+          version = os.environ["VERSION"]
+          p = pathlib.Path("pyproject.toml")
+          txt = p.read_text(encoding="utf-8")
+          txt2 = re.sub(r'(?m)^version\s*=\s*"[^\"]+"', f'version = "{version}"', txt, count=1)
+          if txt2 == txt:
+            raise SystemExit("Could not find version = \"...\" line in pyproject.toml")
+          p.write_text(txt2, encoding="utf-8")
+          print("Updated pyproject.toml version to", version)
+          PY
+        env:
+          VERSION: 0.1.${{ github.run_number }}
+
       - name: Run codegen
-        if: steps.changed_graphql.outputs.changed == 'true'
         run: ariadne-codegen
 
       - name: Build wheel + sdist
-        if: steps.changed_graphql.outputs.changed == 'true'
         run: python -m build
 
       - name: Publish to GitHub Packages (Python)
-        if: steps.changed_graphql.outputs.changed == 'true'
         uses: pypa/gh-action-pypi-publish@v1.12.2
         with:
           repository-url: https://pypi.pkg.github.com/${{ github.repository_owner }}

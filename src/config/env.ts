@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import ms from "ms";
 
 dotenv.config();
 
@@ -26,4 +27,11 @@ export const env = {
     10
   ),
   openaiApiKey: requireEnv("OPENAI_API_KEY"),
+  refreshTokenTtlDays: parseInt(process.env.REFRESH_TOKEN_TTL_DAYS || "30", 10),
+  accessTokenTtl: requireEnv("ACCESS_TOKEN_TTL") as ms.StringValue,
+  webOrigin: requireEnv("WEB_ORIGIN"),
+  refreshCookieName: requireEnv("REFRESH_COOKIE_NAME"),
+  cookieSecure: requireEnv("COOKIE_SECURE") === "true",
+  cookieSameSite: requireEnv("COOKIE_SAME_SITE") as "lax" | "strict" | "none",
+  cookieDomain: process.env.COOKIE_DOMAIN || undefined,
 };

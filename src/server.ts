@@ -24,6 +24,8 @@ import { buildFormatError } from "./graphql/formatError.js";
 import { graphqlRateLimitPlugin } from "./lib/rateLimit/graphqlRateLimitPlugin.js";
 import { initRedis } from "./lib/redisClient.js";
 import { graphqlRedisRateLimitPlugin } from "./lib/rateLimit/rateLimitPlugin.js";
+import cookieParser from "cookie-parser";
+import { authRouter } from "./routes/authRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,6 +45,17 @@ async function startServer() {
   const app = express();
 
   app.set("trust proxy", 1);
+
+  app.use(
+    cors<cors.CorsRequest>({
+      origin: env.webOrigin,
+      credentials: true,
+    })
+  );
+
+  app.use(cookieParser());
+  app.use(express.json());
+
   const httpServer = createServer(app);
 
   const wsServer = new WebSocketServer({
@@ -97,13 +110,12 @@ async function startServer() {
 
   await apolloServer.start();
 
-  // Apply Express middleware
+  app.use("/auth", authRouter);
+
   app.use(
     "/graphql",
-    cors<cors.CorsRequest>(),
-    express.json(),
     expressMiddleware(apolloServer, {
-      context: async ({ req }): Promise<GraphQLContext> => {
+      context: async ({ req, res }): Promise<GraphQLContext> => {
         const requestId = randomUUID();
 
         const authHeader = req.headers.authorization;
@@ -116,6 +128,8 @@ async function startServer() {
           role: (identity?.role as Role) ?? null,
           ip: req.ip ?? "unknown",
           requestId,
+          req,
+          res,
         });
 
         logGraphQLOperation(

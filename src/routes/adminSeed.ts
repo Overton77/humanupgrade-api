@@ -15,9 +15,9 @@ import { Product } from "../models/Product.js";
 import { Compound } from "../models/Compound.js";
 import { Episode } from "../models/Episode.js";
 
-/* -------------------------------------------------------------------------- */
-/*                                   SETUP                                    */
-/* -------------------------------------------------------------------------- */
+// SCHEMA CHANGED FIX. Create ROUTES For GraphDB and for MONGO
+// TODO: Create ROUTES For GraphDB and for MONGO, Create parsing functions, Use Transactions, Use the right sync methods
+// TODO: After Model Schema tickets
 
 export const adminSeedRouter = Router();
 
@@ -38,10 +38,6 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024, files: 1 },
 });
-
-/* -------------------------------------------------------------------------- */
-/*                                   SCHEMA                                   */
-/* -------------------------------------------------------------------------- */
 
 const ExecSchema = z.object({
   name: z.string().min(1),
@@ -92,10 +88,6 @@ const SeedBundleSchema = z.object({
 
 const ModeSchema = z.enum(["dry_run", "commit"]).default("dry_run");
 
-/* -------------------------------------------------------------------------- */
-/*                                  HELPERS                                   */
-/* -------------------------------------------------------------------------- */
-
 function normalizeName(v: string) {
   return v.trim().replace(/\s+/g, " ");
 }
@@ -117,10 +109,6 @@ function parseSeedBundle(req: Request): unknown {
 
   return JSON.parse(file.buffer.toString("utf-8"));
 }
-
-/* -------------------------------------------------------------------------- */
-/*                                 CONTEXT                                    */
-/* -------------------------------------------------------------------------- */
 
 type SeedCtx = {
   businessIdByName: Map<string, mongoose.Types.ObjectId>;
@@ -148,10 +136,6 @@ function newReport(mode: "dry_run" | "commit"): SeedReport {
     errors: [],
   };
 }
-
-/* -------------------------------------------------------------------------- */
-/*                            FIND OR CREATE HELPERS                           */
-/* -------------------------------------------------------------------------- */
 
 async function ensurePerson(
   name: string,
@@ -328,10 +312,6 @@ async function ensureProduct(
   return created._id;
 }
 
-/* -------------------------------------------------------------------------- */
-/*                                   ROUTE                                    */
-/* -------------------------------------------------------------------------- */
-
 adminSeedRouter.post(
   "/seed",
   requireAdmin,
@@ -352,7 +332,6 @@ adminSeedRouter.post(
     try {
       const bundle = SeedBundleSchema.parse(parseSeedBundle(req));
 
-      /* ------------------------------ BUSINESSES ------------------------------ */
       for (const b of bundle.businesses ?? []) {
         const businessId = await ensureBusiness(b, mode, ctx, report);
 
@@ -378,7 +357,7 @@ adminSeedRouter.post(
               },
             }
           );
-          await Business.syncPersonLinks(businessId);
+          await Business.syncProductsForBusiness(businessId);
         }
 
         for (const p of b.products ?? []) {
@@ -400,7 +379,7 @@ adminSeedRouter.post(
               { _id: productId },
               { $set: { compoundIds } }
             );
-            await Product.syncProductsForBusiness(businessId);
+
             for (const cid of compoundIds) {
               await Compound.syncProductsForCompound(cid);
             }
@@ -454,7 +433,7 @@ adminSeedRouter.post(
               }
             );
             report.stats.episodes.updated++;
-            await Episode.syncGuestLinks(existing);
+
             for (const bid of sponsorBusinessIds) {
               await Business.syncSponsorEpisodesForBusiness(bid);
             }

@@ -1,7 +1,15 @@
 import bcrypt from "bcrypt";
 import { User } from "../../models/User.js";
-import { signAuthToken } from "../../services/auth.js";
+import {
+  setRefreshCookieFromContext,
+  signAuthToken,
+} from "../../services/auth.js";
 import { GraphQLContext } from "../../graphql/context.js";
+import {
+  createRefreshSession,
+  mintRefreshCookieValue,
+} from "../../services/refreshToken.js";
+import { signAccessToken } from "../../services/auth.js";
 import {
   createBusinessWithRelations,
   updateBusinessWithOptionalIds,
@@ -101,10 +109,48 @@ import {
 import { Errors } from "../../lib/errors.js";
 import { userSavedResolvers } from "./userSavedResolvers.js";
 import { userProtocolResolvers } from "./userProtocolResolvers.js";
+import { env } from "process";
 
 const SALT_ROUNDS = 10;
 
 export const Mutation = {
+  login: async (
+    _parent: unknown,
+    args: { email: string; password: string },
+    ctx: GraphQLContext
+  ) => {
+    const user = await User.findOne({ email: args.email });
+    if (!user || !user.passwordHash) {
+      throw Errors.invalidCredentials();
+    }
+
+    const valid = await user.comparePassword(args.password);
+    if (!valid) {
+      throw Errors.invalidCredentials();
+    }
+
+    const token = signAccessToken({
+      userId: user._id.toString(),
+      role: user.role || "user",
+    });
+    const { sessionId, refreshSecret, expiresAt } = await createRefreshSession({
+      userId: user._id.toString(),
+      ttlDays: Number(env.refreshTokenTtlDays ?? 30),
+      ip: ctx.ip,
+      userAgent: ctx.req?.get("user-agent") ?? undefined,
+    });
+
+    setRefreshCookieFromContext(
+      ctx,
+      mintRefreshCookieValue(sessionId, refreshSecret),
+      expiresAt
+    );
+
+    return {
+      token,
+      user,
+    };
+  },
   register: async (
     _parent: unknown,
     args: {
@@ -117,7 +163,7 @@ export const Mutation = {
   ) => {
     const existing = await User.findOne({ email: args.email });
     if (existing) {
-      throw new Error("Email already in use");
+      throw Errors.duplicate("User", args.email);
     }
 
     const passwordHash = await bcrypt.hash(args.password, SALT_ROUNDS);
@@ -130,10 +176,23 @@ export const Mutation = {
       role: args.role || "user",
     });
 
-    const token = signAuthToken({
+    const token = signAccessToken({
       userId: user._id.toString(),
       role: user.role || "user",
     });
+
+    const { sessionId, refreshSecret, expiresAt } = await createRefreshSession({
+      userId: user._id.toString(),
+      ttlDays: Number(env.refreshTokenTtlDays ?? 30),
+      ip: ctx.ip,
+      userAgent: ctx.req?.get("user-agent") ?? undefined,
+    });
+
+    setRefreshCookieFromContext(
+      ctx,
+      mintRefreshCookieValue(sessionId, refreshSecret),
+      expiresAt
+    );
 
     return { token, user };
   },
@@ -184,26 +243,6 @@ export const Mutation = {
     requireSelfOrAdmin(ctx, currentUser._id.toString());
 
     return await deleteUserProfile(currentUser._id.toString());
-  },
-  login: async (
-    _parent: unknown,
-    args: { email: string; password: string }
-  ) => {
-    const user = await User.findOne({ email: args.email });
-    if (!user || !user.passwordHash) {
-      throw new Error("Invalid credentials");
-    }
-
-    const valid = await user.comparePassword(args.password);
-    if (!valid) {
-      throw new Error("Invalid credentials");
-    }
-
-    const token = signAuthToken({
-      userId: user._id.toString(),
-      role: user.role || "user",
-    });
-    return { token, user };
   },
 
   createBusinessWithRelations: async (
