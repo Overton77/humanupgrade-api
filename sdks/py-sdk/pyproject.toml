@@ -19,8 +19,11 @@ dev = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build]
+sources = ["src"]
+
 [tool.hatch.build.targets.wheel]
-packages = ["src/hu_graphql_client"]
+packages = ["hu_graphql_client"]
 
 [tool.ariadne-codegen]
 schema_path = "../../src/graphql/schema.graphql"

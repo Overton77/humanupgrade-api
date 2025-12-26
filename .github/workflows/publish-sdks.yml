@@ -31,13 +31,24 @@ jobs:
         with:
           node-version: "22"
           registry-url: "https://npm.pkg.github.com"
-          cache: "pnpm"
-          cache-dependency-path: sdks/ts-sdk/pnpm-lock.yaml
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      # Install/activate pnpm so it's actually available on PATH
+      # (This is the piece that fixes "Unable to locate executable file: pnpm")
+      - name: Enable pnpm (corepack)
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          pnpm --version
+
+      # Optional caching (safe to keep separate from setup-node)
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
         with:
-          version: 9
+          path: |
+            ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('sdks/ts-sdk/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
 
       - name: Install deps
         run: pnpm install --frozen-lockfile
@@ -81,11 +92,12 @@ jobs:
       - name: Install build & codegen deps
         run: |
           python -m pip install --upgrade pip
-          pip install ariadne-codegen build
+          pip install ariadne-codegen build twine
 
       - name: Set version from run number
+        env:
+          VERSION: 0.1.${{ github.run_number }}
         run: |
-          VERSION="0.1.${GITHUB_RUN_NUMBER}"
           echo "Publishing version: $VERSION"
 
           python - <<'PY'
@@ -99,14 +111,16 @@ jobs:
           p.write_text(txt2, encoding="utf-8")
           print("Updated pyproject.toml version to", version)
           PY
-        env:
-          VERSION: 0.1.${{ github.run_number }}
 
       - name: Run codegen
         run: ariadne-codegen
 
       - name: Build wheel + sdist
         run: python -m build
+
+      # Catch metadata issues BEFORE publish (fixes your current failure mode)
+      - name: Validate dist metadata
+        run: python -m twine check dist/*
 
       - name: Publish to GitHub Packages (Python)
         uses: pypa/gh-action-pypi-publish@v1.12.2
