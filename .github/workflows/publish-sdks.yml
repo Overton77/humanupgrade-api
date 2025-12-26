@@ -150,11 +150,11 @@ jobs:
       - name: Validate dist metadata (twine)
         run: python -m twine check dist/*
 
-      - name: Publish to GitHub Packages (Python)
-        uses: pypa/gh-action-pypi-publish@v1.12.2
-        with:
-          repository-url: https://pypi.pkg.github.com/${{ github.repository_owner }}
-          user: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-          packages-dir: sdks/py-sdk/dist
-          skip-existing: true
+      - name: Publish to GitHub Packages (Python) via twine
+        env:
+          TWINE_USERNAME: ${{ github.actor }}
+          TWINE_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python -m twine upload \
+            --repository-url "https://pypi.pkg.github.com/${{ github.repository_owner }}" \
+            dist/*
