@@ -24,13 +24,6 @@ export interface ISourceLink {
   url?: string;
 }
 
-/**
- * content:
- * - either markdown string
- * - or rich-text JSON (editor output)
- *
- * We store both raw content and a derived contentText for search.
- */
 export interface IUserNote extends Document {
   id: string;
 
@@ -89,16 +82,7 @@ const SourceLinkSchema = new Schema<ISourceLink>(
 );
 
 /**
- * Minimal “mention extraction” strategy:
- * - If content is a string (markdown), extract patterns like:
- *     @Type:hexObjectId
- *     e.g. "@Product:64f2c1...".
- * - If content is JSON, we:
- *    - stringify it to derive contentText
- *    - also scan the stringified JSON for the same @Type:ObjectId pattern
- *
- * Later, when you implement rich editor entity nodes, you can replace this
- * with structured traversal (e.g., detect {type:"mention", entityType, entityId} nodes).
+V1 . Returning once conflict, autosave , autocomplete and the text editor to be used are understood and chosen 
  */
 function derivePlainTextAndMentions(content: unknown): {
   contentText: string;
@@ -113,12 +97,10 @@ function derivePlainTextAndMentions(content: unknown): {
       ? ""
       : safeStringify(content);
 
-  // Very light cleanup for search: strip some markdown-ish noise
-  // (you can get fancier later)
   const contentText = text
-    .replace(/```[\s\S]*?```/g, " ") // remove fenced code blocks
-    .replace(/`[^`]*`/g, " ") // inline code
-    .replace(/[#>*_\-]+/g, " ") // common markdown tokens
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`[^`]*`/g, " ")
+    .replace(/[#>*_\-]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -215,7 +197,6 @@ UserNoteSchema.index({ userId: 1, status: 1, updatedAt: -1 });
 UserNoteSchema.index({ userId: 1, "mentions.type": 1, "mentions.id": 1 });
 UserNoteSchema.index({ userId: 1, tags: 1 });
 
-// Note: Mongo text index has language/stemming behavior; you can tune later.
 UserNoteSchema.index({ title: "text", contentText: "text", tags: "text" });
 
 export const UserNote: UserNoteModel =
