@@ -5,10 +5,26 @@ import { ObjectIdSchema, OptionalUrlSchema } from "../../../lib/validation.js";
  * Protocol scalar fields
  */
 
+export const ProtocolCategorySchema = z.enum([
+  "sleep",
+  "energy",
+  "fatLoss",
+  "circadian",
+  "fitness",
+  "nutrition",
+  "cognition",
+  "strength",
+  "stress",
+  "recovery",
+  "longevity",
+  "health",
+  "other",
+]);
+
 export const ProtocolStepItemTypeSchema = z.enum([
-  "PRODUCT",
-  "COMPOUND",
-  "ACTION",
+  "Product",
+  "Compound",
+  "Action",
 ]);
 export const ProtocolTimeOfDaySchema = z.enum([
   "morning",
@@ -19,10 +35,10 @@ export const ProtocolTimeOfDaySchema = z.enum([
 ]);
 
 export const EvidenceRefTypeSchema = z.enum([
-  "episode",
-  "caseStudy",
-  "article",
-  "external",
+  "Episode",
+  "CaseStudy",
+  "Article",
+  "External",
 ]);
 
 export const ProtocolStepItemInputSchema = z
@@ -35,11 +51,11 @@ export const ProtocolStepItemInputSchema = z
     notes: z.string().max(2000).optional(),
   })
   .superRefine((val, ctx) => {
-    if (val.type === "ACTION") {
+    if (val.type === "Action") {
       if (!val.nameOverride) {
         ctx.addIssue({
           code: "custom",
-          message: "ACTION items require nameOverride",
+          message: "Action items require nameOverride",
           path: ["nameOverride"],
         });
       }
@@ -74,11 +90,11 @@ export const EvidenceRefInputSchema = z
     notes: z.string().max(2000).optional(),
   })
   .superRefine((val, ctx) => {
-    if (val.type === "external") {
+    if (val.type === "External") {
       if (!val.url) {
         ctx.addIssue({
           code: "custom",
-          message: "external evidence requires url",
+          message: "External evidence requires url",
           path: ["url"],
         });
       }
@@ -86,11 +102,11 @@ export const EvidenceRefInputSchema = z
     }
 
     // episode can be either episodeId or refId (choose one)
-    if (val.type === "episode") {
+    if (val.type === "Episode") {
       if (!val.episodeId && !val.refId) {
         ctx.addIssue({
           code: "custom",
-          message: "episode evidence requires episodeId or refId",
+          message: "Episode evidence requires episodeId or refId",
           path: ["episodeId"],
         });
       }

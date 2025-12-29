@@ -27,6 +27,7 @@ import {
 
 import type { CursorPageInput } from "../graphql/inputs/userSavedInputs.js"; // reuse if you want cursor paging style
 import { decodeCursor, encodeCursor } from "./utils/cursor.js";
+import { UserSaved } from "../models/UserSaved.js";
 
 /**
  * UserProtocolService:
@@ -55,7 +56,6 @@ class UserProtocolService extends BaseProtocolService<
 
     return withTransaction(
       async (session) => {
-        // Validate sourceProtocolId if present
         if (v.sourceProtocolId) {
           await this.validateEntities(
             Protocol,
@@ -94,6 +94,25 @@ class UserProtocolService extends BaseProtocolService<
         });
 
         await doc.save({ session });
+
+        await UserSaved.updateOne(
+          {
+            userId,
+            "targetRef.type": "UserProtocol",
+            "targetRef.id": doc._id,
+          },
+          {
+            $setOnInsert: {
+              userId,
+              targetRef: { type: "UserProtocol", id: doc._id },
+              pinned: false,
+              tags: [],
+              source: "protocol_builder",
+              note: undefined,
+            },
+          },
+          { upsert: true, session }
+        );
         return doc;
       },
       { operation: "createUserProtocol", userId: userId.toHexString() }

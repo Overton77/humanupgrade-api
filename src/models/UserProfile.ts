@@ -1,15 +1,8 @@
 import mongoose, { Schema, Document, Model, HydratedDocument } from "mongoose";
+import { GoalType } from "./goalTypes.js";
 
-export type GoalType =
-  | "sleep"
-  | "energy"
-  | "fatLoss"
-  | "cognition"
-  | "longevity"
-  | "strength"
-  | "stress"
-  | "recovery"
-  | "other";
+// DEC 28, 2025 : Syncing Goal Types with Protocol Categories for better
+// reccomendations and LLM Assistant Context
 
 export type ExperienceLevel = "beginner" | "intermediate" | "advanced";
 
@@ -74,11 +67,15 @@ const UserGoalSchema = new Schema<IUserGoal>(
         "sleep",
         "energy",
         "fatLoss",
+        "circadian",
+        "fitness",
+        "nutrition",
         "cognition",
         "longevity",
         "strength",
         "stress",
         "recovery",
+        "health",
         "other",
       ],
       required: true,

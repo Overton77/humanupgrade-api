@@ -10,18 +10,22 @@ enum UserGoalType {
   sleep
   energy
   fatLoss
+  circadian
+  fitness
+  nutrition
   cognition
   longevity
   strength
   stress
   recovery
+  health
   other
 }
 
 enum ProtocolStepItemType {
-  PRODUCT
-  COMPOUND
-  ACTION
+  Product
+  Compound
+  Action
 }
 
 enum ProtocolTimeOfDay {
@@ -33,10 +37,10 @@ enum ProtocolTimeOfDay {
 }
 
 enum EvidenceRefType {
-  episode
-  caseStudy
-  article
-  external
+  Episode
+  CaseStudy
+  Article
+  External
 }
 
 union ProtocolStepItemEntity = Product | Compound
@@ -196,11 +200,15 @@ enum GoalType {
   sleep
   energy
   fatLoss
+  circadian
+  fitness
+  nutrition
   cognition
   longevity
   strength
   stress
   recovery
+  health
   other
 }
 
@@ -282,8 +290,6 @@ input EntityPreferencesInput {
 }
 
 input UserProfileUpsertInput {
-  userId: ID!
-
   goals: [UserGoalInput!]
   experienceLevel: ExperienceLevel
   dietStyle: DietStyle
@@ -314,6 +320,8 @@ enum UserRole {
 
 enum ProtocolCategory {
   sleep
+  energy
+  fatLoss
   circadian
   fitness
   nutrition
@@ -322,6 +330,7 @@ enum ProtocolCategory {
   recovery
   longevity
   health
+  strength
   other
 }
 
@@ -878,14 +887,15 @@ type UserDeleteResult {
 }
 
 enum SavedEntityType {
-  product
-  compound
-  person
-  business
-  protocol
-  episode
-  caseStudy
-  article
+  Product
+  Compound
+  Person
+  Business
+  Protocol
+  Episode
+  CaseStudy
+  UserProtocol
+  Article
 }
 
 enum SaveSource {
@@ -969,6 +979,7 @@ union SavedTargetUnion =
   | Business
   | Episode
   | Article
+  | UserProtocol
 
 input SaveEntityInput {
   targetType: SavedEntityType!
@@ -1024,6 +1035,8 @@ type Query {
     filter: UserProtocolsFilterInput
     page: CursorPageInput
   ): UserProtocolConnection!
+
+  dashboard: Dashboard!
 }
 
 type AuthPayload {
@@ -1060,6 +1073,42 @@ type PersonSearchPayload {
   name: String!
   bio: String!
   score: Float
+}
+
+type DashboardItem {
+  entityType: String!
+  entityId: ID!
+  score: Float
+  reasons: [String!]
+  entity: SavedTargetUnion
+}
+
+type ContinueEpisode {
+  kind: String! # always "EPISODE"
+  episodeId: ID!
+  timestamp: Float
+  lastActivityAt: String!
+  episode: Episode
+}
+
+type ContinueEntity {
+  kind: String! # always "ENTITY"
+  entityType: String!
+  entityId: ID!
+  lastActivityAt: String!
+  entity: SavedTargetUnion
+}
+
+type ContinueNone {
+  kind: String! # always "NONE"
+}
+
+union DashboardContinue = ContinueEpisode | ContinueEntity | ContinueNone
+
+type Dashboard {
+  continue: DashboardContinue!
+  trending: [DashboardItem!]!
+  recommended: [DashboardItem!]!
 }
 
 type Mutation {
@@ -1127,4 +1176,21 @@ type Mutation {
 
   saveEntity(input: SaveEntityInput!): UserSaved!
   unsaveEntity(input: UnsaveEntityInput!): Boolean!
+}
+
+type ActivityEvent {
+  id: ID!
+  userId: ID!
+  eventType: String!
+  entityType: String
+  entityId: ID
+  surface: String
+  createdAt: String!
+}
+
+type Subscription {
+  myActivity: ActivityEvent!
+  dashboardInvalidated: Boolean!
+  trendingInvalidated: Boolean!
+  recommendationsReady: Boolean!
 }

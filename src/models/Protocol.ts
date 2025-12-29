@@ -17,6 +17,8 @@ import {
 
 export type ProtocolCategory =
   | "sleep"
+  | "energy"
+  | "fatLoss"
   | "circadian"
   | "fitness"
   | "nutrition"
@@ -25,6 +27,7 @@ export type ProtocolCategory =
   | "recovery"
   | "longevity"
   | "health"
+  | "strength"
   | "other";
 
 export interface IProtocol extends Document {
@@ -72,10 +75,13 @@ const ProtocolSchema = new Schema<IProtocol, ProtocolModel>(
         type: String,
         enum: [
           "sleep",
+          "energy",
+          "fatLoss",
           "circadian",
           "fitness",
           "nutrition",
           "cognition",
+          "strength",
           "stress",
           "recovery",
           "longevity",

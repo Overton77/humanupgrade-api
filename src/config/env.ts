@@ -34,4 +34,5 @@ export const env = {
   cookieSecure: requireEnv("COOKIE_SECURE") === "true",
   cookieSameSite: requireEnv("COOKIE_SAME_SITE") as "lax" | "strict" | "none",
   cookieDomain: process.env.COOKIE_DOMAIN || undefined,
+  redisUrl: requireEnv("REDIS_URL"),
 };

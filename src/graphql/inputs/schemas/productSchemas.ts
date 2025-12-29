@@ -5,22 +5,11 @@ import {
   ObjectIdArraySchema,
   OptionalUrlSchema,
 } from "../../../lib/validation.js";
+import { ProtocolCategorySchema } from "./protocolPartsSchemas.js";
 
 /**
  * Protocol categories enum
  */
-export const ProtocolCategorySchema = z.enum([
-  "sleep",
-  "circadian",
-  "fitness",
-  "nutrition",
-  "cognition",
-  "stress",
-  "recovery",
-  "longevity",
-  "health",
-  "other",
-]);
 
 /**
  * Base scalar fields for Product

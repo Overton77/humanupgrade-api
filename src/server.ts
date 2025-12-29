@@ -26,6 +26,7 @@ import { initRedis } from "./lib/redisClient.js";
 import { graphqlRedisRateLimitPlugin } from "./lib/rateLimit/rateLimitPlugin.js";
 import cookieParser from "cookie-parser";
 import { authRouter } from "./routes/authRoutes.js";
+import { initRedisPubSub } from "./lib/redisPubSub.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,6 +34,7 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   await connectToDatabase(env.dbName);
   await initRedis();
+  await initRedisPubSub();
 
   const schemaPath = path.join(__dirname, "graphql", "schema.graphql");
   const typeDefs = readFileSync(schemaPath, "utf8");

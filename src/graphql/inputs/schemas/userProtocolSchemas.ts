@@ -7,17 +7,24 @@ import {
   SafetyBucketInputSchema,
 } from "./protocolPartsSchemas.js";
 
+// TODO: Use a global Goals Type . They are all the same. Do later
+// TODO: have to propogate the goal type type changes
+
 export const UserProtocolStatusSchema = z.enum(["draft", "active", "archived"]);
 
 export const UserGoalTypeSchema = z.enum([
   "sleep",
   "energy",
   "fatLoss",
+  "circadian",
+  "fitness",
+  "nutrition",
   "cognition",
   "longevity",
   "strength",
   "stress",
   "recovery",
+  "health",
   "other",
 ]);
 

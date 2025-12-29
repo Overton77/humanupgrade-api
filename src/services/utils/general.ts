@@ -38,3 +38,7 @@ export function executiveKey(e: {
 }) {
   return `${e.personId.toString()}|${norm(e.title)}|${norm(e.role)}`;
 }
+
+export function asObjectId(id: string): mongoose.Types.ObjectId {
+  return new mongoose.Types.ObjectId(id);
+}

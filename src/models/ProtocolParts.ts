@@ -1,6 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 
-export type ProtocolStepItemType = "PRODUCT" | "COMPOUND" | "ACTION";
+export type ProtocolStepItemType = "Product" | "Compound" | "Action";
 export type ProtocolTimeOfDay =
   | "morning"
   | "midday"
@@ -8,19 +8,17 @@ export type ProtocolTimeOfDay =
   | "bedtime"
   | "any";
 
-export type EvidenceRefType = "episode" | "caseStudy" | "article" | "external";
+export type EvidenceRefType = "Episode" | "CaseStudy" | "Article" | "External";
 
 export interface IProtocolStepItem {
   type: ProtocolStepItemType;
 
-  // For PRODUCT / COMPOUND (or could support protocol later)
   refId?: mongoose.Types.ObjectId;
 
-  // For ACTION or overrides
   nameOverride?: string;
 
-  dosage?: string; // v1 keep string (e.g. "200mg", "1 scoop")
-  timing?: string; // v1 keep string (e.g. "with food", "30 min before bed")
+  dosage?: string;
+  timing?: string;
   notes?: string;
 }
 
@@ -58,7 +56,7 @@ export const ProtocolStepItemSchema = new Schema<IProtocolStepItem>(
   {
     type: {
       type: String,
-      enum: ["PRODUCT", "COMPOUND", "ACTION"],
+      enum: ["Product", "Compound", "Action"],
       required: true,
     },
     refId: { type: Schema.Types.ObjectId },
@@ -87,7 +85,7 @@ export const EvidenceRefSchema = new Schema<IEvidenceRef>(
   {
     type: {
       type: String,
-      enum: ["episode", "caseStudy", "article", "external"],
+      enum: ["Episode", "CaseStudy", "Article", "External"],
       required: true,
     },
 

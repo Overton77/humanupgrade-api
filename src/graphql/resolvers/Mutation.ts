@@ -1,15 +1,15 @@
 import bcrypt from "bcrypt";
+import mongoose from "mongoose";
 import { User } from "../../models/User.js";
 import {
   setRefreshCookieFromContext,
-  signAuthToken,
+  signAccessToken,
 } from "../../services/auth.js";
 import { GraphQLContext } from "../../graphql/context.js";
 import {
   createRefreshSession,
   mintRefreshCookieValue,
 } from "../../services/refreshToken.js";
-import { signAccessToken } from "../../services/auth.js";
 import {
   createBusinessWithRelations,
   updateBusinessWithOptionalIds,
@@ -109,7 +109,9 @@ import {
 import { Errors } from "../../lib/errors.js";
 import { userSavedResolvers } from "./userSavedResolvers.js";
 import { userProtocolResolvers } from "./userProtocolResolvers.js";
-import { env } from "process";
+import { logActivity } from "../../services/activity/logActivity.js";
+
+import { env } from "../../config/env.js";
 
 const SALT_ROUNDS = 10;
 
@@ -231,7 +233,24 @@ export const Mutation = {
   ) => {
     const currentUser = await requireUser(ctx);
     requireSelfOrAdmin(ctx, currentUser._id.toString());
-    return await upsertUserProfile(args.input);
+    const currentProfile = await upsertUserProfile(
+      args.input,
+      new mongoose.Types.ObjectId(currentUser._id)
+    );
+
+    await logActivity(ctx, {
+      eventType: "UPSERT_USER_PROFILE",
+      surface: "profile",
+      metadata: {
+        goalsUpdated: currentProfile.goals?.map((g) => g.goalType),
+        blockedCount:
+          currentProfile.entityPreferences?.blockedEntityIds?.length,
+        hiddenCount: currentProfile.entityPreferences?.hiddenEntityIds?.length,
+        likedCount: currentProfile.entityPreferences?.likedEntityIds?.length,
+      },
+    });
+
+    return currentProfile;
   },
 
   deleteUserProfile: async (

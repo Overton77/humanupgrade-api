@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { MediaLinkSchema } from "./mediaLinkSchema.js";
-import { ProtocolCategorySchema } from "./productSchemas.js";
+import { ProtocolCategorySchema } from "./protocolPartsSchemas.js";
 import {
   ObjectIdSchema,
   ObjectIdArraySchema,

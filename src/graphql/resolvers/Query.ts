@@ -13,10 +13,17 @@ import { VectorSearchArgs } from "../inputs/vectorSearchInputs.js";
 import mongoose from "mongoose";
 import { getMe } from "../../services/userProfileService.js";
 import { GraphQLContext } from "../context.js";
-import { Errors } from "../../lib/errors.js";
+import { AppError, Errors } from "../../lib/errors.js";
 import { userSavedResolvers } from "./userSavedResolvers.js";
-import { requireUser } from "../../services/auth.js";
+import { requireSelfOrAdmin, requireUser } from "../../services/auth.js";
 import { userProtocolResolvers } from "./userProtocolResolvers.js";
+import { logActivity } from "../../services/activity/logActivity.js";
+import {
+  type ActivityEntityType,
+  type ActivityEventType,
+  type ActivityContextSurface,
+} from "../../models/UserActivity.js";
+import { getDashboard } from "../../services/dashboard/dashboardService.js";
 
 export const Query = {
   ...userSavedResolvers.Query,
@@ -60,8 +67,21 @@ export const Query = {
     return await Product.find({}).skip(offset).limit(limit);
   },
 
-  product: async (_parent: unknown, args: { id: string }) => {
-    return await Product.findById(args.id);
+  product: async (
+    _parent: unknown,
+    args: { id: string },
+    ctx: GraphQLContext
+  ) => {
+    const product = await Product.findById(args.id);
+    if (product && ctx.userId) {
+      await logActivity(ctx, {
+        eventType: "VIEW_ENTITY",
+        entityType: "Product",
+        entityId: product._id as unknown as mongoose.Types.ObjectId,
+        surface: "entity",
+      });
+    }
+    return product;
   },
 
   compounds: async (
@@ -72,20 +92,72 @@ export const Query = {
     return await Compound.find({}).skip(offset).limit(limit);
   },
 
-  compound: async (_parent: unknown, args: { id: string }) => {
-    return await Compound.findById(args.id);
+  compound: async (
+    _parent: unknown,
+    args: { id: string },
+    ctx: GraphQLContext
+  ) => {
+    const compound = await Compound.findById(args.id);
+    if (compound && ctx.userId) {
+      await logActivity(ctx, {
+        eventType: "VIEW_ENTITY",
+        entityType: "Compound",
+        entityId: compound._id as unknown as mongoose.Types.ObjectId,
+        surface: "entity",
+      });
+    }
+    return compound;
   },
 
-  person: async (_parent: unknown, args: { id: string }) => {
-    return await Person.findById(args.id);
+  person: async (
+    _parent: unknown,
+    args: { id: string },
+    ctx: GraphQLContext
+  ) => {
+    const person = await Person.findById(args.id);
+    if (person && ctx.userId) {
+      await logActivity(ctx, {
+        eventType: "VIEW_ENTITY",
+        entityType: "Person",
+        entityId: person._id as unknown as mongoose.Types.ObjectId,
+        surface: "entity",
+      });
+    }
+    return person;
   },
 
-  business: async (_parent: unknown, args: { id: string }) => {
-    return await Business.findById(args.id);
+  business: async (
+    _parent: unknown,
+    args: { id: string },
+    ctx: GraphQLContext
+  ) => {
+    const business = await Business.findById(args.id);
+    if (business && ctx.userId) {
+      await logActivity(ctx, {
+        eventType: "VIEW_ENTITY",
+        entityType: "Business",
+        entityId: business._id as unknown as mongoose.Types.ObjectId,
+        surface: "entity",
+      });
+    }
+    return business;
   },
 
-  caseStudy: async (_parent: unknown, args: { id: string }) => {
-    return await CaseStudy.findById(args.id);
+  caseStudy: async (
+    _parent: unknown,
+    args: { id: string },
+    ctx: GraphQLContext
+  ) => {
+    const caseStudy = await CaseStudy.findById(args.id);
+    if (caseStudy && ctx.userId) {
+      await logActivity(ctx, {
+        eventType: "VIEW_ENTITY",
+        entityType: "CaseStudy",
+        entityId: caseStudy._id as unknown as mongoose.Types.ObjectId,
+        surface: "entity",
+      });
+    }
+    return caseStudy;
   },
   protocols: async (
     _parent: unknown,
@@ -94,8 +166,20 @@ export const Query = {
     const { limit = 20, offset = 0 } = args;
     return await Protocol.find({}).skip(offset).limit(limit);
   },
-  protocol: async (_parent: unknown, args: { id: string }) => {
+  protocol: async (
+    _parent: unknown,
+    args: { id: string },
+    ctx: GraphQLContext
+  ) => {
     const protocol = await Protocol.findById(args.id);
+    if (protocol && ctx.userId) {
+      await logActivity(ctx, {
+        eventType: "VIEW_ENTITY",
+        entityType: "Protocol",
+        entityId: protocol._id as unknown as mongoose.Types.ObjectId,
+        surface: "entity",
+      });
+    }
     return protocol ? protocol : null;
   },
 
@@ -123,20 +207,83 @@ export const Query = {
   },
   vectorSearchProducts: async (
     _parent: unknown,
-    args: { args: VectorSearchArgs }
+    args: { args: VectorSearchArgs },
+    ctx: GraphQLContext
   ) => {
-    return await vectorSearchProductsByDescription(args.args);
+    const products = await vectorSearchProductsByDescription(args.args);
+
+    await logActivity(ctx, {
+      eventType: "SEARCH",
+      entityType: "Product",
+      entityId: undefined,
+      surface: "search",
+      metadata: {
+        numCandidates: args.args.numCandidates,
+        limit: args.args.limit,
+        query: args.args.query,
+        results: products,
+      },
+    });
+    return products;
   },
   vectorSearchBusinesses: async (
     _parent: unknown,
-    args: { args: VectorSearchArgs }
+    args: { args: VectorSearchArgs },
+    ctx: GraphQLContext
   ) => {
-    return await vectorSearchBusinessesByDescription(args.args);
+    const errors: string[] = [];
+    if (!args.args.query) errors.push("Query is required");
+    if (args.args.numCandidates <= 0)
+      errors.push("numCandidates must be greater than 0");
+    if (args.args.limit <= 0) errors.push("limit must be greater than 0");
+    if (errors.length > 0) {
+      throw Errors.invalidInput(errors.join("; "));
+    }
+
+    const businesses = await vectorSearchBusinessesByDescription(args.args);
+
+    await logActivity(ctx, {
+      eventType: "SEARCH",
+      entityType: "Business",
+      entityId: undefined,
+      surface: "search",
+      metadata: {
+        numCandidates: args.args.numCandidates,
+        limit: args.args.limit,
+        query: args.args.query,
+        results: businesses,
+      },
+    });
+    return businesses;
   },
   vectorSearchPeople: async (
     _parent: unknown,
-    args: { args: VectorSearchArgs }
+    args: { args: VectorSearchArgs },
+    ctx: GraphQLContext
   ) => {
-    return await vectorSearchPeopleByBio(args.args);
+    const people = await vectorSearchPeopleByBio(args.args);
+
+    await logActivity(ctx, {
+      eventType: "SEARCH",
+      entityType: "Person",
+      entityId: undefined,
+      surface: "search",
+      metadata: {
+        numCandidates: args.args.numCandidates,
+        limit: args.args.limit,
+        query: args.args.query,
+        results: people,
+      },
+    });
+    return people;
+  },
+  dashboard: async (_: unknown, __: unknown, ctx: GraphQLContext) => {
+    if (!ctx.userId) throw Errors.unauthenticated();
+
+    requireSelfOrAdmin(ctx, ctx.userId!);
+
+    const dashboard = await getDashboard(ctx.userId!);
+
+    return dashboard;
   },
 };

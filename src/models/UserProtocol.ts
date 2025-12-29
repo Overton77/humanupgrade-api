@@ -15,9 +15,13 @@ export type UserGoalType =
   | "fatLoss"
   | "cognition"
   | "longevity"
+  | "circadian"
+  | "fitness"
+  | "nutrition"
   | "strength"
   | "stress"
   | "recovery"
+  | "health"
   | "other";
 
 export interface IUserProtocol {
@@ -62,11 +66,15 @@ const UserProtocolSchema = new Schema<IUserProtocol, UserProtocolModel>(
         "sleep",
         "energy",
         "fatLoss",
+        "circadian",
+        "fitness",
+        "nutrition",
         "cognition",
         "longevity",
         "strength",
         "stress",
         "recovery",
+        "health",
         "other",
       ],
     },

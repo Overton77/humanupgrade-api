@@ -13,7 +13,8 @@ function toObjectId(id: string): mongoose.Types.ObjectId {
 }
 
 export async function upsertUserProfile(
-  input: UserProfileUpsertInput
+  input: UserProfileUpsertInput,
+  userId: mongoose.Types.ObjectId
 ): Promise<IUserProfile> {
   const v = validateInput(
     UserProfileUpsertInputSchema,
@@ -21,7 +22,7 @@ export async function upsertUserProfile(
     "UserProfileUpsertInput"
   );
 
-  const userIdObj = toObjectId(v.userId);
+  const userIdObj = userId;
 
   const currentUser = await User.findById(userIdObj);
   if (!currentUser) {

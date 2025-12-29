@@ -11,11 +11,15 @@ export const GoalTypeSchema = z.enum([
   "sleep",
   "energy",
   "fatLoss",
+  "circadian",
+  "fitness",
+  "nutrition",
   "cognition",
   "longevity",
   "strength",
   "stress",
   "recovery",
+  "health",
   "other",
 ]);
 
@@ -80,7 +84,6 @@ export const EntityPreferencesInputSchema = z.object({
  * User profile upsert input schema
  */
 export const UserProfileUpsertInputSchema = z.object({
-  userId: ObjectIdSchema,
   goals: z.array(UserGoalInputSchema).optional(),
   experienceLevel: ExperienceLevelSchema.optional(),
   dietStyle: DietStyleSchema.optional(),

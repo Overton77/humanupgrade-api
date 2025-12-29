@@ -18,6 +18,8 @@ import { userSavedResolvers } from "./userSavedResolvers.js";
 import { userProtocolResolvers } from "./userProtocolResolvers.js";
 import { GraphQLContext } from "../context.js";
 import { HydratedDocument } from "mongoose";
+import { dashboardFieldResolvers } from "./dashboardFields.js";
+import { Subscriptions } from "./Subscriptions.js";
 
 const DateTimeScalar = new GraphQLScalarType({
   name: "DateTime",
@@ -196,5 +198,20 @@ export const resolvers = {
 
   ProtocolStepItemEntity: {
     ...userProtocolResolvers.ProtocolStepItemEntity,
+  },
+
+  Subscription: {
+    ...Subscriptions,
+  },
+
+  ...dashboardFieldResolvers,
+
+  DashboardContinue: {
+    __resolveType(obj: any) {
+      if (obj?.kind === "EPISODE") return "ContinueEpisode";
+      if (obj?.kind === "ENTITY") return "ContinueEntity";
+      if (obj?.kind === "NONE") return "ContinueNone";
+      return "ContinueNone";
+    },
   },
 };

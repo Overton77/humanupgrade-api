@@ -9,6 +9,7 @@ import { Protocol, type IProtocol } from "../../models/Protocol.js";
 import { Episode, type IEpisode } from "../../models/Episode.js";
 import { CaseStudy, type ICaseStudy } from "../../models/CaseStudy.js";
 import { Article, type IArticle } from "../../models/Article.js";
+import { UserProtocol, type IUserProtocol } from "../../models/UserProtocol.js";
 import { ObjectId, batchByIds, asModel, groupByKey, idKey } from "./utils.js";
 
 export interface EntityLoaders {
@@ -21,6 +22,10 @@ export interface EntityLoaders {
   episodeById: DataLoader<ObjectId, HydratedDocument<IEpisode> | null>;
   caseStudyById: DataLoader<ObjectId, HydratedDocument<ICaseStudy> | null>;
   articleById: DataLoader<ObjectId, HydratedDocument<IArticle> | null>;
+  userProtocolById: DataLoader<
+    ObjectId,
+    HydratedDocument<IUserProtocol> | null
+  >;
 
   // Reverse lookups
   caseStudiesByCompoundId: DataLoader<ObjectId, HydratedDocument<ICaseStudy>[]>;
@@ -43,6 +48,13 @@ export function createEntityLoaders(): EntityLoaders {
 
   const personById = new DataLoader<ObjectId, HydratedDocument<IPerson> | null>(
     (ids) => batchByIds<IPerson>(asModel<IPerson>(Person), ids)
+  );
+
+  const userProtocolById = new DataLoader<
+    ObjectId,
+    HydratedDocument<IUserProtocol> | null
+  >((ids) =>
+    batchByIds<IUserProtocol>(asModel<IUserProtocol>(UserProtocol), ids)
   );
 
   const businessById = new DataLoader<
@@ -159,7 +171,7 @@ export function createEntityLoaders(): EntityLoaders {
     episodeById,
     caseStudyById,
     articleById,
-
+    userProtocolById,
     caseStudiesByCompoundId,
     caseStudiesByProductId,
     caseStudiesByProtocolId,

@@ -1,4 +1,4 @@
-export type ProtocolStepItemType = "PRODUCT" | "COMPOUND" | "ACTION";
+export type ProtocolStepItemType = "Product" | "Compound" | "Action";
 export type ProtocolTimeOfDay =
   | "morning"
   | "midday"
@@ -6,7 +6,7 @@ export type ProtocolTimeOfDay =
   | "bedtime"
   | "any";
 
-export type EvidenceRefType = "episode" | "caseStudy" | "article" | "external";
+export type EvidenceRefType = "Episode" | "CaseStudy" | "Article" | "External";
 
 export interface ProtocolStepItemInput {
   type: ProtocolStepItemType;

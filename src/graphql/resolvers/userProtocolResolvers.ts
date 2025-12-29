@@ -29,6 +29,11 @@ import {
   IProtocolStepItem,
   ProtocolStepItemType,
 } from "../../models/ProtocolParts.js";
+import { logActivity } from "../../services/activity/logActivity.js";
+import {
+  ActivityEntityType,
+  ActivityEventType,
+} from "../../models/UserActivity.js";
 
 export const userProtocolResolvers = {
   Mutation: {
@@ -46,6 +51,13 @@ export const userProtocolResolvers = {
         );
       const protocol = await createUserProtocol(user._id, args.input);
 
+      await logActivity(ctx, {
+        eventType: "CREATE_USER_PROTOCOL",
+        entityType: "UserProtocol",
+        entityId: new mongoose.Types.ObjectId(protocol.id),
+        surface: "protocol_builder",
+      });
+
       return protocol;
     },
 
@@ -61,6 +73,12 @@ export const userProtocolResolvers = {
           "Must be authenticated as a user to update a user protocol"
         );
       const protocol = await updateUserProtocol(user._id, args.input);
+      await logActivity(ctx, {
+        eventType: "UPDATE_USER_PROTOCOL",
+        entityType: "UserProtocol",
+        entityId: new mongoose.Types.ObjectId(protocol.id),
+        surface: "protocol_builder",
+      });
       return protocol;
     },
 
@@ -123,7 +141,7 @@ export const userProtocolResolvers = {
       const loaders = ctx.loaders.entities;
 
       switch (evidenceType) {
-        case "article": {
+        case "Article": {
           if (!parent.refId) return null;
           // Convert string to ObjectId if needed
           const refId =
@@ -133,7 +151,7 @@ export const userProtocolResolvers = {
           const doc = await loaders.articleById.load(refId);
           return withTypename(doc, "Article");
         }
-        case "caseStudy": {
+        case "CaseStudy": {
           if (!parent.refId) return null;
           // Convert string to ObjectId if needed
           const refId =
@@ -143,7 +161,7 @@ export const userProtocolResolvers = {
           const doc = await loaders.caseStudyById.load(refId);
           return withTypename(doc, "CaseStudy");
         }
-        case "episode": {
+        case "Episode": {
           // For episodes, use episodeId if available, otherwise refId
           const episodeIdRaw = parent.episodeId || parent.refId;
           if (!episodeIdRaw) return null;
@@ -155,7 +173,7 @@ export const userProtocolResolvers = {
           const doc = await loaders.episodeById.load(episodeId);
           return withTypename(doc, "Episode");
         }
-        case "external": {
+        case "External": {
           // For external, return a simple object with __typename
           return {
             __typename: "External",
@@ -185,7 +203,7 @@ export const userProtocolResolvers = {
       ctx: GraphQLContext
     ) => {
       // ACTION type doesn't have an entity
-      if (parent.type === "ACTION" || !parent.refId) {
+      if (parent.type === "Action" || !parent.refId) {
         return null;
       }
 
@@ -197,11 +215,11 @@ export const userProtocolResolvers = {
           : parent.refId;
 
       switch (parent.type) {
-        case "PRODUCT": {
+        case "Product": {
           const doc = await loaders.productById.load(refId);
           return withTypename(doc, "Product");
         }
-        case "COMPOUND": {
+        case "Compound": {
           const doc = await loaders.compoundById.load(refId);
           return withTypename(doc, "Compound");
         }

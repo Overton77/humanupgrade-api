@@ -1,10 +1,10 @@
 import {
-  GoalType,
   ExperienceLevel,
   DietStyle,
   TimeBudget,
   PreferredFormat,
 } from "../../models/UserProfile.js";
+import { GoalType } from "../../models/goalTypes.js";
 
 export interface UserGoalInput {
   goalType: GoalType;
@@ -19,7 +19,6 @@ export interface EntityPreferencesInput {
 }
 
 export interface UserProfileUpsertInput {
-  userId: string;
   goals?: UserGoalInput[];
   experienceLevel?: ExperienceLevel;
   dietStyle?: DietStyle;

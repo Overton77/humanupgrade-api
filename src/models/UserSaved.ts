@@ -1,14 +1,17 @@
 import mongoose, { Schema, Document, Model, HydratedDocument } from "mongoose";
 
+// TODO:  Capitalize SavedEntityType and SaveSource and propogate change .
+// TODO: Mapping for now on reccomendations
 export type SavedEntityType =
-  | "product"
-  | "compound"
-  | "person"
-  | "business"
-  | "protocol"
-  | "episode"
-  | "caseStudy"
-  | "article";
+  | "Product"
+  | "Compound"
+  | "Person"
+  | "Business"
+  | "Protocol"
+  | "Episode"
+  | "CaseStudy"
+  | "Article"
+  | "UserProtocol";
 
 export type SaveSource =
   | "dashboard"
@@ -24,7 +27,8 @@ export interface IUserSavedTargetRef {
   id: mongoose.Types.ObjectId;
 }
 
-export interface IUserSaved extends Document {
+// Removed extends Document
+export interface IUserSaved {
   id: string; // virtual
 
   userId: mongoose.Types.ObjectId;
@@ -48,14 +52,15 @@ const TargetRefSchema = new Schema<IUserSavedTargetRef>(
     type: {
       type: String,
       enum: [
-        "product",
-        "compound",
-        "person",
-        "business",
-        "protocol",
-        "episode",
-        "caseStudy",
-        "article",
+        "Product",
+        "Compound",
+        "Person",
+        "Business",
+        "Protocol",
+        "Episode",
+        "CaseStudy",
+        "Article",
+        "UserProtocol",
       ],
       required: true,
       index: true,

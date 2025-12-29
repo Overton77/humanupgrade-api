@@ -1,15 +1,15 @@
 import { z } from "zod";
 
 export const SavedEntityTypeSchema = z.enum([
-  "product",
-  "compound",
-  "person",
-  "business",
-  "protocol_system",
-  "protocol_user",
-  "episode",
-  "caseStudy",
-  "article",
+  "Product",
+  "Compound",
+  "Person",
+  "Business",
+  "UserProtocol",
+  "Protocol",
+  "Episode",
+  "CaseStudy",
+  "Article",
 ]);
 
 export const SaveSourceSchema = z.enum([

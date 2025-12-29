@@ -11,7 +11,9 @@
     "copy-schema": "copyfiles -u 1 src/graphql/schema.graphql dist",
     "start": "node dist/server.js",
     "start-admin": "tsx --watch src/restServer.ts",
-    "create:admin": "tsx scripts/oneoffs/createAdmin.ts"
+    "create:admin": "tsx scripts/oneoffs/createAdmin.ts",
+    "start:recommendations:worker": "tsx --watch src/workers/recommendations.worker.ts",
+    "start:trending:worker": "tsx --watch src/workers/trending.worker.ts"
   },
   "keywords": [],
   "author": "",
