@@ -13,7 +13,8 @@
     "start-admin": "tsx --watch src/restServer.ts",
     "create:admin": "tsx scripts/oneoffs/createAdmin.ts",
     "start:recommendations:worker": "tsx --watch src/workers/recommendations.worker.ts",
-    "start:trending:worker": "tsx --watch src/workers/trending.worker.ts"
+    "start:trending:worker": "tsx --watch src/workers/trending.worker.ts",
+    "dev:all": "concurrently -k -n server,recommendations,trending -c blue,green,magenta \"pnpm dev\" \"pnpm start:recommendations:worker\" \"pnpm start:trending:worker\""
   },
   "keywords": [],
   "author": "",
@@ -55,6 +56,7 @@
     "@types/express": "^5.0.5",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.10.1",
+    "concurrently": "^9.2.1",
     "copyfiles": "^2.4.1",
     "ms": "^2.1.3",
     "ts-node-dev": "^2.0.0",
