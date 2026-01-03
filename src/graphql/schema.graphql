@@ -1,1196 +1,745 @@
 scalar DateTime
-
-enum UserProtocolStatus {
-  draft
-  active
-  archived
-}
-
-enum UserGoalType {
-  sleep
-  energy
-  fatLoss
-  circadian
-  fitness
-  nutrition
-  cognition
-  longevity
-  strength
-  stress
-  recovery
-  health
-  other
-}
-
-enum ProtocolStepItemType {
-  Product
-  Compound
-  Action
-}
-
-enum ProtocolTimeOfDay {
-  morning
-  midday
-  evening
-  bedtime
-  any
-}
-
-enum EvidenceRefType {
-  Episode
-  CaseStudy
-  Article
-  External
-}
-
-union ProtocolStepItemEntity = Product | Compound
-
-type ProtocolStepItem {
-  type: ProtocolStepItemType!
-  refId: ID
-  nameOverride: String
-  dosage: String
-  timing: String
-  notes: String
-  itemEntity: ProtocolStepItemEntity
-}
-
-type ProtocolStepGroup {
-  label: String
-  timeOfDay: ProtocolTimeOfDay
-  items: [ProtocolStepItem!]!
-}
-
-union EvidenceRefEntity = Article | CaseStudy | Episode | External
-
-type EvidenceRef {
-  type: EvidenceRefType!
-  refId: ID
-  label: String
-  url: String
-  episodeId: ID
-  timestamps: [Int!]!
-  notes: String
-  evidenceRefEntity: EvidenceRefEntity
-}
-
-type SafetyBucket {
-  warnings: [String!]!
-  contraindications: [String!]!
-  interactions: [String!]!
-  notes: String
-}
-
-type UserProtocol {
-  id: ID!
-  userId: ID!
-  title: String!
-  goalType: UserGoalType
-  status: UserProtocolStatus!
-
-  sourceProtocolId: ID
-
-  stepsStructured: [ProtocolStepGroup!]!
-  evidenceRefs: [EvidenceRef!]!
-  safety: SafetyBucket
-
-  lastEditedAt: DateTime
-  createdAt: DateTime!
-  updatedAt: DateTime!
-}
-
-input ProtocolStepItemInput {
-  type: ProtocolStepItemType!
-  refId: ID
-  nameOverride: String
-  dosage: String
-  timing: String
-  notes: String
-}
-
-input CursorPageInput {
-  first: Int!
-  after: String
-}
-
-input ProtocolStepGroupInput {
-  label: String
-  timeOfDay: ProtocolTimeOfDay
-  items: [ProtocolStepItemInput!]!
-}
-
-input EvidenceRefInput {
-  type: EvidenceRefType!
-  refId: ID
-  label: String
-  url: String
-  episodeId: ID
-  timestamps: [Int!]
-  notes: String
-}
-
-input SafetyBucketInput {
-  warnings: [String!]
-  contraindications: [String!]
-  interactions: [String!]
-  notes: String
-}
-
-input CreateUserProtocolInput {
-  title: String!
-  goalType: UserGoalType
-  status: UserProtocolStatus
-  sourceProtocolId: ID
-  stepsStructured: [ProtocolStepGroupInput!]
-  evidenceRefs: [EvidenceRefInput!]
-  safety: SafetyBucketInput
-}
-
-input UpdateUserProtocolInput {
-  id: ID!
-  title: String
-  goalType: UserGoalType
-  status: UserProtocolStatus
-  stepsStructured: [ProtocolStepGroupInput!]
-  evidenceRefs: [EvidenceRefInput!]
-  safety: SafetyBucketInput
-}
-
-type UserProtocolConnection {
-  edges: [UserProtocolEdge!]!
-  pageInfo: PageInfo!
-}
-
-type UserProtocolEdge {
-  cursor: String!
-  node: UserProtocol!
-}
-
-enum ArticleSourceType {
-  human_upgrade
-  external
-}
-
-type Article {
-  id: ID!
-
-  title: String!
-  summary: String!
-  url: String
-
-  sourceType: ArticleSourceType!
-  publishedAt: DateTime
-  authorName: String
-
-  tags: [String!]!
-  mediaLinks: [MediaLink!]
-
-  episodeIds: [ID!]
-  personIds: [ID!]
-  businessIds: [ID!]
-  productIds: [ID!]
-  compoundIds: [ID!]
-  protocolIds: [ID!]
-
-  createdAt: DateTime!
-  updatedAt: DateTime!
-}
-
-enum GoalType {
-  sleep
-  energy
-  fatLoss
-  circadian
-  fitness
-  nutrition
-  cognition
-  longevity
-  strength
-  stress
-  recovery
-  health
-  other
-}
-
-enum ExperienceLevel {
-  beginner
-  intermediate
-  advanced
-}
-
-enum DietStyle {
-  none
-  keto
-  paleo
-  vegan
-  vegetarian
-  mediterranean
-  lowCarb
-  omnivore
-  other
-}
-
-enum TimeBudget {
-  min5
-  min15
-  min30
-  min60
-}
-
-enum PreferredFormat {
-  video
-  summary
-  protocol
-  caseStudy
-}
-
-type UserGoal {
-  goalType: GoalType!
-  priority: Int!
-  notes: String
-}
-
-type EntityPreferences {
-  likedEntityIds: [ID!]!
-  hiddenEntityIds: [ID!]!
-  blockedEntityIds: [ID!]!
-}
-
-type UserProfile {
-  id: ID!
-  userId: ID!
-
-  goals: [UserGoal!]!
-
-  experienceLevel: ExperienceLevel
-  dietStyle: DietStyle
-
-  avoidances: [String!]!
-  timeBudget: TimeBudget
-
-  preferredFormats: [PreferredFormat!]!
-  topicInterests: [String!]!
-
-  entityPreferences: EntityPreferences
-
-  createdAt: DateTime!
-  updatedAt: DateTime!
-}
-
-input UserGoalInput {
-  goalType: GoalType!
-  priority: Int!
-  notes: String
-}
-
-input EntityPreferencesInput {
-  likedEntityIds: [ID!]
-  hiddenEntityIds: [ID!]
-  blockedEntityIds: [ID!]
-}
-
-input UserProfileUpsertInput {
-  goals: [UserGoalInput!]
-  experienceLevel: ExperienceLevel
-  dietStyle: DietStyle
-  avoidances: [String!]
-  timeBudget: TimeBudget
-  preferredFormats: [PreferredFormat!]
-  topicInterests: [String!]
-  entityPreferences: EntityPreferencesInput
-}
-
-type MediaLink {
-  url: String!
-  description: String
-  posterUrl: String
-}
-
-enum UserProvider {
-  LOCAL
-  GOOGLE
-  GITHUB
-  APPLE
-}
-
-enum UserRole {
-  ADMIN
-  USER
-}
-
-enum ProtocolCategory {
-  sleep
-  energy
-  fatLoss
-  circadian
-  fitness
-  nutrition
-  cognition
-  stress
-  recovery
-  longevity
-  health
-  strength
-  other
-}
-
-input MediaLinkInput {
-  url: String!
-  description: String!
-  posterUrl: String
-}
-
-input UserUpsertInput {
-  userId: ID
-  email: String!
-  password: String
-  provider: UserProvider
-  providerId: String
-  name: String
-  role: UserRole
-  mediaLinks: [MediaLinkInput!]
-}
-
-input UserCreateInput {
-  email: String!
-  password: String
-  provider: UserProvider
-  providerId: String
-  name: String
-  role: UserRole
-  mediaLinks: [MediaLinkInput!]
-}
-
-input BusinessCreateRelationsInput {
-  name: String!
-  description: String
-  biography: String
-  website: String
-  mediaLinks: [MediaLinkInput!]
-  ownerIds: [ID!]
-  productIds: [ID!]
-  sponsorEpisodeIds: [ID!]
-  ownersNested: [BusinessOwnerNestedInput!]
-  executivesNested: [BusinessExecutiveNestedInput!]
-  productsNested: [BusinessProductNestedInput!]
-  sponsorEpisodesNested: [BusinessEpisodeNestedInput!]
-  executives: [BusinessExecutiveRelationInput!]
-}
-
-input BusinessUpdateWithIdsInput {
-  id: ID!
-  name: String
-  description: String
-  website: String
-  mediaLinks: [MediaLinkInput!]
-  ownerIds: [ID!]
-  productIds: [ID!]
-  sponsorEpisodeIds: [ID!]
-}
-
-input BusinessOwnerNestedInput {
-  id: ID
-  name: String
-  role: String
-  bio: String
-  mediaLinks: [MediaLinkInput!]
-}
-
-input BusinessProductNestedInput {
-  id: ID
-  name: String
-  description: String
-  ingredients: [String!]
-  mediaLinks: [MediaLinkInput!]
-  sourceUrl: String
-}
-
-input BusinessExecutiveRelationInput {
-  personId: ID!
-  title: String
-  role: String
-}
-
-input SponsorLinkObjectInput {
-  text: String
-  links: [String!]
-  hasCodeDave: Boolean
-  code: String
-  brand: String
-  discountPercent: Float
-}
-
-input WebPageTimelineInput {
-  from: String!
-  to: String!
-  title: String
-  description: String
-}
-
-input BusinessEpisodeNestedInput {
-  id: ID
-  channelName: String!
-  episodeNumber: Int
-  episodePageUrl: String!
-  episodeTitle: String
-  publishedAt: DateTime
-  summaryShort: String
-  webPageSummary: String
-  summaryDetailed: String
-  youtubeVideoId: String
-  youtubeWatchUrl: String
-  youtubeEmbedUrl: String
-  takeaways: [String!]
-  s3TranscriptKey: String
-  s3TranscriptUrl: String
-  mediaLinks: [MediaLinkInput!]
-  sponsorLinkObjects: [SponsorLinkObjectInput!]
-  webPageTimelines: [WebPageTimelineInput!]
-}
-
-input BusinessExecutiveNestedInput {
-  name: String!
-  title: String!
-  role: String!
-  mediaLinks: [MediaLinkInput!]
-}
-
-input BusinessUpdateRelationFieldsInput {
-  id: ID!
-
-  name: String
-  description: String
-  website: String
-  biography: String
-  mediaLinks: [MediaLinkInput!]
-
-  ownerIds: [ID!]
-  ownersNested: [BusinessOwnerNestedInput!]
-
-  productIds: [ID!]
-  productsNested: [BusinessProductNestedInput!]
-
-  executives: [BusinessExecutiveRelationInput!]
-  executivesNested: [BusinessExecutiveNestedInput!]
-
-  sponsorEpisodeIds: [ID!]
-  sponsorEpisodesNested: [BusinessEpisodeNestedInput!]
-}
-
-# --- Product Inputs ---
-
-input ProductCreateWithIdsInput {
-  name: String!
-  businessId: ID!
-  description: String
-  price: Float
-  ingredients: [String!]
-  mediaLinks: [MediaLinkInput!]
-  sourceUrl: String
-  compoundIds: [ID!]
-  protocolIds: [ID!]
-}
-
-input ProductUpdateWithIdsInput {
-  id: ID!
-  name: String
-  description: String
-  price: Float
-  ingredients: [String!]
-  mediaLinks: [MediaLinkInput!]
-  sourceUrl: String
-  compoundIds: [ID!]
-  protocolIds: [ID!]
-}
-
-input ProductCompoundNestedInput {
-  id: ID
-  name: String
-  description: String
-  aliases: [String!]
-  mediaLinks: [MediaLinkInput!]
-}
-
-input ProductProtocolNestedInput {
-  id: ID
-  name: String
-  description: String
-  categories: [ProtocolCategory!]
-  goals: [String!]
-  steps: [String!]
-  cautions: [String!]
-  aliases: [String!]
-  sourceUrl: String
-}
-
-input ProductUpdateRelationFieldsInput {
-  id: ID!
-
-  compoundIds: [ID!]
-  compoundsNested: [ProductCompoundNestedInput!]
-  protocolIds: [ID!]
-  protocolsNested: [ProductProtocolNestedInput!]
-}
-
-# --- Person Inputs ---
-
-input PersonCreateInput {
-  name: String!
-  role: String
-  bio: String
-  mediaLinks: [MediaLinkInput!]
-}
-
-input PersonUpdateInput {
-  id: ID!
-  name: String
-  role: String
-  bio: String
-  mediaLinks: [MediaLinkInput!]
-}
-
-# --- Episode Inputs ---
-
-input EpisodeCreateWithIdsInput {
-  channelName: String!
-  episodeNumber: Int
-  episodeTitle: String
-  episodePageUrl: String!
-  episodeTranscriptUrl: String
-  publishedAt: DateTime
-  summaryShort: String
-  webPageSummary: String
-  summaryDetailed: String
-  publishedSummary: String
-  youtubeVideoId: String
-  youtubeWatchUrl: String
-  youtubeEmbedUrl: String
-  takeaways: [String!]
-  s3TranscriptKey: String
-  s3TranscriptUrl: String
-  mediaLinks: [MediaLinkInput!]
-  sponsorLinkObjects: [SponsorLinkObjectInput!]
-  webPageTimelines: [WebPageTimelineInput!]
-  businessLinks: [String!]
-  guestIds: [ID!]
-  sponsorBusinessIds: [ID!]
-  protocolIds: [ID!]
-}
-
-input EpisodeUpdateWithIdsInput {
-  id: ID!
-  channelName: String
-  episodeNumber: Int
-  episodeTitle: String
-  episodePageUrl: String
-  episodeTranscriptUrl: String
-  publishedAt: DateTime
-  summaryShort: String
-  webPageSummary: String
-  summaryDetailed: String
-  publishedSummary: String
-  youtubeVideoId: String
-  youtubeWatchUrl: String
-  youtubeEmbedUrl: String
-  takeaways: [String!]
-  s3TranscriptKey: String
-  s3TranscriptUrl: String
-  mediaLinks: [MediaLinkInput!]
-  sponsorLinkObjects: [SponsorLinkObjectInput!]
-  webPageTimelines: [WebPageTimelineInput!]
-  businessLinks: [String!]
-  guestIds: [ID!]
-  sponsorBusinessIds: [ID!]
-  protocolIds: [ID!]
-}
-
-input EpisodeGuestNestedInput {
-  id: ID
-  name: String
-  role: String
-  bio: String
-  mediaLinks: [MediaLinkInput!]
-}
-
-input EpisodeSponsorBusinessNestedInput {
-  id: ID
-  name: String
-  description: String
-  website: String
-  mediaLinks: [MediaLinkInput!]
-}
-
-input EpisodeUpdateRelationFieldsInput {
-  id: ID!
-
-  guestIds: [ID!]
-  guestsNested: [EpisodeGuestNestedInput!]
-
-  sponsorBusinessIds: [ID!]
-  sponsorBusinessesNested: [EpisodeSponsorBusinessNestedInput!]
-
-  protocolIds: [ID!]
-}
-
-# --- Compound Inputs ---
-
-input ProtocolCreateWithIdsInput {
-  name: String!
-  description: String
-  categories: [ProtocolCategory!]
-  goals: [String!]
-  steps: [String!]
-  cautions: [String!]
-  aliases: [String!]
-  sourceUrl: String
-  productIds: [ID!]
-  compoundIds: [ID!]
-}
-
-input ProtocolUpdateWithIdsInput {
-  id: ID!
-  name: String
-  description: String
-  categories: [ProtocolCategory!]
-  goals: [String!]
-  steps: [String!]
-  cautions: [String!]
-  aliases: [String!]
-  sourceUrl: String
-  productIds: [ID!]
-  compoundIds: [ID!]
-  stepsStructured: [ProtocolStepGroupInput!]
-  evidenceRefs: [EvidenceRefInput!]
-  safety: SafetyBucketInput
-  overwriteEvidenceRefs: Boolean
-  addToEvidenceRefs: Boolean
-}
-
-input ProtocolProductNestedInput {
-  id: ID
-  name: String
-  description: String
-  businessId: ID
-  ingredients: [String!]
-  mediaLinks: [MediaLinkInput!]
-  sourceUrl: String
-}
-
-input ProtocolCompoundNestedInput {
-  id: ID
-  name: String
-  description: String
-  aliases: [String!]
-  mediaLinks: [MediaLinkInput!]
-}
-
-input ProtocolUpdateRelationFieldsInput {
-  id: ID!
-  productIds: [ID!]
-  productsNested: [ProtocolProductNestedInput!]
-  compoundIds: [ID!]
-  compoundsNested: [ProtocolCompoundNestedInput!]
-}
-
-input CompoundCreateWithIdsInput {
-  name: String!
-  description: String
-  aliases: [String!]
-  mediaLinks: [MediaLinkInput!]
-  productIds: [ID!]
-}
-
-input CompoundUpdateWithIdsInput {
-  id: ID!
-  name: String
-  description: String
-  aliases: [String!]
-  mediaLinks: [MediaLinkInput!]
-  productIds: [ID!]
-}
-
-input CompoundProductNestedInput {
-  id: ID
-  name: String
-  description: String
-  ingredients: [String!]
-  mediaLinks: [MediaLinkInput!]
-  sourceUrl: String
-}
-
-input CompoundUpdateRelationFieldsInput {
-  id: ID!
-
-  productIds: [ID!]
-  productsNested: [CompoundProductNestedInput!]
-}
-
-type User {
-  id: ID!
-  email: String!
-  name: String
-  role: String!
-  profile: UserProfile
-}
-
-type WebPageTimeline {
-  from: String!
-  to: String!
-  title: String
-  description: String
-}
-
-type SponsorLinkObject {
-  text: String
-  links: [String!]
-  hasCodeDave: Boolean
-  code: String
-  brand: String
-  discountPercent: Float
-}
-type Episode {
-  id: ID!
-  channelName: String!
-  episodeNumber: Int
-  episodeTitle: String
-  episodeTranscriptUrl: String
-  episodePageUrl: String
-  webPageSummary: String
-  webPageTimelines: [WebPageTimeline!]
-  sponsorLinkObjects: [SponsorLinkObject!]
-  takeaways: [String!]!
-  s3TranscriptKey: String
-  s3TranscriptUrl: String
-  youtubeVideoId: String
-  youtubeWatchUrl: String
-  youtubeEmbedUrl: String
-  mediaLinks: [MediaLink!]
-  publishedAt: DateTime
-  guests: [Person!]
-  summaryShort: String
-  summaryDetailed: String
-  publishedSummary: String
-  businessLinks: [String!]
-  sponsorBusinesses: [Business!]
-  protocols: [Protocol!]
-}
-
-type Person {
-  id: ID!
-  name: String!
-  mediaLinks: [MediaLink!]
-  role: String
-  bio: String
-  businesses: [Business!]
-  episodes: [Episode!]
-}
-
-type BusinessExecutive {
-  person: Person!
-  title: String
-  role: String
-}
-
-type Business {
-  id: ID!
-  name: String!
-  mediaLinks: [MediaLink!]
-  description: String
-  website: String
-  products: [Product!]
-  owners: [Person!]
-  executives: [BusinessExecutive!]
-  sponsoredEpisodes: [Episode!]
-}
-
-type Product {
-  id: ID!
-  name: String!
-  mediaLinks: [MediaLink!]
-  business: Business!
-  description: String
-  ingredients: [String!]!
-  sponsorEpisodes: [Episode!]
-  sourceUrl: String
-  compounds: [Compound!]
-}
-
-type Compound {
-  id: ID!
-  name: String!
-  description: String
-  mediaLinks: [MediaLink!]
-  aliases: [String!]!
-  products: [Product!]!
-  caseStudies: [CaseStudy!]!
-}
-
-type Protocol {
-  id: ID!
-  name: String!
-  description: String
-  categories: [ProtocolCategory!]!
-  goals: [String!]!
-  steps: [String!]!
-  cautions: [String!]!
-  stepsStructured: [ProtocolStepGroup!]
-  evidenceRefs: [EvidenceRef!]!
-  safety: SafetyBucket
-  aliases: [String!]!
-  sourceUrl: String
-  products: [Product!]!
-  compounds: [Compound!]!
-}
-
-enum CaseStudySourceType {
-  PUBMED
-  CLINICAL_TRIAL
-  ARTICLE
+scalar JSON
+
+# ============================================================================
+# Enums
+# ============================================================================
+
+enum OrgType {
+  COMPANY
+  NONPROFIT
+  RESEARCH_GROUP
+  COMMUNITY
+  MEDIA_OUTLET
+  CLINIC
+  FOUNDATION
+  REGULATOR
+  JOURNAL
+  LAB_NETWORK
+  DISTRIBUTOR
+  MANUFACTURER
+  SUPPLIER
+  PLATFORM
   OTHER
 }
 
-type CaseStudy {
-  id: ID!
+enum BusinessModel {
+  B2C
+  B2B
+  B2B2C
+  HYBRID
+  UNKNOWN
+}
+
+enum LocationType {
+  HEADQUARTERS
+  REGISTERED_ADDRESS
+  OFFICE
+  LAB_FACILITY
+  CLINIC_SITE
+  MANUFACTURING_SITE
+  WAREHOUSE
+  RETAIL_SITE
+  DATA_CENTER
+  RESEARCH_SITE
+  COLLECTION_SITE
+  CONFERENCE_VENUE
+  OTHER
+}
+
+enum ListingDomain {
+  DIAGNOSTICS
+  SUPPLEMENT
+  DEVICE
+  TELEHEALTH
+  SOFTWARE
+  SERVICE
+  OTHER
+}
+
+enum PriceType {
+  LIST
+  PROMO
+  MEMBER_ONLY
+  INSURANCE_ESTIMATE
+  UNKNOWN
+}
+
+enum CollectionMode {
+  AT_HOME_KIT
+  IN_PERSON_DRAW
+  MOBILE_PHLEBOTOMY
+  IN_CLINIC
+  SHIPPING
+  VIRTUAL
+  OTHER
+}
+
+enum ProductDomain {
+  DIAGNOSTICS
+  SUPPLEMENT
+  DEVICE
+  TELEHEALTH
+  SOFTWARE
+  SERVICE
+  OTHER
+}
+
+enum ListRole {
+  OPERATOR
+  PROVIDER
+  SELLER
+  DISTRIBUTOR
+  MARKETER
+  FULFILLMENT_PARTNER
+  BILLING_ENTITY
+  OTHER
+}
+
+enum Channel {
+  ONLINE
+  IN_PERSON
+  PHONE
+  PARTNER
+  MARKETPLACE
+  OTHER
+}
+
+# ============================================================================
+# Base Node Types
+# ============================================================================
+
+type PhysicalLocation {
+  locationId: ID!
+  canonicalName: String!
+  locationType: LocationType!
+  addressLine1: String
+  addressLine2: String
+  city: String
+  region: String
+  postalCode: String
+  countryCode: String
+  geo: JSON
+  timezone: String
+  jurisdiction: String
+  placeTags: [String!]
+  hoursOfOperation: String
+  contact: ContactMap
+}
+
+type ContactMap {
+  phone: String
+  email: String
+}
+
+type Listing {
+  listingId: ID!
+  listingDomain: ListingDomain!
   title: String!
-  summary: String!
-  mediaLinks: [MediaLink!]
+  description: String
+  sku: String
   url: String
-  sourceType: String!
-  episodes: [Episode!]
-  compounds: [Compound!]
-  products: [Product!]
-  protocols: [Protocol!]
+  brandName: String
+  currency: String!
+  priceAmount: Float
+  priceType: PriceType
+  pricingNotes: String
+  constraints: String
+  regionsAvailable: [String!]
+  requiresAppointment: Boolean
+  collectionMode: CollectionMode
+  turnaroundTime: String
 }
 
-input CaseStudyCreateWithOptionalIdsInput {
-  title: String!
-  summary: String!
-  url: String
-  sourceType: CaseStudySourceType
-  episodeIds: [ID!]
-  compoundIds: [ID!]
+type Product {
+  productId: ID!
+  name: String!
+  synonyms: [String!]
+  productDomain: ProductDomain!
+  productType: String
+  intendedUse: String
+  description: String
+  brandName: String
+  modelNumber: String
+  ndcCode: String
+  upc: String
+  gtin: String
+  riskClass: String
+  currency: String
+  priceAmount: Float
 }
 
-input CaseStudyUpdateWithOptionalIdsInput {
-  id: ID!
-  title: String
-  summary: String
-  url: String
-  sourceType: CaseStudySourceType
-  episodeIds: [ID!]
-  compoundIds: [ID!]
+type CompoundForm {
+  compoundFormId: ID!
+  canonicalName: String!
+  formType: String!
+  chemicalDifferences: String
+  stabilityProfile: String
+  solubilityProfile: String
+  bioavailabilityNotes: String
+  regulatoryStatusSummary: String
 }
 
-type UserDeleteResult {
-  message: String!
-  success: Boolean
-}
+# ============================================================================
+# Edge Types (Relationships with Properties)
+# ============================================================================
 
-enum SavedEntityType {
-  Product
-  Compound
-  Person
-  Business
-  Protocol
-  Episode
-  CaseStudy
-  UserProtocol
-  Article
-}
-
-enum SaveSource {
-  dashboard
-  episode
-  assistant
-  search
-  protocol_builder
-  profile
-  other
-}
-
-type External {
-  url: String
-  label: String
-}
-
-type UserSaved {
-  id: ID!
-  userId: ID!
-
-  targetType: SavedEntityType!
-  targetId: ID!
-
-  note: String
-  tags: [String!]!
-  pinned: Boolean!
-  source: SaveSource
-
+type HasLocationEdge {
+  location: PhysicalLocation!
+  locationRole: String!
+  isPrimary: Boolean
+  startDate: DateTime
+  endDate: DateTime
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
   createdAt: DateTime!
-  updatedAt: DateTime!
-
-  # hydrated via dataloaders
-  target: SavedTargetUnion
 }
 
-"""
-Relay-style pagination info
-"""
-type PageInfo {
-  hasNextPage: Boolean!
-  endCursor: String
+type OwnsOrControlsEdge {
+  organization: Organization!
+  relationshipType: String!
+  ownershipPercent: Float
+  controlType: String
+  effectiveFrom: DateTime
+  effectiveTo: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
 }
 
-"""
-Cursor pagination input (matches your usage: first + after)
-"""
-input CursorPageInput {
-  first: Int!
-  after: String
+type ListsEdge {
+  listing: Listing!
+  listRole: ListRole!
+  channel: Channel
+  regionsOverrides: [String!]
+  collectionModesOverrides: [String!]
+  availabilityNotes: String
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
 }
 
-"""
-UserSaved connection types
-"""
-type UserSavedConnection {
-  edges: [UserSavedEdge!]!
-  pageInfo: PageInfo!
+type OffersProductEdge {
+  product: Product!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
 }
 
-type UserSavedEdge {
-  cursor: String!
-  node: UserSaved!
+type SuppliesCompoundFormEdge {
+  compoundForm: CompoundForm!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
 }
 
-"""
-Filter input for user protocols listing
-"""
-input UserProtocolsFilterInput {
-  status: UserProtocolStatus
-  goalType: UserGoalType
-  search: String
+# ============================================================================
+# Organization Type
+# ============================================================================
+
+type Organization {
+  organizationId: ID!
+  name: String!
+  aliases: [String!]
+  orgType: OrgType!
+  description: String
+  businessModel: BusinessModel
+  primaryIndustryTags: [String!]
+  regionsServed: [String!]
+  legalName: String
+  legalStructure: String
+  ownershipType: String
+  jurisdictionsOfIncorporation: [String!]
+  websiteUrl: String
+  defaultCollectionModes: [String!]
+  defaultRegionsAvailable: [String!]
+  publicTicker: String
+  fundingStage: String
+  employeeCountRange: EmployeeCountRange
+  revenueRangeAnnual: RevenueRangeAnnual
+  valuationRange: ValuationRange
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+  # Relationships
+  hasLocation: [HasLocationEdge!]
+  ownsOrControls: [OwnsOrControlsEdge!]
+  lists: [ListsEdge!]
+  offersProduct: [OffersProductEdge!]
+  suppliesCompoundForm: [SuppliesCompoundFormEdge!]
 }
 
-union SavedTargetUnion =
-    Product
-  | Compound
-  | CaseStudy
-  | Protocol
-  | Person
-  | Business
-  | Episode
-  | Article
-  | UserProtocol
-
-input SaveEntityInput {
-  targetType: SavedEntityType!
-  targetId: ID!
-
-  note: String
-  tags: [String!]
-  pinned: Boolean
-  source: SaveSource
+type EmployeeCountRange {
+  min: Int
+  max: Int
+  asOf: DateTime
 }
 
-input UnsaveEntityInput {
-  targetType: SavedEntityType!
-  targetId: ID!
+type RevenueRangeAnnual {
+  min: Float
+  max: Float
+  currency: String
+  asOf: DateTime
 }
 
-input SavedEntitiesFilterInput {
-  targetType: SavedEntityType
-  search: String
-  tags: [String!]
-  pinned: Boolean
+type ValuationRange {
+  min: Float
+  max: Float
+  currency: String
+  asOf: DateTime
 }
+
+# ============================================================================
+# Input Types
+# ============================================================================
+
+input ContactMapInput {
+  phone: String
+  email: String
+}
+
+input TemporalValidityInput {
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input PhysicalLocationInput {
+  locationId: ID
+  canonicalName: String!
+  locationType: LocationType!
+  addressLine1: String
+  addressLine2: String
+  city: String
+  region: String
+  postalCode: String
+  countryCode: String
+  geo: JSON
+  timezone: String
+  jurisdiction: String
+  placeTags: [String!]
+  hoursOfOperation: String
+  contact: ContactMapInput
+}
+
+input ListingInput {
+  listingId: ID
+  listingDomain: ListingDomain!
+  title: String!
+  description: String
+  sku: String
+  url: String
+  brandName: String
+  currency: String!
+  priceAmount: Float
+  priceType: PriceType
+  pricingNotes: String
+  constraints: String
+  regionsAvailable: [String!]
+  requiresAppointment: Boolean
+  collectionMode: CollectionMode
+  turnaroundTime: String
+}
+
+input ProductInput {
+  productId: ID
+  name: String!
+  synonyms: [String!]
+  productDomain: ProductDomain!
+  productType: String
+  intendedUse: String
+  description: String
+  brandName: String
+  modelNumber: String
+  ndcCode: String
+  upc: String
+  gtin: String
+  riskClass: String
+  currency: String
+  priceAmount: Float
+}
+
+input CompoundFormInput {
+  compoundFormId: ID
+  canonicalName: String!
+  formType: String!
+  chemicalDifferences: String
+  stabilityProfile: String
+  solubilityProfile: String
+  bioavailabilityNotes: String
+  regulatoryStatusSummary: String
+}
+
+# ============================================================================
+# Update Input Types (all fields optional for partial updates)
+# ============================================================================
+
+input PhysicalLocationUpdateInput {
+  locationId: ID
+  canonicalName: String
+  locationType: LocationType
+  addressLine1: String
+  addressLine2: String
+  city: String
+  region: String
+  postalCode: String
+  countryCode: String
+  geo: JSON
+  timezone: String
+  jurisdiction: String
+  placeTags: [String!]
+  hoursOfOperation: String
+  contact: ContactMapInput
+}
+
+input ListingUpdateInput {
+  listingId: ID
+  listingDomain: ListingDomain
+  title: String
+  description: String
+  sku: String
+  url: String
+  brandName: String
+  currency: String
+  priceAmount: Float
+  priceType: PriceType
+  pricingNotes: String
+  constraints: String
+  regionsAvailable: [String!]
+  requiresAppointment: Boolean
+  collectionMode: CollectionMode
+  turnaroundTime: String
+}
+
+input ProductUpdateInput {
+  productId: ID
+  name: String
+  synonyms: [String!]
+  productDomain: ProductDomain
+  productType: String
+  intendedUse: String
+  description: String
+  brandName: String
+  modelNumber: String
+  ndcCode: String
+  upc: String
+  gtin: String
+  riskClass: String
+  currency: String
+  priceAmount: Float
+}
+
+input CompoundFormUpdateInput {
+  compoundFormId: ID
+  canonicalName: String
+  formType: String
+  chemicalDifferences: String
+  stabilityProfile: String
+  solubilityProfile: String
+  bioavailabilityNotes: String
+  regulatoryStatusSummary: String
+}
+
+# Relationship Inputs with nested create/connect/update
+# Note: GraphQL doesn't support union types for inputs, so we use optional fields
+# Resolvers should validate that exactly one of create/connect is provided
+
+input PhysicalLocationRelateInput {
+  create: PhysicalLocationInput
+  connect: PhysicalLocationConnectInput
+}
+
+input PhysicalLocationRelateUpdateInput {
+  create: PhysicalLocationInput
+  connect: PhysicalLocationConnectInput
+  update: PhysicalLocationUpdateInput
+}
+
+input PhysicalLocationConnectInput {
+  locationId: ID!
+}
+
+input HasLocationRelationshipInput {
+  location: PhysicalLocationRelateInput!
+  locationRole: String!
+  isPrimary: Boolean
+  startDate: DateTime
+  endDate: DateTime
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input HasLocationRelationshipUpdateInput {
+  location: PhysicalLocationRelateUpdateInput!
+  locationRole: String
+  isPrimary: Boolean
+  startDate: DateTime
+  endDate: DateTime
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input OrganizationRelateInput {
+  create: OrganizationInput
+  connect: OrganizationConnectInput
+}
+
+input OrganizationRelateUpdateInput {
+  create: OrganizationInput
+  connect: OrganizationConnectInput
+  update: UpdateOrganizationInput
+}
+
+input OrganizationConnectInput {
+  organizationId: ID!
+}
+
+input OwnsOrControlsRelationshipInput {
+  organization: OrganizationRelateInput!
+  relationshipType: String!
+  ownershipPercent: Float
+  controlType: String
+  effectiveFrom: DateTime
+  effectiveTo: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input OwnsOrControlsRelationshipUpdateInput {
+  organization: OrganizationRelateUpdateInput!
+  relationshipType: String
+  ownershipPercent: Float
+  controlType: String
+  effectiveFrom: DateTime
+  effectiveTo: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ListingRelateInput {
+  create: ListingInput
+  connect: ListingConnectInput
+}
+
+input ListingRelateUpdateInput {
+  create: ListingInput
+  connect: ListingConnectInput
+  update: ListingUpdateInput
+}
+
+input ListingConnectInput {
+  listingId: ID!
+}
+
+input ListsRelationshipInput {
+  listing: ListingRelateInput!
+  listRole: ListRole!
+  channel: Channel
+  regionsOverrides: [String!]
+  collectionModesOverrides: [String!]
+  availabilityNotes: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ListsRelationshipUpdateInput {
+  listing: ListingRelateUpdateInput!
+  listRole: ListRole
+  channel: Channel
+  regionsOverrides: [String!]
+  collectionModesOverrides: [String!]
+  availabilityNotes: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ProductRelateInput {
+  create: ProductInput
+  connect: ProductConnectInput
+}
+
+input ProductRelateUpdateInput {
+  create: ProductInput
+  connect: ProductConnectInput
+  update: ProductUpdateInput
+}
+
+input ProductConnectInput {
+  productId: ID!
+}
+
+input OffersProductRelationshipInput {
+  product: ProductRelateInput!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input OffersProductRelationshipUpdateInput {
+  product: ProductRelateUpdateInput!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input CompoundFormRelateInput {
+  create: CompoundFormInput
+  connect: CompoundFormConnectInput
+}
+
+input CompoundFormRelateUpdateInput {
+  create: CompoundFormInput
+  connect: CompoundFormConnectInput
+  update: CompoundFormUpdateInput
+}
+
+input CompoundFormConnectInput {
+  compoundFormId: ID!
+}
+
+input SuppliesCompoundFormRelationshipInput {
+  compoundForm: CompoundFormRelateInput!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input SuppliesCompoundFormRelationshipUpdateInput {
+  compoundForm: CompoundFormRelateUpdateInput!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input EmployeeCountRangeInput {
+  min: Int
+  max: Int
+  asOf: DateTime
+}
+
+input RevenueRangeAnnualInput {
+  min: Float
+  max: Float
+  currency: String
+  asOf: DateTime
+}
+
+input ValuationRangeInput {
+  min: Float
+  max: Float
+  currency: String
+  asOf: DateTime
+}
+
+input OrganizationInput {
+  organizationId: ID
+  name: String!
+  aliases: [String!]
+  orgType: OrgType!
+  description: String
+  businessModel: BusinessModel
+  primaryIndustryTags: [String!]
+  regionsServed: [String!]
+  legalName: String
+  legalStructure: String
+  ownershipType: String
+  jurisdictionsOfIncorporation: [String!]
+  websiteUrl: String
+  defaultCollectionModes: [String!]
+  defaultRegionsAvailable: [String!]
+  publicTicker: String
+  fundingStage: String
+  employeeCountRange: EmployeeCountRangeInput
+  revenueRangeAnnual: RevenueRangeAnnualInput
+  valuationRange: ValuationRangeInput
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  # Relationships
+  hasLocation: [HasLocationRelationshipInput!]
+  ownsOrControls: [OwnsOrControlsRelationshipInput!]
+  lists: [ListsRelationshipInput!]
+  offersProduct: [OffersProductRelationshipInput!]
+  suppliesCompoundForm: [SuppliesCompoundFormRelationshipInput!]
+}
+
+input UpdateOrganizationInput {
+  organizationId: ID
+  name: String
+  aliases: [String!]
+  orgType: OrgType
+  description: String
+  businessModel: BusinessModel
+  primaryIndustryTags: [String!]
+  regionsServed: [String!]
+  legalName: String
+  legalStructure: String
+  ownershipType: String
+  jurisdictionsOfIncorporation: [String!]
+  websiteUrl: String
+  defaultCollectionModes: [String!]
+  defaultRegionsAvailable: [String!]
+  publicTicker: String
+  fundingStage: String
+  employeeCountRange: EmployeeCountRangeInput
+  revenueRangeAnnual: RevenueRangeAnnualInput
+  valuationRange: ValuationRangeInput
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  # Relationships (using update versions)
+  hasLocation: [HasLocationRelationshipUpdateInput!]
+  ownsOrControls: [OwnsOrControlsRelationshipUpdateInput!]
+  lists: [ListsRelationshipUpdateInput!]
+  offersProduct: [OffersProductRelationshipUpdateInput!]
+  suppliesCompoundForm: [SuppliesCompoundFormRelationshipUpdateInput!]
+}
+
+# ============================================================================
+# Query & Mutation
+# ============================================================================
 
 type Query {
-  me: User
-  myProfile: UserProfile
-  episodes(limit: Int = 20, offset: Int = 0): [Episode!]!
-  episode(id: ID!): Episode
-  protocols(limit: Int = 20, offset: Int = 0): [Protocol!]!
-  protocol(id: ID!): Protocol
-  products(limit: Int = 20, offset: Int = 0): [Product!]!
-  product(id: ID!): Product
-  compounds(limit: Int = 20, offset: Int = 0): [Compound!]!
-  compound(id: ID!): Compound
-  people(limit: Int = 20, offset: Int = 0): [Person!]!
-  person(id: ID!): Person
-  businesses(limit: Int = 20, offset: Int = 0): [Business!]!
-  business(id: ID!): Business
-  caseStudies(limit: Int = 20, offset: Int = 0): [CaseStudy!]!
-  caseStudy(id: ID!): CaseStudy
-  allUsers(limit: Int = 20, offset: Int = 0): [User!]!
-
-  vectorSearchProducts(args: VectorSearchArgs!): [ProductSearchPayload!]
-  vectorSearchBusinesses(args: VectorSearchArgs!): [BusinessSearchPayload!]
-  vectorSearchPeople(args: VectorSearchArgs!): [PersonSearchPayload!]
-
-  savedEntities(
-    filter: SavedEntitiesFilterInput
-    page: CursorPageInput
-  ): UserSavedConnection!
-
-  myUserProtocols(
-    filter: UserProtocolsFilterInput
-    page: CursorPageInput
-  ): UserProtocolConnection!
-
-  dashboard: Dashboard!
-}
-
-type AuthPayload {
-  token: String!
-  user: User!
-}
-
-type DeleteResult {
-  deletedCount: Int!
-}
-
-input VectorSearchArgs {
-  query: String!
-  numCandidates: Int
-  limit: Int
-}
-
-type ProductSearchPayload {
-  id: ID!
-  name: String!
-  description: String!
-  score: Float
-}
-
-type BusinessSearchPayload {
-  id: ID!
-  name: String!
-  description: String!
-  score: Float
-}
-
-type PersonSearchPayload {
-  id: ID!
-  name: String!
-  bio: String!
-  score: Float
-}
-
-type DashboardItem {
-  entityType: String!
-  entityId: ID!
-  score: Float
-  reasons: [String!]
-  entity: SavedTargetUnion
-}
-
-type ContinueEpisode {
-  kind: String! # always "EPISODE"
-  episodeId: ID!
-  timestamp: Float
-  lastActivityAt: String!
-  episode: Episode
-}
-
-type ContinueEntity {
-  kind: String! # always "ENTITY"
-  entityType: String!
-  entityId: ID!
-  lastActivityAt: String!
-  entity: SavedTargetUnion
-}
-
-type ContinueNone {
-  kind: String! # always "NONE"
-}
-
-union DashboardContinue = ContinueEpisode | ContinueEntity | ContinueNone
-
-type Dashboard {
-  continue: DashboardContinue!
-  trending: [DashboardItem!]!
-  recommended: [DashboardItem!]!
+  organizations: [Organization!]!
 }
 
 type Mutation {
-  register(email: String!, password: String!, name: String): AuthPayload!
-  login(email: String!, password: String!): AuthPayload!
-
-  upsertUserProfile(input: UserProfileUpsertInput!): UserProfile!
-  deleteUserProfile(userId: ID!): DeleteResult!
-  deleteUser(userId: ID!): UserDeleteResult!
-
-  # --- Business management ---
-
-  createBusinessWithRelations(input: BusinessCreateRelationsInput!): Business!
-  updateBusiness(input: BusinessUpdateWithIdsInput!): Business
-  updateBusinessRelations(input: BusinessUpdateRelationFieldsInput!): Business
-  deleteBusiness(id: ID!): DeleteResult!
-
-  # --- Product management ---
-
-  createProduct(input: ProductCreateWithIdsInput!): Product!
-  updateProduct(input: ProductUpdateWithIdsInput!): Product
-  updateProductRelations(input: ProductUpdateRelationFieldsInput!): Product
-  deleteProduct(id: ID!): Product!
-  # --- Person management ---
-
-  createPerson(input: PersonCreateInput!): Person!
-  updatePerson(input: PersonUpdateInput!): Person
-  deletePerson(id: ID!): Person!
-
-  # --- Episode management ---
-
-  createEpisode(input: EpisodeCreateWithIdsInput!): Episode!
-  updateEpisode(input: EpisodeUpdateWithIdsInput!): Episode
-  updateEpisodeRelations(input: EpisodeUpdateRelationFieldsInput!): Episode
-  deleteEpisode(identifier: String!): Episode
-  deleteAllEpisodes: DeleteResult!
-
-  # --- Compound management ---
-
-  createCompound(input: CompoundCreateWithIdsInput!): Compound!
-  updateCompound(input: CompoundUpdateWithIdsInput!): Compound
-  updateCompoundRelations(input: CompoundUpdateRelationFieldsInput!): Compound
-  deleteCompound(id: ID!): Compound!
-
-  createCaseStudy(input: CaseStudyCreateWithOptionalIdsInput!): CaseStudy!
-
-  updateCaseStudy(input: CaseStudyUpdateWithOptionalIdsInput!): CaseStudy!
-
-  upsertUser(input: UserUpsertInput!): User!
-
-  createProtocol(input: ProtocolCreateWithIdsInput!): Protocol!
-  updateProtocol(input: ProtocolUpdateWithIdsInput!): Protocol
-  updateProtocolRelations(input: ProtocolUpdateRelationFieldsInput!): Protocol
-  deleteProtocol(id: ID!): Protocol!
-
-  createUserProtocol(input: CreateUserProtocolInput!): UserProtocol!
-  updateUserProtocol(input: UpdateUserProtocolInput!): UserProtocol
-  deleteUserProtocol(id: ID!): Boolean!
-
-  # --- Vector management ---
-
-  embedProductDescription(productId: ID!): Product!
-  embedBusinessDescription(businessId: ID!): Business!
-  embedPersonBio(personId: ID!): Person!
-
-  saveEntity(input: SaveEntityInput!): UserSaved!
-  unsaveEntity(input: UnsaveEntityInput!): Boolean!
-}
-
-type ActivityEvent {
-  id: ID!
-  userId: ID!
-  eventType: String!
-  entityType: String
-  entityId: ID
-  surface: String
-  createdAt: String!
-}
-
-type Subscription {
-  myActivity: ActivityEvent!
-  dashboardInvalidated: Boolean!
-  trendingInvalidated: Boolean!
-  recommendationsReady: Boolean!
+  createOrganization(input: OrganizationInput!): Organization!
 }

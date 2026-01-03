@@ -64,13 +64,11 @@ export function graphqlRateLimitPlugin(): ApolloServerPlugin<GraphQLContext> {
         operationName,
       });
 
-      const isAdmin = ctx.role === "admin";
-
-      const key = ctx.userId ? `user:${ctx.userId}` : `ip:${ctx.ip}`;
+      const key = `ip:${ctx.ip}`;
 
       const cost = COST_BY_OPERATION[rootField] ?? 2;
 
-      const capacity = isAdmin ? 25_000 : ctx.userId ? 200 : 60;
+      const capacity = 60;
       const windowMs = 60_000;
 
       const res = takeTokens({ key, cost, capacity, windowMs });

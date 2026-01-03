@@ -12,6 +12,7 @@
     "start": "node dist/server.js",
     "start-admin": "tsx --watch src/restServer.ts",
     "create:admin": "tsx scripts/oneoffs/createAdmin.ts",
+    "verify:neo4j": "tsx scripts/oneoffs/verifyNeo4j.ts",
     "start:recommendations:worker": "tsx --watch src/workers/recommendations.worker.ts",
     "start:trending:worker": "tsx --watch src/workers/trending.worker.ts",
     "dev:all": "concurrently -k -n server,recommendations,trending -c blue,green,magenta \"pnpm dev\" \"pnpm start:recommendations:worker\" \"pnpm start:trending:worker\""
@@ -42,6 +43,7 @@
     "mongodb": "^7.0.0",
     "mongoose": "^9.0.0",
     "multer": "^2.0.2",
+    "neo4j-driver": "^6.0.1",
     "openai": "^6.14.0",
     "redis": "^5.10.0",
     "winston": "^3.19.0",

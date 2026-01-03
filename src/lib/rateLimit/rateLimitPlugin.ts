@@ -23,13 +23,10 @@ export function graphqlRedisRateLimitPlugin(): ApolloServerPlugin<GraphQLContext
       });
 
       // keying strategy (example)
-      const isAdmin = ctx.role === "admin";
-      const key = ctx.userId
-        ? `rl:user:${ctx.userId}`
-        : `rl:ip:${ctx.ip ?? "unknown"}`;
+      const key = `rl:ip:${ctx.ip ?? "unknown"}`;
 
       // burst capacity + refill window
-      const capacity = isAdmin ? 25_000 : ctx.userId ? 200 : 60;
+      const capacity = 60;
       const windowMs = 60_000;
 
       const res = await takeTokensTokenBucket({

@@ -35,4 +35,11 @@ export const env = {
   cookieSameSite: requireEnv("COOKIE_SAME_SITE") as "lax" | "strict" | "none",
   cookieDomain: process.env.COOKIE_DOMAIN || undefined,
   redisUrl: requireEnv("REDIS_URL"),
+  neo4jAuraInstanceName: requireEnv("NEO4J_AURA_INSTANCE_NAME"),
+  neo4jAuraURI: requireEnv("NEO4J_URI"),
+  neo4jAuraQueryAPI: requireEnv("NEO4J_AURA_QUERY_API"),
+  neo4jAuraInstanceId: requireEnv("NEO4J_AURA_INSTANCE_ID"),
+  neo4jAuraPassword: requireEnv("NEO4J_AURA_PASSWORD"),
+  neo4jAuraUsername: requireEnv("NEO4J_AURA_USERNAME"),
+  neo4jAuraDatabaseName: requireEnv("NEO4J_AURA_DATABASE_NAME"),
 };

@@ -1,4 +1,6 @@
 import winston from "winston";
+import type { AppError } from "./errors.js";
+import { isAppError } from "./errors.js";
 
 /**
  * Log context type for additional metadata
@@ -66,7 +68,6 @@ export const logger = winston.createLogger({
       stderrLevels: ["error"],
     }),
   ],
-  // Handle exceptions and rejections
   exceptionHandlers: [
     new winston.transports.Console({
       format: productionFormat,
@@ -80,20 +81,67 @@ export const logger = winston.createLogger({
 });
 
 /**
- * Log an error with context
+ * -------------------------
+ * Error normalization helpers
+ * -------------------------
+ *
+ * Goal: logs should always have:
+ * - normalizedCode (your ErrorCode)
+ * - dbProvider (mongo/neo4j/unknown)
+ * - neo4j / mongo debug payload (when present)
+ * - requestId
+ *
+ * And still include stack/message for the raw error if it’s a real Error.
  */
-export function logError(error: Error | unknown, context?: LogContext): void {
-  const errorObj =
-    error instanceof Error
-      ? {
-          message: error.message,
-          stack: error.stack,
-          name: error.name,
-        }
-      : { message: String(error) };
+function normalizeErrorForLog(error: unknown): Record<string, unknown> {
+  // Your AppError already contains rich structured extensions.
+  if (isAppError(error)) {
+    const appErr = error as AppError;
+    return {
+      isAppError: true,
+      name: appErr.name,
+      message: appErr.message,
+      code: appErr.extensions.code,
+      httpStatus: appErr.extensions.httpStatus,
+      requestId: appErr.extensions.requestId,
+      entityType: appErr.extensions.entityType,
+      entityId: appErr.extensions.entityId,
 
-  logger.error("Error occurred", {
-    ...errorObj,
+      // Observability fields
+      dbProvider: appErr.extensions.dbProvider,
+      neo4j: appErr.extensions.neo4j,
+      mongo: appErr.extensions.mongo,
+
+      // do NOT include originalError here by default (may be huge)
+      // originalError: appErr.extensions.originalError,
+    };
+  }
+
+  // Generic error
+  if (error instanceof Error) {
+    return {
+      isAppError: false,
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    };
+  }
+
+  return {
+    isAppError: false,
+    message: String(error),
+  };
+}
+
+/**
+ * Log an error with context (AppError-aware)
+ */
+export function logError(error: unknown, context?: LogContext): void {
+  const normalized = normalizeErrorForLog(error);
+
+  // Use a stable log message for querying
+  logger.error("error", {
+    ...normalized,
     ...context,
   });
 }
@@ -114,16 +162,18 @@ export function logServiceCall(
 }
 
 /**
- * Log a database operation
+ * Log a database operation (make provider explicit!)
  */
 export function logDatabaseOperation(
+  provider: "mongo" | "neo4j",
   operation: string,
-  collection: string,
+  target: string,
   context?: LogContext
 ): void {
-  logger.debug(`Database operation: ${collection}.${operation}`, {
+  logger.debug(`Database operation: ${provider}.${target}.${operation}`, {
+    provider,
     operation,
-    collection,
+    target,
     ...context,
   });
 }

@@ -1,5 +1,6 @@
 import { GraphQLError } from "graphql";
 import mongoose from "mongoose";
+import type { Neo4jError } from "neo4j-driver";
 
 /**
  * Error codes for the application
@@ -12,14 +13,6 @@ export enum ErrorCode {
   INVALID_CREDENTIALS = "INVALID_CREDENTIALS",
 
   // Not Found
-  USER_NOT_FOUND = "USER_NOT_FOUND",
-  BUSINESS_NOT_FOUND = "BUSINESS_NOT_FOUND",
-  PRODUCT_NOT_FOUND = "PRODUCT_NOT_FOUND",
-  EPISODE_NOT_FOUND = "EPISODE_NOT_FOUND",
-  PERSON_NOT_FOUND = "PERSON_NOT_FOUND",
-  COMPOUND_NOT_FOUND = "COMPOUND_NOT_FOUND",
-  PROTOCOL_NOT_FOUND = "PROTOCOL_NOT_FOUND",
-  CASE_STUDY_NOT_FOUND = "CASE_STUDY_NOT_FOUND",
   ENTITY_NOT_FOUND = "ENTITY_NOT_FOUND",
 
   // Validation
@@ -42,7 +35,6 @@ export enum ErrorCode {
   INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR",
 
   // Rate Limit
-
   RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED",
 }
 
@@ -58,6 +50,19 @@ export interface AppErrorExtensions {
   field?: string;
   entityId?: string;
   entityType?: string;
+
+  /**
+   * Helps observability and tracing:
+   * - distinguish Mongo vs Neo4j issues in dashboards/logs
+   */
+  dbProvider?: "mongo" | "neo4j" | "unknown";
+
+  /**
+   * Safe DB-specific debug payloads.
+   * Keep structured so you can aggregate/filter in logs.
+   */
+  mongo?: Record<string, unknown>;
+  neo4j?: Record<string, unknown>;
 
   /** Never return this to clients in formatError. */
   originalError?: unknown;
@@ -108,6 +113,130 @@ function appError(
 }
 
 /**
+ * ---------------------------------------
+ * Neo4j Error Typing + Narrowers + Debug
+ * ---------------------------------------
+ */
+export type Neo4jErrorLike = Partial<Neo4jError> & {
+  name?: string;
+  message?: string;
+  code?: string;
+  gqlStatus?: string;
+  gqlStatusDescription?: string;
+  classification?: string;
+  retryable?: boolean;
+  retriable?: boolean; // legacy spelling
+  diagnosticRecord?: unknown;
+  cause?: unknown;
+};
+
+export function isNeo4jError(error: unknown): error is Neo4jErrorLike {
+  if (!error || typeof error !== "object") return false;
+
+  const err = error as { name?: unknown; code?: unknown; gqlStatus?: unknown };
+
+  const hasNeo4jName =
+    typeof err.name === "string" &&
+    (err.name === "Neo4jError" || err.name === "GQLError");
+
+  const hasNeo4jCode =
+    typeof err.code === "string" && err.code.startsWith("Neo.");
+
+  const hasGqlStatus = typeof err.gqlStatus === "string";
+
+  return hasNeo4jName || hasNeo4jCode || hasGqlStatus;
+}
+
+export function isNeo4jRetryable(error: unknown): boolean {
+  if (!isNeo4jError(error)) return false;
+
+  const e = error as Neo4jErrorLike;
+
+  if (typeof e.retryable === "boolean") return e.retryable;
+  if (typeof e.retriable === "boolean") return e.retriable;
+
+  const code = e.code ?? "";
+  return code.startsWith("Neo.TransientError");
+}
+
+export function isNeo4jConstraintError(error: unknown): boolean {
+  if (!isNeo4jError(error)) return false;
+  const code = (error as Neo4jErrorLike).code ?? "";
+
+  return (
+    code === "Neo.ClientError.Schema.ConstraintValidationFailed" ||
+    code === "Neo.ClientError.Schema.ConstraintViolation"
+  );
+}
+
+export function isNeo4jAuthError(error: unknown): boolean {
+  if (!isNeo4jError(error)) return false;
+  const code = (error as Neo4jErrorLike).code ?? "";
+
+  return (
+    code === "Neo.ClientError.Security.Unauthorized" ||
+    code === "Neo.ClientError.Security.Forbidden"
+  );
+}
+
+export function isNeo4jSyntaxError(error: unknown): boolean {
+  if (!isNeo4jError(error)) return false;
+  const code = (error as Neo4jErrorLike).code ?? "";
+  return code === "Neo.ClientError.Statement.SyntaxError";
+}
+
+/**
+ * Neo4j: safe debug payload for logs/tracing.
+ * - Keep structured
+ * - Avoid raw error objects
+ */
+export function neo4jErrorDebug(
+  error: unknown,
+  opts?: { includeDiagnosticRecord?: boolean }
+): Record<string, unknown> | null {
+  if (!isNeo4jError(error)) return null;
+
+  const e = error as Neo4jErrorLike;
+
+  return {
+    neo4jCode: e.code,
+    gqlStatus: e.gqlStatus,
+    gqlStatusDescription: e.gqlStatusDescription,
+    classification: e.classification,
+    retryable: e.retryable ?? e.retriable,
+    message: e.message,
+    ...(opts?.includeDiagnosticRecord
+      ? { diagnosticRecord: e.diagnosticRecord }
+      : {}),
+  };
+}
+
+/**
+ * Mongo debug payload (safe-ish; avoid raw documents)
+ */
+export function mongoErrorDebug(
+  error: unknown
+): Record<string, unknown> | null {
+  if (!isMongoOrMongooseError(error)) return null;
+
+  const err = error as any;
+
+  return {
+    name: err?.name,
+    code: err?.code,
+    message: err?.message,
+  };
+}
+
+/**
+ * Toggle whether to include extra db debug fields in the GraphQL response extensions.
+ * (You will still want to strip originalError in formatError.)
+ */
+export function includeDbDebugInResponse(): boolean {
+  return process.env.NODE_ENV !== "production";
+}
+
+/**
  * Factory functions for common errors
  */
 export const Errors = {
@@ -130,15 +259,6 @@ export const Errors = {
       retryAfter: details?.retryAfterSeconds,
       key: details?.key,
       operation: details?.operation,
-    }),
-
-  // If you ever want per-entity codes later, keep this helper
-  entityNotFound: (code: ErrorCode, entityType: string, entityId?: string) =>
-    appError(`${entityType} not found${entityId ? `: ${entityId}` : ""}`, {
-      code,
-      httpStatus: 404,
-      entityType,
-      entityId,
     }),
 
   validation: (message: string, field?: string) =>
@@ -186,10 +306,25 @@ export const Errors = {
       httpStatus: 401,
     }),
 
-  databaseError: (message: string, originalError?: unknown) =>
+  /**
+   * Database error with provider discrimination.
+   *
+   * Use:
+   *  Errors.databaseError("Neo4j database error", err, "neo4j", neo4jErrorDebug(err))
+   *  Errors.databaseError("Mongo database error", err, "mongo", mongoErrorDebug(err))
+   */
+  databaseError: (
+    message: string,
+    originalError?: unknown,
+    provider: AppErrorExtensions["dbProvider"] = "unknown",
+    providerDebug?: Record<string, unknown>
+  ) =>
     appError(message, {
       code: ErrorCode.DATABASE_ERROR,
       httpStatus: 500,
+      dbProvider: provider,
+      ...(provider === "neo4j" ? { neo4j: providerDebug } : {}),
+      ...(provider === "mongo" ? { mongo: providerDebug } : {}),
       originalError,
     }),
 
@@ -266,20 +401,88 @@ function isMongoOrMongooseError(error: unknown): boolean {
   );
 }
 
+/**
+ * Convert arbitrary thrown errors into AppError with observability-friendly extensions.
+ */
 export function toAppError(
   error: unknown,
   defaultMessage: string = "An error occurred"
 ): AppError {
   if (isAppError(error)) return error;
 
-  // Handle duplicate key errors as DUPLICATE_ENTITY (common in unique indexes)
+  // Mongo duplicate key -> DUPLICATE_ENTITY
   if (isMongoDuplicateKeyError(error)) {
     return Errors.duplicate("Entity", "duplicate key");
   }
 
-  // Classify mongoose/mongo errors as DATABASE_ERROR
+  // Mongo/Mongoose -> DATABASE_ERROR with provider + debug
   if (isMongoOrMongooseError(error)) {
-    return Errors.databaseError(defaultMessage, error);
+    const debug = mongoErrorDebug(error) ?? undefined;
+    return Errors.databaseError(defaultMessage, error, "mongo", debug);
+  }
+
+  // Neo4j -> map common cases + include structured Neo4j debug payload
+  if (isNeo4jError(error)) {
+    const debug =
+      neo4jErrorDebug(error, {
+        includeDiagnosticRecord: includeDbDebugInResponse(),
+      }) ?? undefined;
+
+    // Constraint violations -> DUPLICATE_ENTITY (with neo4j debug info)
+    if (isNeo4jConstraintError(error)) {
+      return appError("Constraint violation", {
+        code: ErrorCode.DUPLICATE_ENTITY,
+        httpStatus: 409,
+        dbProvider: "neo4j",
+        neo4j: debug,
+        originalError: error,
+      });
+    }
+
+    // Auth errors -> UNAUTHENTICATED / FORBIDDEN
+    if (isNeo4jAuthError(error)) {
+      const neoCode = (error as Neo4jErrorLike).code ?? "";
+      if (neoCode === "Neo.ClientError.Security.Forbidden") {
+        return appError("Neo4j forbidden", {
+          code: ErrorCode.FORBIDDEN,
+          httpStatus: 403,
+          dbProvider: "neo4j",
+          neo4j: debug,
+          originalError: error,
+        });
+      }
+      return appError("Neo4j unauthorized", {
+        code: ErrorCode.UNAUTHENTICATED,
+        httpStatus: 401,
+        dbProvider: "neo4j",
+        neo4j: debug,
+        originalError: error,
+      });
+    }
+
+    // Syntax / invalid cypher -> INVALID_INPUT
+    if (isNeo4jSyntaxError(error)) {
+      return appError("Cypher syntax error", {
+        code: ErrorCode.INVALID_INPUT,
+        httpStatus: 400,
+        dbProvider: "neo4j",
+        neo4j: debug,
+        originalError: error,
+      });
+    }
+
+    // Retryable / transient -> DATABASE_ERROR but keep neo4j metadata
+    if (isNeo4jRetryable(error)) {
+      return Errors.databaseError(
+        "Neo4j transient error",
+        error,
+        "neo4j",
+        debug
+      );
+    }
+
+    // General Neo4j DB error
+    return Errors.databaseError("Neo4j database error", error, "neo4j", debug);
   }
 
   // Fallback

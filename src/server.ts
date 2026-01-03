@@ -16,7 +16,7 @@ import { connectToDatabase } from "./db/connection.js";
 import { GraphQLContext, createContext } from "./graphql/context.js";
 import { env } from "./config/env.js";
 import { resolvers } from "./graphql/resolvers/index.js";
-import { getIdentityFromAuthHeader, Role } from "./services/auth.js";
+
 import { AppError, ErrorCode, isAppError } from "./lib/errors.js";
 import { logger, logGraphQLOperation, logError } from "./lib/logger.js";
 import { GraphQLFormattedError } from "graphql";
@@ -25,8 +25,6 @@ import { graphqlRateLimitPlugin } from "./lib/rateLimit/graphqlRateLimitPlugin.j
 import { initRedis } from "./lib/redisClient.js";
 import { graphqlRedisRateLimitPlugin } from "./lib/rateLimit/rateLimitPlugin.js";
 import cookieParser from "cookie-parser";
-import { authRouter } from "./routes/authRoutes.js";
-import { initRedisPubSub } from "./lib/redisPubSub.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,7 +32,6 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   await connectToDatabase(env.dbName);
   await initRedis();
-  await initRedisPubSub();
 
   const schemaPath = path.join(__dirname, "graphql", "schema.graphql");
   const typeDefs = readFileSync(schemaPath, "utf8");
@@ -71,19 +68,11 @@ async function startServer() {
 
       context: async (ctx): Promise<GraphQLContext> => {
         const requestId = randomUUID();
-        const authHeader =
-          (ctx.connectionParams?.authorization as string | undefined) ??
-          (ctx.connectionParams?.Authorization as string | undefined);
-
-        const identity = getIdentityFromAuthHeader(authHeader);
-
         const ip = ctx.extra?.request?.socket?.remoteAddress ?? "unknown";
 
         return createContext({
-          userId: identity?.userId ?? null,
-          role: (identity?.role as Role) ?? null,
-          requestId,
           ip,
+          requestId,
         });
       },
     },
@@ -112,23 +101,17 @@ async function startServer() {
 
   await apolloServer.start();
 
-  app.use("/auth", authRouter);
+  // app.use("/auth", authRouter);
 
   app.use(
     "/graphql",
     expressMiddleware(apolloServer, {
       context: async ({ req, res }): Promise<GraphQLContext> => {
         const requestId = randomUUID();
-
-        const authHeader = req.headers.authorization;
-        const identity = getIdentityFromAuthHeader(authHeader);
-
-        const ip = req.ip;
+        const ip = req.ip ?? "unknown";
 
         const ctx = createContext({
-          userId: identity?.userId ?? null,
-          role: (identity?.role as Role) ?? null,
-          ip: req.ip ?? "unknown",
+          ip,
           requestId,
           req,
           res,
@@ -139,7 +122,6 @@ async function startServer() {
           req.body?.operationName,
           {
             requestId,
-            userId: ctx.userId ?? undefined,
             ip: ctx.ip,
             method: req.method,
             path: req.path,
