@@ -119,17 +119,14 @@ type PhysicalLocation {
   region: String
   postalCode: String
   countryCode: String
-  geo: JSON
+  geoLat: Float
+  geoLon: Float
   timezone: String
   jurisdiction: String
   placeTags: [String!]
   hoursOfOperation: String
-  contact: ContactMap
-}
-
-type ContactMap {
-  phone: String
-  email: String
+  contactPhone: String
+  contactEmail: String
 }
 
 type Listing {
@@ -264,9 +261,17 @@ type Organization {
   defaultRegionsAvailable: [String!]
   publicTicker: String
   fundingStage: String
-  employeeCountRange: EmployeeCountRange
-  revenueRangeAnnual: RevenueRangeAnnual
-  valuationRange: ValuationRange
+  employeeCountMin: Int
+  employeeCountMax: Int
+  employeeCountAsOf: DateTime
+  revenueAnnualMin: Float
+  revenueAnnualMax: Float
+  revenueAnnualCurrency: String
+  revenueAnnualAsOf: DateTime
+  valuationMin: Float
+  valuationMax: Float
+  valuationCurrency: String
+  valuationAsOf: DateTime
   validAt: DateTime
   invalidAt: DateTime
   expiredAt: DateTime
@@ -279,34 +284,9 @@ type Organization {
   suppliesCompoundForm: [SuppliesCompoundFormEdge!]
 }
 
-type EmployeeCountRange {
-  min: Int
-  max: Int
-  asOf: DateTime
-}
-
-type RevenueRangeAnnual {
-  min: Float
-  max: Float
-  currency: String
-  asOf: DateTime
-}
-
-type ValuationRange {
-  min: Float
-  max: Float
-  currency: String
-  asOf: DateTime
-}
-
 # ============================================================================
 # Input Types
 # ============================================================================
-
-input ContactMapInput {
-  phone: String
-  email: String
-}
 
 input TemporalValidityInput {
   validAt: DateTime
@@ -325,12 +305,14 @@ input PhysicalLocationInput {
   region: String
   postalCode: String
   countryCode: String
-  geo: JSON
+  geoLat: Float
+  geoLon: Float
   timezone: String
   jurisdiction: String
   placeTags: [String!]
   hoursOfOperation: String
-  contact: ContactMapInput
+  contactPhone: String
+  contactEmail: String
 }
 
 input ListingInput {
@@ -395,12 +377,14 @@ input PhysicalLocationUpdateInput {
   region: String
   postalCode: String
   countryCode: String
-  geo: JSON
+  geoLat: Float
+  geoLon: Float
   timezone: String
   jurisdiction: String
   placeTags: [String!]
   hoursOfOperation: String
-  contact: ContactMapInput
+  contactPhone: String
+  contactEmail: String
 }
 
 input ListingUpdateInput {
@@ -646,26 +630,6 @@ input SuppliesCompoundFormRelationshipUpdateInput {
   createdAt: DateTime
 }
 
-input EmployeeCountRangeInput {
-  min: Int
-  max: Int
-  asOf: DateTime
-}
-
-input RevenueRangeAnnualInput {
-  min: Float
-  max: Float
-  currency: String
-  asOf: DateTime
-}
-
-input ValuationRangeInput {
-  min: Float
-  max: Float
-  currency: String
-  asOf: DateTime
-}
-
 input OrganizationInput {
   organizationId: ID
   name: String!
@@ -684,9 +648,17 @@ input OrganizationInput {
   defaultRegionsAvailable: [String!]
   publicTicker: String
   fundingStage: String
-  employeeCountRange: EmployeeCountRangeInput
-  revenueRangeAnnual: RevenueRangeAnnualInput
-  valuationRange: ValuationRangeInput
+  employeeCountMin: Int
+  employeeCountMax: Int
+  employeeCountAsOf: DateTime
+  revenueAnnualMin: Float
+  revenueAnnualMax: Float
+  revenueAnnualCurrency: String
+  revenueAnnualAsOf: DateTime
+  valuationMin: Float
+  valuationMax: Float
+  valuationCurrency: String
+  valuationAsOf: DateTime
   validAt: DateTime
   invalidAt: DateTime
   expiredAt: DateTime
@@ -717,9 +689,17 @@ input UpdateOrganizationInput {
   defaultRegionsAvailable: [String!]
   publicTicker: String
   fundingStage: String
-  employeeCountRange: EmployeeCountRangeInput
-  revenueRangeAnnual: RevenueRangeAnnualInput
-  valuationRange: ValuationRangeInput
+  employeeCountMin: Int
+  employeeCountMax: Int
+  employeeCountAsOf: DateTime
+  revenueAnnualMin: Float
+  revenueAnnualMax: Float
+  revenueAnnualCurrency: String
+  revenueAnnualAsOf: DateTime
+  valuationMin: Float
+  valuationMax: Float
+  valuationCurrency: String
+  valuationAsOf: DateTime
   validAt: DateTime
   invalidAt: DateTime
   expiredAt: DateTime

@@ -1,6 +1,7 @@
 import { GraphQLScalarType, Kind } from "graphql";
 import { Mutation } from "./Mutation.js";
 import { Query } from "./Query.js";
+import { OrganizationResolvers } from "./OrganizationResolvers.js";
 
 const DateTimeScalar = new GraphQLScalarType({
   name: "DateTime",
@@ -28,5 +29,8 @@ export const resolvers = {
   },
   Query: {
     ...Query,
+  },
+  Organization: {
+    ...OrganizationResolvers,
   },
 };

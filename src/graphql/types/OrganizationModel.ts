@@ -10,16 +10,26 @@ import {
   ListRoleEnum,
   ChannelEnum,
 } from "../enums/index.js";
+import {
+  Neo4jDateString,
+  Neo4jDateTimeString,
+} from "../utils/dateTimeUtils.js";
 
 // ============================================================================
 // Temporal Validity Schema (used on all relationships)
 // ============================================================================
+//
+// Model layer should validate the RETURNED shape.
+// If your API returns ISO strings (recommended), validate using these.
+// - Date-only: Neo4jDateString ("YYYY-MM-DD")
+// - DateTime: Neo4jDateTimeString (ISO datetime)
+//
 
 export const TemporalValiditySchema = z.object({
-  validAt: z.date().nullable(),
-  invalidAt: z.date().nullable(),
-  expiredAt: z.date().nullable(),
-  createdAt: z.date(),
+  validAt: Neo4jDateTimeString, // was z.date().nullable()
+  invalidAt: Neo4jDateTimeString, // was z.date().nullable()
+  expiredAt: Neo4jDateTimeString, // was z.date().nullable()
+  createdAt: Neo4jDateTimeString, // was z.date()
 });
 
 export type TemporalValidity = z.infer<typeof TemporalValiditySchema>;
@@ -39,19 +49,14 @@ export const PhysicalLocationSchema = z.object({
   region: z.string().nullable(),
   postalCode: z.string().nullable(),
   countryCode: z.string().nullable(),
-  // geo: Point - will be handled as JSON/map in GraphQL
-  geo: z.record(z.string(), z.unknown()).nullable(),
+  geoLat: z.number().nullable(),
+  geoLon: z.number().nullable(),
   timezone: z.string().nullable(),
   jurisdiction: z.string().nullable(),
   placeTags: z.array(z.string()).nullable(),
   hoursOfOperation: z.string().nullable(),
-  // contact: Map - will be handled as JSON object
-  contact: z
-    .object({
-      phone: z.string().optional(),
-      email: z.string().optional(),
-    })
-    .nullable(),
+  contactPhone: z.string().nullable(),
+  contactEmail: z.string().nullable(),
 });
 
 export type PhysicalLocation = z.infer<typeof PhysicalLocationSchema>;
@@ -122,8 +127,8 @@ export const HasLocationEdgeSchema = TemporalValiditySchema.extend({
   location: PhysicalLocationSchema,
   locationRole: z.string(),
   isPrimary: z.boolean().nullable(),
-  startDate: z.date().nullable(),
-  endDate: z.date().nullable(),
+  startDate: Neo4jDateString, // was z.date().nullable()
+  endDate: Neo4jDateString, // was z.date().nullable()
   claimIds: z.array(z.string()),
 });
 
@@ -135,8 +140,8 @@ export const OwnsOrControlsEdgeSchema = TemporalValiditySchema.extend({
   relationshipType: z.string(),
   ownershipPercent: z.number().nullable(),
   controlType: z.string().nullable(),
-  effectiveFrom: z.date().nullable(),
-  effectiveTo: z.date().nullable(),
+  effectiveFrom: Neo4jDateString, // was z.date().nullable()
+  effectiveTo: Neo4jDateString, // was z.date().nullable()
   isCurrent: z.boolean().nullable(),
   claimIds: z.array(z.string()),
 });
@@ -197,36 +202,32 @@ export const OrganizationSchema: z.ZodType<any> = z.object({
   defaultRegionsAvailable: z.array(z.string()).nullable(),
   publicTicker: z.string().nullable(),
   fundingStage: z.string().nullable(),
-  // employeeCountRange: Map {min:Int,max:Int,asOf:Date}
-  employeeCountRange: z
-    .object({
-      min: z.number().optional(),
-      max: z.number().optional(),
-      asOf: z.date().optional(),
-    })
-    .nullable(),
-  // revenueRangeAnnual: Map {min:Float,max:Float,currency:String,asOf:Date}
-  revenueRangeAnnual: z
-    .object({
-      min: z.number().optional(),
-      max: z.number().optional(),
-      currency: z.string().optional(),
-      asOf: z.date().optional(),
-    })
-    .nullable(),
-  // valuationRange: Map {min:Float,max:Float,currency:String,asOf:Date}
-  valuationRange: z
-    .object({
-      min: z.number().optional(),
-      max: z.number().optional(),
-      currency: z.string().optional(),
-      asOf: z.date().optional(),
-    })
-    .nullable(),
-  validAt: z.date().nullable(),
-  invalidAt: z.date().nullable(),
-  expiredAt: z.date().nullable(),
-  createdAt: z.date(),
+  employeeCountMin: z.number().int().nullable(),
+  employeeCountMax: z.number().int().nullable(),
+
+  // DATE-only
+  employeeCountAsOf: Neo4jDateString, // was z.date().nullable()
+
+  revenueAnnualMin: z.number().nullable(),
+  revenueAnnualMax: z.number().nullable(),
+  revenueAnnualCurrency: z.string().nullable(),
+
+  // DATE-only
+  revenueAnnualAsOf: Neo4jDateString, // was z.date().nullable()
+
+  valuationMin: z.number().nullable(),
+  valuationMax: z.number().nullable(),
+  valuationCurrency: z.string().nullable(),
+
+  // DATE-only
+  valuationAsOf: Neo4jDateString, // was z.date().nullable()
+
+  // DATETIME
+  validAt: Neo4jDateTimeString, // was z.date().nullable()
+  invalidAt: Neo4jDateTimeString, // was z.date().nullable()
+  expiredAt: Neo4jDateTimeString, // was z.date().nullable()
+  createdAt: Neo4jDateTimeString, // was z.date()
+
   // Relationships as arrays of edge types
   hasLocation: z.array(HasLocationEdgeSchema).nullable(),
   ownsOrControls: z.array(OwnsOrControlsEdgeSchema).nullable(),

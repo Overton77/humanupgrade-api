@@ -25,6 +25,7 @@ import { graphqlRateLimitPlugin } from "./lib/rateLimit/graphqlRateLimitPlugin.j
 import { initRedis } from "./lib/redisClient.js";
 import { graphqlRedisRateLimitPlugin } from "./lib/rateLimit/rateLimitPlugin.js";
 import cookieParser from "cookie-parser";
+import { createEntityLoaders } from "./graphql/loaders/entityLoaders.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -73,6 +74,9 @@ async function startServer() {
         return createContext({
           ip,
           requestId,
+          loaders: {
+            entities: createEntityLoaders(),
+          },
         });
       },
     },
@@ -115,6 +119,9 @@ async function startServer() {
           requestId,
           req,
           res,
+          loaders: {
+            entities: createEntityLoaders(),
+          },
         });
 
         logGraphQLOperation(

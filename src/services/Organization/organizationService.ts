@@ -19,92 +19,6 @@ import {
 } from "../../graphql/inputs/OrganizationInputs.js";
 import { Organization } from "../../graphql/types/OrganizationModel.js";
 
-const NEO4J_STRUCTURAL_KEYS = new Set([
-  // relationship arrays on Organization input
-  "hasLocation",
-  "ownsOrControls",
-  "lists",
-  "offersProduct",
-  "suppliesCompoundForm",
-
-  // relate wrappers
-  "location",
-  "organization",
-  "listing",
-  "product",
-  "compoundForm",
-
-  // relate operations
-  "create",
-  "connect",
-  "update",
-]);
-
-function toJsonString(value: unknown): string {
-  return JSON.stringify(value, (_k, v) => {
-    if (v instanceof Date) return v.toISOString();
-    return v;
-  });
-}
-
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return (
-    typeof v === "object" &&
-    v !== null &&
-    !Array.isArray(v) &&
-    !(v instanceof Date)
-  );
-}
-
-/**
- * Makes params safe for Cypher patterns like:
- *   SET n += { someProp: $someProp }
- * by ensuring no Neo4j property receives a Map.
- *
- * Strategy:
- * - preserve structural relationship nesting objects so Cypher can access fields
- * - stringify any other plain object encountered
- */
-function normalizeParamsForNeo4j(input: any): any {
-  const seen = new WeakMap<object, any>();
-
-  const walk = (v: any, keyHint?: string): any => {
-    if (v === null || v === undefined) return v;
-    if (typeof v !== "object") return v;
-    if (v instanceof Date) return v;
-
-    if (seen.has(v)) return seen.get(v);
-
-    if (Array.isArray(v)) {
-      const arr: any[] = [];
-      seen.set(v, arr);
-      for (const item of v) arr.push(walk(item));
-      return arr;
-    }
-
-    // Plain object
-    const obj = v as Record<string, any>;
-
-    // If this object is *not* a structural container, stringify it.
-    // keyHint is the parent key name that contained this object.
-    if (keyHint && !NEO4J_STRUCTURAL_KEYS.has(keyHint)) {
-      return toJsonString(obj);
-    }
-
-    // Otherwise recurse and decide per child key.
-    const out: Record<string, any> = {};
-    seen.set(v, out);
-
-    for (const [k, child] of Object.entries(obj)) {
-      out[k] = walk(child, k);
-    }
-
-    return out;
-  };
-
-  return walk(input);
-}
-
 const HAS_LOCATION_RELATIONSHIP_LABEL = "HAS_LOCATION";
 const OWNS_OR_CONTROLS_RELATIONSHIP_LABEL = "OWNS_OR_CONTROLS";
 const LIST_RELATIONSHIP_LABEL = "LIST";
@@ -122,13 +36,48 @@ export async function createOrganizationWithOptionalRelations(
     "OrganizationInputWithOptionalRelations"
   );
 
-  // Ensure invalidAt and expiredAt are always present in parameters (even if undefined)
-  // to avoid Neo4j "Expected parameter" errors
-  const params = normalizeParamsForNeo4j({
-    ...validated,
+  // Extract only primitive properties for the main Organization SET statement
+  // Relationship arrays are handled separately in UNWIND clauses
+  const params = {
+    organizationId: validated.organizationId,
+    name: validated.name,
+    aliases: validated.aliases ?? null,
+    orgType: validated.orgType,
+    description: validated.description ?? null,
+    businessModel: validated.businessModel ?? null,
+    primaryIndustryTags: validated.primaryIndustryTags ?? null,
+    regionsServed: validated.regionsServed ?? null,
+    legalName: validated.legalName ?? null,
+    legalStructure: validated.legalStructure ?? null,
+    ownershipType: validated.ownershipType ?? null,
+    jurisdictionsOfIncorporation:
+      validated.jurisdictionsOfIncorporation ?? null,
+    websiteUrl: validated.websiteUrl ?? null,
+    defaultCollectionModes: validated.defaultCollectionModes ?? null,
+    defaultRegionsAvailable: validated.defaultRegionsAvailable ?? null,
+    publicTicker: validated.publicTicker ?? null,
+    fundingStage: validated.fundingStage ?? null,
+    employeeCountMin: validated.employeeCountMin ?? null,
+    employeeCountMax: validated.employeeCountMax ?? null,
+    employeeCountAsOf: validated.employeeCountAsOf ?? null,
+    revenueAnnualMin: validated.revenueAnnualMin ?? null,
+    revenueAnnualMax: validated.revenueAnnualMax ?? null,
+    revenueAnnualCurrency: validated.revenueAnnualCurrency ?? null,
+    revenueAnnualAsOf: validated.revenueAnnualAsOf ?? null,
+    valuationMin: validated.valuationMin ?? null,
+    valuationMax: validated.valuationMax ?? null,
+    valuationCurrency: validated.valuationCurrency ?? null,
+    valuationAsOf: validated.valuationAsOf ?? null,
+    validAt: validated.validAt ?? null,
     invalidAt: validated.invalidAt ?? null,
     expiredAt: validated.expiredAt ?? null,
-  });
+    // Relationship arrays - these are used in UNWIND clauses
+    hasLocation: validated.hasLocation ?? null,
+    ownsOrControls: validated.ownsOrControls ?? null,
+    lists: validated.lists ?? null,
+    offersProduct: validated.offersProduct ?? null,
+    suppliesCompoundForm: validated.suppliesCompoundForm ?? null,
+  };
 
   try {
     const organization = await executeWrite(async (tx) => {
@@ -155,9 +104,17 @@ SET o += {
   defaultRegionsAvailable: CASE WHEN $defaultRegionsAvailable IS NULL THEN o.defaultRegionsAvailable ELSE $defaultRegionsAvailable END,
   publicTicker: CASE WHEN $publicTicker IS NULL THEN o.publicTicker ELSE $publicTicker END,
   fundingStage: CASE WHEN $fundingStage IS NULL THEN o.fundingStage ELSE $fundingStage END,
-  employeeCountRange: CASE WHEN $employeeCountRange IS NULL THEN o.employeeCountRange ELSE $employeeCountRange END,
-  revenueRangeAnnual: CASE WHEN $revenueRangeAnnual IS NULL THEN o.revenueRangeAnnual ELSE $revenueRangeAnnual END,
-  valuationRange: CASE WHEN $valuationRange IS NULL THEN o.valuationRange ELSE $valuationRange END,
+  employeeCountMin: CASE WHEN $employeeCountMin IS NULL THEN o.employeeCountMin ELSE $employeeCountMin END,
+  employeeCountMax: CASE WHEN $employeeCountMax IS NULL THEN o.employeeCountMax ELSE $employeeCountMax END,
+  employeeCountAsOf: CASE WHEN $employeeCountAsOf IS NULL THEN o.employeeCountAsOf ELSE $employeeCountAsOf END,
+  revenueAnnualMin: CASE WHEN $revenueAnnualMin IS NULL THEN o.revenueAnnualMin ELSE $revenueAnnualMin END,
+  revenueAnnualMax: CASE WHEN $revenueAnnualMax IS NULL THEN o.revenueAnnualMax ELSE $revenueAnnualMax END,
+  revenueAnnualCurrency: CASE WHEN $revenueAnnualCurrency IS NULL THEN o.revenueAnnualCurrency ELSE $revenueAnnualCurrency END,
+  revenueAnnualAsOf: CASE WHEN $revenueAnnualAsOf IS NULL THEN o.revenueAnnualAsOf ELSE $revenueAnnualAsOf END,
+  valuationMin: CASE WHEN $valuationMin IS NULL THEN o.valuationMin ELSE $valuationMin END,
+  valuationMax: CASE WHEN $valuationMax IS NULL THEN o.valuationMax ELSE $valuationMax END,
+  valuationCurrency: CASE WHEN $valuationCurrency IS NULL THEN o.valuationCurrency ELSE $valuationCurrency END,
+  valuationAsOf: CASE WHEN $valuationAsOf IS NULL THEN o.valuationAsOf ELSE $valuationAsOf END,
   validAt: CASE WHEN $validAt IS NULL THEN o.validAt ELSE $validAt END,
   invalidAt: CASE WHEN $invalidAt IS NULL THEN o.invalidAt ELSE $invalidAt END,
   expiredAt: CASE WHEN $expiredAt IS NULL THEN o.expiredAt ELSE $expiredAt END
@@ -182,20 +139,22 @@ CALL {
   ON CREATE SET p.createdAt = datetime()
 
   SET p += {
-    canonicalName: rel.location.create.canonicalName,
-    locationType: rel.location.create.locationType,
-    addressLine1: rel.location.create.addressLine1,
-    addressLine2: rel.location.create.addressLine2,
-    city: rel.location.create.city,
-    region: rel.location.create.region,
-    postalCode: rel.location.create.postalCode,
-    countryCode: rel.location.create.countryCode,
-    geo: rel.location.create.geo,
-    timezone: rel.location.create.timezone,
-    jurisdiction: rel.location.create.jurisdiction,
-    placeTags: rel.location.create.placeTags,
-    hoursOfOperation: rel.location.create.hoursOfOperation,
-    contact: rel.location.create.contact
+    canonicalName: CASE WHEN rel.location.create.canonicalName IS NULL THEN p.canonicalName ELSE rel.location.create.canonicalName END,
+    locationType: CASE WHEN rel.location.create.locationType IS NULL THEN p.locationType ELSE rel.location.create.locationType END,
+    addressLine1: CASE WHEN rel.location.create.addressLine1 IS NULL THEN p.addressLine1 ELSE rel.location.create.addressLine1 END,
+    addressLine2: CASE WHEN rel.location.create.addressLine2 IS NULL THEN p.addressLine2 ELSE rel.location.create.addressLine2 END,
+    city: CASE WHEN rel.location.create.city IS NULL THEN p.city ELSE rel.location.create.city END,
+    region: CASE WHEN rel.location.create.region IS NULL THEN p.region ELSE rel.location.create.region END,
+    postalCode: CASE WHEN rel.location.create.postalCode IS NULL THEN p.postalCode ELSE rel.location.create.postalCode END,
+    countryCode: CASE WHEN rel.location.create.countryCode IS NULL THEN p.countryCode ELSE rel.location.create.countryCode END,
+    geoLat: CASE WHEN rel.location.create.geoLat IS NULL THEN p.geoLat ELSE rel.location.create.geoLat END,
+    geoLon: CASE WHEN rel.location.create.geoLon IS NULL THEN p.geoLon ELSE rel.location.create.geoLon END,
+    timezone: CASE WHEN rel.location.create.timezone IS NULL THEN p.timezone ELSE rel.location.create.timezone END,
+    jurisdiction: CASE WHEN rel.location.create.jurisdiction IS NULL THEN p.jurisdiction ELSE rel.location.create.jurisdiction END,
+    placeTags: CASE WHEN rel.location.create.placeTags IS NULL THEN p.placeTags ELSE rel.location.create.placeTags END,
+    hoursOfOperation: CASE WHEN rel.location.create.hoursOfOperation IS NULL THEN p.hoursOfOperation ELSE rel.location.create.hoursOfOperation END,
+    contactPhone: CASE WHEN rel.location.create.contactPhone IS NULL THEN p.contactPhone ELSE rel.location.create.contactPhone END,
+    contactEmail: CASE WHEN rel.location.create.contactEmail IS NULL THEN p.contactEmail ELSE rel.location.create.contactEmail END
   }
 
   MERGE (o)-[l:HAS_LOCATION]->(p)
@@ -258,28 +217,36 @@ CALL {
   ON CREATE SET other.createdAt = datetime()
 
   SET other += {
-    name: ocRel.organization.create.name,
-    aliases: ocRel.organization.create.aliases,
-    orgType: ocRel.organization.create.orgType,
-    description: ocRel.organization.create.description,
-    businessModel: ocRel.organization.create.businessModel,
-    primaryIndustryTags: ocRel.organization.create.primaryIndustryTags,
-    regionsServed: ocRel.organization.create.regionsServed,
-    legalName: ocRel.organization.create.legalName,
-    legalStructure: ocRel.organization.create.legalStructure,
-    ownershipType: ocRel.organization.create.ownershipType,
-    jurisdictionsOfIncorporation: ocRel.organization.create.jurisdictionsOfIncorporation,
-    websiteUrl: ocRel.organization.create.websiteUrl,
-    defaultCollectionModes: ocRel.organization.create.defaultCollectionModes,
-    defaultRegionsAvailable: ocRel.organization.create.defaultRegionsAvailable,
-    publicTicker: ocRel.organization.create.publicTicker,
-    fundingStage: ocRel.organization.create.fundingStage,
-    employeeCountRange: ocRel.organization.create.employeeCountRange,
-    revenueRangeAnnual: ocRel.organization.create.revenueRangeAnnual,
-    valuationRange: ocRel.organization.create.valuationRange,
-    validAt: ocRel.organization.create.validAt,
-    invalidAt: ocRel.organization.create.invalidAt,
-    expiredAt: ocRel.organization.create.expiredAt
+    name: CASE WHEN ocRel.organization.create.name IS NULL THEN other.name ELSE ocRel.organization.create.name END,
+    aliases: CASE WHEN ocRel.organization.create.aliases IS NULL THEN other.aliases ELSE ocRel.organization.create.aliases END,
+    orgType: CASE WHEN ocRel.organization.create.orgType IS NULL THEN other.orgType ELSE ocRel.organization.create.orgType END,
+    description: CASE WHEN ocRel.organization.create.description IS NULL THEN other.description ELSE ocRel.organization.create.description END,
+    businessModel: CASE WHEN ocRel.organization.create.businessModel IS NULL THEN other.businessModel ELSE ocRel.organization.create.businessModel END,
+    primaryIndustryTags: CASE WHEN ocRel.organization.create.primaryIndustryTags IS NULL THEN other.primaryIndustryTags ELSE ocRel.organization.create.primaryIndustryTags END,
+    regionsServed: CASE WHEN ocRel.organization.create.regionsServed IS NULL THEN other.regionsServed ELSE ocRel.organization.create.regionsServed END,
+    legalName: CASE WHEN ocRel.organization.create.legalName IS NULL THEN other.legalName ELSE ocRel.organization.create.legalName END,
+    legalStructure: CASE WHEN ocRel.organization.create.legalStructure IS NULL THEN other.legalStructure ELSE ocRel.organization.create.legalStructure END,
+    ownershipType: CASE WHEN ocRel.organization.create.ownershipType IS NULL THEN other.ownershipType ELSE ocRel.organization.create.ownershipType END,
+    jurisdictionsOfIncorporation: CASE WHEN ocRel.organization.create.jurisdictionsOfIncorporation IS NULL THEN other.jurisdictionsOfIncorporation ELSE ocRel.organization.create.jurisdictionsOfIncorporation END,
+    websiteUrl: CASE WHEN ocRel.organization.create.websiteUrl IS NULL THEN other.websiteUrl ELSE ocRel.organization.create.websiteUrl END,
+    defaultCollectionModes: CASE WHEN ocRel.organization.create.defaultCollectionModes IS NULL THEN other.defaultCollectionModes ELSE ocRel.organization.create.defaultCollectionModes END,
+    defaultRegionsAvailable: CASE WHEN ocRel.organization.create.defaultRegionsAvailable IS NULL THEN other.defaultRegionsAvailable ELSE ocRel.organization.create.defaultRegionsAvailable END,
+    publicTicker: CASE WHEN ocRel.organization.create.publicTicker IS NULL THEN other.publicTicker ELSE ocRel.organization.create.publicTicker END,
+    fundingStage: CASE WHEN ocRel.organization.create.fundingStage IS NULL THEN other.fundingStage ELSE ocRel.organization.create.fundingStage END,
+    employeeCountMin: CASE WHEN ocRel.organization.create.employeeCountMin IS NULL THEN other.employeeCountMin ELSE ocRel.organization.create.employeeCountMin END,
+    employeeCountMax: CASE WHEN ocRel.organization.create.employeeCountMax IS NULL THEN other.employeeCountMax ELSE ocRel.organization.create.employeeCountMax END,
+    employeeCountAsOf: CASE WHEN ocRel.organization.create.employeeCountAsOf IS NULL THEN other.employeeCountAsOf ELSE ocRel.organization.create.employeeCountAsOf END,
+    revenueAnnualMin: CASE WHEN ocRel.organization.create.revenueAnnualMin IS NULL THEN other.revenueAnnualMin ELSE ocRel.organization.create.revenueAnnualMin END,
+    revenueAnnualMax: CASE WHEN ocRel.organization.create.revenueAnnualMax IS NULL THEN other.revenueAnnualMax ELSE ocRel.organization.create.revenueAnnualMax END,
+    revenueAnnualCurrency: CASE WHEN ocRel.organization.create.revenueAnnualCurrency IS NULL THEN other.revenueAnnualCurrency ELSE ocRel.organization.create.revenueAnnualCurrency END,
+    revenueAnnualAsOf: CASE WHEN ocRel.organization.create.revenueAnnualAsOf IS NULL THEN other.revenueAnnualAsOf ELSE ocRel.organization.create.revenueAnnualAsOf END,
+    valuationMin: CASE WHEN ocRel.organization.create.valuationMin IS NULL THEN other.valuationMin ELSE ocRel.organization.create.valuationMin END,
+    valuationMax: CASE WHEN ocRel.organization.create.valuationMax IS NULL THEN other.valuationMax ELSE ocRel.organization.create.valuationMax END,
+    valuationCurrency: CASE WHEN ocRel.organization.create.valuationCurrency IS NULL THEN other.valuationCurrency ELSE ocRel.organization.create.valuationCurrency END,
+    valuationAsOf: CASE WHEN ocRel.organization.create.valuationAsOf IS NULL THEN other.valuationAsOf ELSE ocRel.organization.create.valuationAsOf END,
+    validAt: CASE WHEN ocRel.organization.create.validAt IS NULL THEN other.validAt ELSE ocRel.organization.create.validAt END,
+    invalidAt: CASE WHEN ocRel.organization.create.invalidAt IS NULL THEN other.invalidAt ELSE ocRel.organization.create.invalidAt END,
+    expiredAt: CASE WHEN ocRel.organization.create.expiredAt IS NULL THEN other.expiredAt ELSE ocRel.organization.create.expiredAt END
   }
 
   MERGE (o)-[r:OWNS_OR_CONTROLS]->(other)
@@ -317,21 +284,21 @@ CALL {
   ON CREATE SET lst.createdAt = datetime()
 
   SET lst += {
-    listingDomain: listRel.listing.create.listingDomain,
-    title: listRel.listing.create.title,
-    description: listRel.listing.create.description,
-    sku: listRel.listing.create.sku,
-    url: listRel.listing.create.url,
-    brandName: listRel.listing.create.brandName,
-    currency: listRel.listing.create.currency,
-    priceAmount: listRel.listing.create.priceAmount,
-    priceType: listRel.listing.create.priceType,
-    pricingNotes: listRel.listing.create.pricingNotes,
-    constraints: listRel.listing.create.constraints,
-    regionsAvailable: listRel.listing.create.regionsAvailable,
-    requiresAppointment: listRel.listing.create.requiresAppointment,
-    collectionMode: listRel.listing.create.collectionMode,
-    turnaroundTime: listRel.listing.create.turnaroundTime
+    listingDomain: CASE WHEN listRel.listing.create.listingDomain IS NULL THEN lst.listingDomain ELSE listRel.listing.create.listingDomain END,
+    title: CASE WHEN listRel.listing.create.title IS NULL THEN lst.title ELSE listRel.listing.create.title END,
+    description: CASE WHEN listRel.listing.create.description IS NULL THEN lst.description ELSE listRel.listing.create.description END,
+    sku: CASE WHEN listRel.listing.create.sku IS NULL THEN lst.sku ELSE listRel.listing.create.sku END,
+    url: CASE WHEN listRel.listing.create.url IS NULL THEN lst.url ELSE listRel.listing.create.url END,
+    brandName: CASE WHEN listRel.listing.create.brandName IS NULL THEN lst.brandName ELSE listRel.listing.create.brandName END,
+    currency: CASE WHEN listRel.listing.create.currency IS NULL THEN lst.currency ELSE listRel.listing.create.currency END,
+    priceAmount: CASE WHEN listRel.listing.create.priceAmount IS NULL THEN lst.priceAmount ELSE listRel.listing.create.priceAmount END,
+    priceType: CASE WHEN listRel.listing.create.priceType IS NULL THEN lst.priceType ELSE listRel.listing.create.priceType END,
+    pricingNotes: CASE WHEN listRel.listing.create.pricingNotes IS NULL THEN lst.pricingNotes ELSE listRel.listing.create.pricingNotes END,
+    constraints: CASE WHEN listRel.listing.create.constraints IS NULL THEN lst.constraints ELSE listRel.listing.create.constraints END,
+    regionsAvailable: CASE WHEN listRel.listing.create.regionsAvailable IS NULL THEN lst.regionsAvailable ELSE listRel.listing.create.regionsAvailable END,
+    requiresAppointment: CASE WHEN listRel.listing.create.requiresAppointment IS NULL THEN lst.requiresAppointment ELSE listRel.listing.create.requiresAppointment END,
+    collectionMode: CASE WHEN listRel.listing.create.collectionMode IS NULL THEN lst.collectionMode ELSE listRel.listing.create.collectionMode END,
+    turnaroundTime: CASE WHEN listRel.listing.create.turnaroundTime IS NULL THEN lst.turnaroundTime ELSE listRel.listing.create.turnaroundTime END
   }
 
   MERGE (o)-[r:LIST]->(lst)
@@ -368,20 +335,20 @@ CALL {
   ON CREATE SET p.createdAt = datetime()
 
   SET p += {
-    name: prodRel.product.create.name,
-    synonyms: prodRel.product.create.synonyms,
-    productDomain: prodRel.product.create.productDomain,
-    productType: prodRel.product.create.productType,
-    intendedUse: prodRel.product.create.intendedUse,
-    description: prodRel.product.create.description,
-    brandName: prodRel.product.create.brandName,
-    modelNumber: prodRel.product.create.modelNumber,
-    ndcCode: prodRel.product.create.ndcCode,
-    upc: prodRel.product.create.upc,
-    gtin: prodRel.product.create.gtin,
-    riskClass: prodRel.product.create.riskClass,
-    currency: prodRel.product.create.currency,
-    priceAmount: prodRel.product.create.priceAmount
+    name: CASE WHEN prodRel.product.create.name IS NULL THEN p.name ELSE prodRel.product.create.name END,
+    synonyms: CASE WHEN prodRel.product.create.synonyms IS NULL THEN p.synonyms ELSE prodRel.product.create.synonyms END,
+    productDomain: CASE WHEN prodRel.product.create.productDomain IS NULL THEN p.productDomain ELSE prodRel.product.create.productDomain END,
+    productType: CASE WHEN prodRel.product.create.productType IS NULL THEN p.productType ELSE prodRel.product.create.productType END,
+    intendedUse: CASE WHEN prodRel.product.create.intendedUse IS NULL THEN p.intendedUse ELSE prodRel.product.create.intendedUse END,
+    description: CASE WHEN prodRel.product.create.description IS NULL THEN p.description ELSE prodRel.product.create.description END,
+    brandName: CASE WHEN prodRel.product.create.brandName IS NULL THEN p.brandName ELSE prodRel.product.create.brandName END,
+    modelNumber: CASE WHEN prodRel.product.create.modelNumber IS NULL THEN p.modelNumber ELSE prodRel.product.create.modelNumber END,
+    ndcCode: CASE WHEN prodRel.product.create.ndcCode IS NULL THEN p.ndcCode ELSE prodRel.product.create.ndcCode END,
+    upc: CASE WHEN prodRel.product.create.upc IS NULL THEN p.upc ELSE prodRel.product.create.upc END,
+    gtin: CASE WHEN prodRel.product.create.gtin IS NULL THEN p.gtin ELSE prodRel.product.create.gtin END,
+    riskClass: CASE WHEN prodRel.product.create.riskClass IS NULL THEN p.riskClass ELSE prodRel.product.create.riskClass END,
+    currency: CASE WHEN prodRel.product.create.currency IS NULL THEN p.currency ELSE prodRel.product.create.currency END,
+    priceAmount: CASE WHEN prodRel.product.create.priceAmount IS NULL THEN p.priceAmount ELSE prodRel.product.create.priceAmount END
   }
 
   MERGE (o)-[r:OFFERS_PRODUCT]->(p)
@@ -412,13 +379,13 @@ CALL {
   ON CREATE SET cf.createdAt = datetime()
 
   SET cf += {
-    canonicalName: cfRel.compoundForm.create.canonicalName,
-    formType: cfRel.compoundForm.create.formType,
-    chemicalDifferences: cfRel.compoundForm.create.chemicalDifferences,
-    stabilityProfile: cfRel.compoundForm.create.stabilityProfile,
-    solubilityProfile: cfRel.compoundForm.create.solubilityProfile,
-    bioavailabilityNotes: cfRel.compoundForm.create.bioavailabilityNotes,
-    regulatoryStatusSummary: cfRel.compoundForm.create.regulatoryStatusSummary
+    canonicalName: CASE WHEN cfRel.compoundForm.create.canonicalName IS NULL THEN cf.canonicalName ELSE cfRel.compoundForm.create.canonicalName END,
+    formType: CASE WHEN cfRel.compoundForm.create.formType IS NULL THEN cf.formType ELSE cfRel.compoundForm.create.formType END,
+    chemicalDifferences: CASE WHEN cfRel.compoundForm.create.chemicalDifferences IS NULL THEN cf.chemicalDifferences ELSE cfRel.compoundForm.create.chemicalDifferences END,
+    stabilityProfile: CASE WHEN cfRel.compoundForm.create.stabilityProfile IS NULL THEN cf.stabilityProfile ELSE cfRel.compoundForm.create.stabilityProfile END,
+    solubilityProfile: CASE WHEN cfRel.compoundForm.create.solubilityProfile IS NULL THEN cf.solubilityProfile ELSE cfRel.compoundForm.create.solubilityProfile END,
+    bioavailabilityNotes: CASE WHEN cfRel.compoundForm.create.bioavailabilityNotes IS NULL THEN cf.bioavailabilityNotes ELSE cfRel.compoundForm.create.bioavailabilityNotes END,
+    regulatoryStatusSummary: CASE WHEN cfRel.compoundForm.create.regulatoryStatusSummary IS NULL THEN cf.regulatoryStatusSummary ELSE cfRel.compoundForm.create.regulatoryStatusSummary END
   }
 
   MERGE (o)-[r:SUPPLIES_COMPOUND_FORM]->(cf)
@@ -455,207 +422,18 @@ RETURN o
 }
 
 export async function findAllOrganizations(): Promise<Organization[]> {
-  const parseJsonOrNull = <T>(value: unknown, label: string): T | null => {
-    if (value === null || value === undefined) return null;
-
-    // Already parsed (in case some nodes were created before the JSON-string migration)
-    if (typeof value === "object") return value as T;
-
-    if (typeof value !== "string") return null;
-
-    const s = value.trim();
-    if (s.length === 0) return null;
-
-    try {
-      return JSON.parse(s) as T;
-    } catch (e) {
-      logger.warn(`findAllOrganizations: failed to parse JSON for ${label}`);
-      return null;
-    }
-  };
-
-  const hydrateOrganization = (org: any): any => {
-    if (!org || typeof org !== "object") return org;
-
-    // Top-level Organization JSON-string fields
-    org.employeeCountRange = parseJsonOrNull(
-      org.employeeCountRange,
-      "Organization.employeeCountRange"
-    );
-    org.revenueRangeAnnual = parseJsonOrNull(
-      org.revenueRangeAnnual,
-      "Organization.revenueRangeAnnual"
-    );
-    org.valuationRange = parseJsonOrNull(
-      org.valuationRange,
-      "Organization.valuationRange"
-    );
-
-    // Nested: hasLocation[].location.geo/contact may be JSON strings
-    if (Array.isArray(org.hasLocation)) {
-      org.hasLocation = org.hasLocation.map((edge: any) => {
-        if (!edge || typeof edge !== "object") return edge;
-        if (edge.location && typeof edge.location === "object") {
-          edge.location.geo = parseJsonOrNull(
-            edge.location.geo,
-            "PhysicalLocation.geo"
-          );
-          edge.location.contact = parseJsonOrNull(
-            edge.location.contact,
-            "PhysicalLocation.contact"
-          );
-        }
-        return edge;
-      });
-    }
-
-    // Nested orgs inside ownsOrControls may also have JSON-string fields
-    if (Array.isArray(org.ownsOrControls)) {
-      org.ownsOrControls = org.ownsOrControls.map((edge: any) => {
-        if (!edge || typeof edge !== "object") return edge;
-        if (edge.organization && typeof edge.organization === "object") {
-          edge.organization.employeeCountRange = parseJsonOrNull(
-            edge.organization.employeeCountRange,
-            "Organization(employeeCountRange) in ownsOrControls.organization"
-          );
-          edge.organization.revenueRangeAnnual = parseJsonOrNull(
-            edge.organization.revenueRangeAnnual,
-            "Organization(revenueRangeAnnual) in ownsOrControls.organization"
-          );
-          edge.organization.valuationRange = parseJsonOrNull(
-            edge.organization.valuationRange,
-            "Organization(valuationRange) in ownsOrControls.organization"
-          );
-        }
-        return edge;
-      });
-    }
-
-    return org;
-  };
-
   try {
     const organizations = await executeRead(async (tx) => {
       const result = await tx.run(
         `
-            MATCH (o:Organization)
-  
-            OPTIONAL MATCH (o)-[hl:HAS_LOCATION]->(pl:PhysicalLocation)
-            WITH o,
-                collect(
-                  DISTINCT {
-                    location: properties(pl),
-                    locationRole: hl.locationRole,
-                    isPrimary: hl.isPrimary,
-                    startDate: hl.startDate,
-                    endDate: hl.endDate,
-                    claimIds: coalesce(hl.claimIds, []),
-                    validAt: hl.validAt,
-                    invalidAt: hl.invalidAt,
-                    expiredAt: hl.expiredAt,
-                    createdAt: hl.createdAt
-                  }
-                ) AS hasLocationEdges
-  
-            OPTIONAL MATCH (o)-[oc:OWNS_OR_CONTROLS]->(otherOrg:Organization)
-            WITH o, hasLocationEdges,
-                collect(
-                  DISTINCT {
-                    organization: properties(otherOrg),
-                    relationshipType: oc.relationshipType,
-                    ownershipPercent: oc.ownershipPercent,
-                    controlType: oc.controlType,
-                    effectiveFrom: oc.effectiveFrom,
-                    effectiveTo: oc.effectiveTo,
-                    isCurrent: oc.isCurrent,
-                    claimIds: coalesce(oc.claimIds, []),
-                    validAt: oc.validAt,
-                    invalidAt: oc.invalidAt,
-                    expiredAt: oc.expiredAt,
-                    createdAt: oc.createdAt
-                  }
-                ) AS ownsOrControlsEdges
-  
-            OPTIONAL MATCH (o)-[li:LIST]->(listing:Listing)
-            WITH o, hasLocationEdges, ownsOrControlsEdges,
-                collect(
-                  DISTINCT {
-                    listing: properties(listing),
-                    listRole: li.listRole,
-                    channel: li.channel,
-                    regionsOverrides: li.regionsOverrides,
-                    collectionModesOverrides: li.collectionModesOverrides,
-                    availabilityNotes: li.availabilityNotes,
-                    claimIds: coalesce(li.claimIds, []),
-                    validAt: li.validAt,
-                    invalidAt: li.invalidAt,
-                    expiredAt: li.expiredAt,
-                    createdAt: li.createdAt
-                  }
-                ) AS listsEdges
-  
-            OPTIONAL MATCH (o)-[op:OFFERS_PRODUCT]->(product:Product)
-            WITH o, hasLocationEdges, ownsOrControlsEdges, listsEdges,
-                collect(
-                  DISTINCT {
-                    product: properties(product),
-                    validAt: op.validAt,
-                    invalidAt: op.invalidAt,
-                    expiredAt: op.expiredAt,
-                    createdAt: op.createdAt
-                  }
-                ) AS offersProductEdges
-  
-            OPTIONAL MATCH (o)-[scf:SUPPLIES_COMPOUND_FORM]->(cf:CompoundForm)
-            WITH o, hasLocationEdges, ownsOrControlsEdges, listsEdges, offersProductEdges,
-                collect(
-                  DISTINCT {
-                    compoundForm: properties(cf),
-                    validAt: scf.validAt,
-                    invalidAt: scf.invalidAt,
-                    expiredAt: scf.expiredAt,
-                    createdAt: scf.createdAt
-                  }
-                ) AS suppliesCompoundFormEdges
-  
-            RETURN {
-              organizationId: o.organizationId,
-              name: o.name,
-              aliases: o.aliases,
-              orgType: o.orgType,
-              description: o.description,
-              businessModel: o.businessModel,
-              primaryIndustryTags: o.primaryIndustryTags,
-              regionsServed: o.regionsServed,
-              legalName: o.legalName,
-              legalStructure: o.legalStructure,
-              ownershipType: o.ownershipType,
-              jurisdictionsOfIncorporation: o.jurisdictionsOfIncorporation,
-              websiteUrl: o.websiteUrl,
-              defaultCollectionModes: o.defaultCollectionModes,
-              defaultRegionsAvailable: o.defaultRegionsAvailable,
-              publicTicker: o.publicTicker,
-              fundingStage: o.fundingStage,
-              employeeCountRange: o.employeeCountRange,
-              revenueRangeAnnual: o.revenueRangeAnnual,
-              valuationRange: o.valuationRange,
-              validAt: o.validAt,
-              invalidAt: o.invalidAt,
-              expiredAt: o.expiredAt,
-              createdAt: o.createdAt,
-  
-              hasLocation: [e IN hasLocationEdges WHERE e.location IS NOT NULL],
-              ownsOrControls: [e IN ownsOrControlsEdges WHERE e.organization IS NOT NULL],
-              lists: [e IN listsEdges WHERE e.listing IS NOT NULL],
-              offersProduct: [e IN offersProductEdges WHERE e.product IS NOT NULL],
-              suppliesCompoundForm: [e IN suppliesCompoundFormEdges WHERE e.compoundForm IS NOT NULL]
-            } AS organization
-            ORDER BY o.createdAt DESC
-          `
+          MATCH (o:Organization)
+          RETURN properties(o) AS organization
+          ORDER BY o.createdAt DESC
+        `
       );
 
       return result.records.map((r: Record<string, any>) =>
-        hydrateOrganization(r.get("organization"))
+        r.get("organization")
       );
     });
 

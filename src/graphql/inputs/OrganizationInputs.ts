@@ -10,16 +10,20 @@ import {
   ListRoleEnum,
   ChannelEnum,
 } from "../enums/index.js";
+import {
+  Neo4jDateTimeString,
+  Neo4jDateString,
+} from "../utils/dateTimeUtils.js";
 
 // ============================================================================
 // Temporal Validity Input Schema (for relationships)
 // ============================================================================
 
 export const TemporalValidityInputSchema = z.object({
-  validAt: z.coerce.date().nullable().optional(),
-  invalidAt: z.coerce.date().nullable().optional(),
-  expiredAt: z.coerce.date().nullable().optional(),
-  createdAt: z.coerce.date().optional(), // Optional in input, will default to now
+  validAt: Neo4jDateTimeString.optional(),
+  invalidAt: Neo4jDateTimeString.optional(),
+  expiredAt: Neo4jDateTimeString.optional(),
+  createdAt: Neo4jDateTimeString.optional(), // Optional in input, will default to now in DB logic if desired
 });
 
 export type TemporalValidityInput = z.infer<typeof TemporalValidityInputSchema>;
@@ -39,18 +43,14 @@ export const PhysicalLocationInputSchema = z.object({
   region: z.string().nullable().optional(),
   postalCode: z.string().nullable().optional(),
   countryCode: z.string().nullable().optional(),
-  geo: z.record(z.string(), z.unknown()).nullable().optional(),
+  geoLat: z.number().nullable().optional(),
+  geoLon: z.number().nullable().optional(),
   timezone: z.string().nullable().optional(),
   jurisdiction: z.string().nullable().optional(),
   placeTags: z.array(z.string()).nullable().optional(),
   hoursOfOperation: z.string().nullable().optional(),
-  contact: z
-    .object({
-      phone: z.string().optional(),
-      email: z.string().optional(),
-    })
-    .nullable()
-    .optional(),
+  contactPhone: z.string().nullable().optional(),
+  contactEmail: z.string().nullable().optional(),
 });
 
 export type PhysicalLocationInput = z.infer<typeof PhysicalLocationInputSchema>;
@@ -186,8 +186,8 @@ export const HasLocationRelationshipInputSchema =
     location: PhysicalLocationRelateInputSchema,
     locationRole: z.string(),
     isPrimary: z.boolean().nullable().optional(),
-    startDate: z.coerce.date().nullable().optional(),
-    endDate: z.coerce.date().nullable().optional(),
+    startDate: Neo4jDateString.optional(), // was z.coerce.date()
+    endDate: Neo4jDateString.optional(), // was z.coerce.date()
     claimIds: z.array(z.string()).optional(),
   });
 
@@ -196,8 +196,8 @@ export const HasLocationRelationshipUpdateInputSchema =
     location: PhysicalLocationRelateUpdateInputSchema,
     locationRole: z.string().optional(),
     isPrimary: z.boolean().nullable().optional(),
-    startDate: z.coerce.date().nullable().optional(),
-    endDate: z.coerce.date().nullable().optional(),
+    startDate: Neo4jDateString.optional(), // was z.coerce.date()
+    endDate: Neo4jDateString.optional(), // was z.coerce.date()
     claimIds: z.array(z.string()).optional(),
   });
 
@@ -238,8 +238,8 @@ export const OwnsOrControlsRelationshipInputSchema =
     relationshipType: z.string(),
     ownershipPercent: z.number().nullable().optional(),
     controlType: z.string().nullable().optional(),
-    effectiveFrom: z.coerce.date().nullable().optional(),
-    effectiveTo: z.coerce.date().nullable().optional(),
+    effectiveFrom: Neo4jDateString.optional(), // was z.coerce.date()
+    effectiveTo: Neo4jDateString.optional(), // was z.coerce.date()
     isCurrent: z.boolean().nullable().optional(),
     claimIds: z.array(z.string()).optional(),
   });
@@ -250,8 +250,8 @@ export const OwnsOrControlsRelationshipUpdateInputSchema =
     relationshipType: z.string().optional(),
     ownershipPercent: z.number().nullable().optional(),
     controlType: z.string().nullable().optional(),
-    effectiveFrom: z.coerce.date().nullable().optional(),
-    effectiveTo: z.coerce.date().nullable().optional(),
+    effectiveFrom: Neo4jDateString.optional(), // was z.coerce.date()
+    effectiveTo: Neo4jDateString.optional(), // was z.coerce.date()
     isCurrent: z.boolean().nullable().optional(),
     claimIds: z.array(z.string()).optional(),
   });
@@ -421,36 +421,32 @@ export const OrganizationInputSchema: z.ZodType<any> = z.object({
   defaultRegionsAvailable: z.array(z.string()).nullable().optional(),
   publicTicker: z.string().nullable().optional(),
   fundingStage: z.string().nullable().optional(),
-  employeeCountRange: z
-    .object({
-      min: z.number().optional(),
-      max: z.number().optional(),
-      asOf: z.coerce.date().optional(),
-    })
-    .nullable()
-    .optional(),
-  revenueRangeAnnual: z
-    .object({
-      min: z.number().optional(),
-      max: z.number().optional(),
-      currency: z.string().optional(),
-      asOf: z.coerce.date().optional(),
-    })
-    .nullable()
-    .optional(),
-  valuationRange: z
-    .object({
-      min: z.number().optional(),
-      max: z.number().optional(),
-      currency: z.string().optional(),
-      asOf: z.coerce.date().optional(),
-    })
-    .nullable()
-    .optional(),
-  validAt: z.coerce.date().nullable().optional(),
-  invalidAt: z.coerce.date().nullable().optional(),
-  expiredAt: z.coerce.date().nullable().optional(),
-  createdAt: z.coerce.date().optional(),
+  employeeCountMin: z.number().int().nullable().optional(),
+  employeeCountMax: z.number().int().nullable().optional(),
+
+  // DATE-only
+  employeeCountAsOf: Neo4jDateString.optional(), // was z.coerce.date()
+
+  revenueAnnualMin: z.number().nullable().optional(),
+  revenueAnnualMax: z.number().nullable().optional(),
+  revenueAnnualCurrency: z.string().nullable().optional(),
+
+  // DATE-only
+  revenueAnnualAsOf: Neo4jDateString.optional(), // was z.coerce.date()
+
+  valuationMin: z.number().nullable().optional(),
+  valuationMax: z.number().nullable().optional(),
+  valuationCurrency: z.string().nullable().optional(),
+
+  // DATE-only
+  valuationAsOf: Neo4jDateString.optional(), // was z.coerce.date()
+
+  // DATETIME
+  validAt: Neo4jDateTimeString.optional(), // was z.coerce.date()
+  invalidAt: Neo4jDateTimeString.optional(), // was z.coerce.date()
+  expiredAt: Neo4jDateTimeString.optional(), // was z.coerce.date()
+  createdAt: Neo4jDateTimeString.optional(), // was z.coerce.date()
+
   // Relationships
   hasLocation: z.array(HasLocationRelationshipInputSchema).optional(),
   ownsOrControls: z.array(OwnsOrControlsRelationshipInputSchema).optional(),
@@ -487,36 +483,32 @@ export const UpdateOrganizationInputSchema: z.ZodType<any> = z.object({
   defaultRegionsAvailable: z.array(z.string()).nullable().optional(),
   publicTicker: z.string().nullable().optional(),
   fundingStage: z.string().nullable().optional(),
-  employeeCountRange: z
-    .object({
-      min: z.number().optional(),
-      max: z.number().optional(),
-      asOf: z.coerce.date().optional(),
-    })
-    .nullable()
-    .optional(),
-  revenueRangeAnnual: z
-    .object({
-      min: z.number().optional(),
-      max: z.number().optional(),
-      currency: z.string().optional(),
-      asOf: z.coerce.date().optional(),
-    })
-    .nullable()
-    .optional(),
-  valuationRange: z
-    .object({
-      min: z.number().optional(),
-      max: z.number().optional(),
-      currency: z.string().optional(),
-      asOf: z.coerce.date().optional(),
-    })
-    .nullable()
-    .optional(),
-  validAt: z.coerce.date().nullable().optional(),
-  invalidAt: z.coerce.date().nullable().optional(),
-  expiredAt: z.coerce.date().nullable().optional(),
-  createdAt: z.coerce.date().optional(),
+  employeeCountMin: z.number().int().nullable().optional(),
+  employeeCountMax: z.number().int().nullable().optional(),
+
+  // DATE-only
+  employeeCountAsOf: Neo4jDateString.optional(), // was z.coerce.date()
+
+  revenueAnnualMin: z.number().nullable().optional(),
+  revenueAnnualMax: z.number().nullable().optional(),
+  revenueAnnualCurrency: z.string().nullable().optional(),
+
+  // DATE-only
+  revenueAnnualAsOf: Neo4jDateString.optional(), // was z.coerce.date()
+
+  valuationMin: z.number().nullable().optional(),
+  valuationMax: z.number().nullable().optional(),
+  valuationCurrency: z.string().nullable().optional(),
+
+  // DATE-only
+  valuationAsOf: Neo4jDateString.optional(), // was z.coerce.date()
+
+  // DATETIME
+  validAt: Neo4jDateTimeString.optional(), // was z.coerce.date()
+  invalidAt: Neo4jDateTimeString.optional(), // was z.coerce.date()
+  expiredAt: Neo4jDateTimeString.optional(), // was z.coerce.date()
+  createdAt: Neo4jDateTimeString.optional(), // was z.coerce.date()
+
   // Relationships use update versions
   hasLocation: z.array(HasLocationRelationshipUpdateInputSchema).optional(),
   ownsOrControls: z
