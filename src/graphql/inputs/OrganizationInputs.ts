@@ -2,184 +2,44 @@ import { z } from "zod";
 import {
   OrgTypeEnum,
   BusinessModelEnum,
-  LocationTypeEnum,
-  ListingDomainEnum,
-  PriceTypeEnum,
-  CollectionModeEnum,
-  ProductDomainEnum,
   ListRoleEnum,
   ChannelEnum,
+  RelationshipRoleEnum,
+  UsageContextEnum,
+  SourceEnum,
+  ManufacturingRoleEnum,
 } from "../enums/index.js";
 import {
   Neo4jDateTimeString,
   Neo4jDateString,
 } from "../utils/dateTimeUtils.js";
-
-// ============================================================================
-// Temporal Validity Input Schema (for relationships)
-// ============================================================================
-
-export const TemporalValidityInputSchema = z.object({
-  validAt: Neo4jDateTimeString.optional(),
-  invalidAt: Neo4jDateTimeString.optional(),
-  expiredAt: Neo4jDateTimeString.optional(),
-  createdAt: Neo4jDateTimeString.optional(), // Optional in input, will default to now in DB logic if desired
-});
-
-export type TemporalValidityInput = z.infer<typeof TemporalValidityInputSchema>;
-
-// ============================================================================
-// Base Node Input Schemas (Create/Upsert)
-// ============================================================================
-
-// PhysicalLocationInput
-export const PhysicalLocationInputSchema = z.object({
-  locationId: z.string().optional(), // Optional for create, will be generated if not provided
-  canonicalName: z.string(),
-  locationType: LocationTypeEnum,
-  addressLine1: z.string().nullable().optional(),
-  addressLine2: z.string().nullable().optional(),
-  city: z.string().nullable().optional(),
-  region: z.string().nullable().optional(),
-  postalCode: z.string().nullable().optional(),
-  countryCode: z.string().nullable().optional(),
-  geoLat: z.number().nullable().optional(),
-  geoLon: z.number().nullable().optional(),
-  timezone: z.string().nullable().optional(),
-  jurisdiction: z.string().nullable().optional(),
-  placeTags: z.array(z.string()).nullable().optional(),
-  hoursOfOperation: z.string().nullable().optional(),
-  contactPhone: z.string().nullable().optional(),
-  contactEmail: z.string().nullable().optional(),
-});
-
-export type PhysicalLocationInput = z.infer<typeof PhysicalLocationInputSchema>;
-
-// ListingInput
-export const ListingInputSchema = z.object({
-  listingId: z.string().optional(),
-  listingDomain: ListingDomainEnum,
-  title: z.string(),
-  description: z.string().nullable().optional(),
-  sku: z.string().nullable().optional(),
-  url: z.string().nullable().optional(),
-  brandName: z.string().nullable().optional(),
-  currency: z.string(),
-  priceAmount: z.number().nullable().optional(),
-  priceType: PriceTypeEnum.nullable().optional(),
-  pricingNotes: z.string().nullable().optional(),
-  constraints: z.string().nullable().optional(),
-  regionsAvailable: z.array(z.string()).nullable().optional(),
-  requiresAppointment: z.boolean().nullable().optional(),
-  collectionMode: CollectionModeEnum.nullable().optional(),
-  turnaroundTime: z.string().nullable().optional(),
-});
-
-export type ListingInput = z.infer<typeof ListingInputSchema>;
-
-// ProductInput
-export const ProductInputSchema = z.object({
-  productId: z.string().optional(),
-  name: z.string(),
-  synonyms: z.array(z.string()).nullable().optional(),
-  productDomain: ProductDomainEnum,
-  productType: z.string().nullable().optional(),
-  intendedUse: z.string().nullable().optional(),
-  description: z.string().nullable().optional(),
-  brandName: z.string().nullable().optional(),
-  modelNumber: z.string().nullable().optional(),
-  ndcCode: z.string().nullable().optional(),
-  upc: z.string().nullable().optional(),
-  gtin: z.string().nullable().optional(),
-  riskClass: z.string().nullable().optional(),
-  currency: z.string().nullable().optional(),
-  priceAmount: z.number().nullable().optional(),
-});
-
-export type ProductInput = z.infer<typeof ProductInputSchema>;
-
-// CompoundFormInput
-export const CompoundFormInputSchema = z.object({
-  compoundFormId: z.string().optional(),
-  canonicalName: z.string(),
-  formType: z.string(),
-  chemicalDifferences: z.string().nullable().optional(),
-  stabilityProfile: z.string().nullable().optional(),
-  solubilityProfile: z.string().nullable().optional(),
-  bioavailabilityNotes: z.string().nullable().optional(),
-  regulatoryStatusSummary: z.string().nullable().optional(),
-});
-
-export type CompoundFormInput = z.infer<typeof CompoundFormInputSchema>;
-
-// ============================================================================
-// Update Input Schemas (all fields optional for partial updates)
-// ============================================================================
+import { TemporalValidityInputSchema } from "./TemporalValidityInputs.js";
+import { PhysicalLocationRelateInputSchema } from "./PhysicalLocationInputs.js";
+import { PhysicalLocationRelateUpdateInputSchema } from "./PhysicalLocationInputs.js";
+import { ListingRelateInputSchema } from "./ListingInputs.js";
+import { ListingRelateUpdateInputSchema } from "./ListingInputs.js";
+import { ProductRelateInputSchema } from "./ProductInputs.js";
+import { ProductRelateUpdateInputSchema } from "./ProductInputs.js";
+import { CompoundFormRelateInputSchema } from "./CompoundFormInputs.js";
+import { CompoundFormRelateUpdateInputSchema } from "./CompoundFormInputs.js";
+import { ManufacturingProcessRelateInputSchema } from "./ManufacturingProcessInputs.js";
+import { ManufacturingProcessRelateUpdateInputSchema } from "./ManufacturingProcessInputs.js";
+import { TechnologyPlatformRelateInputSchema } from "./TechnologyPlatformInputs.js";
+import { TechnologyPlatformRelateUpdateInputSchema } from "./TechnologyPlatformInputs.js";
 
 // PhysicalLocationUpdateInput
-export const PhysicalLocationUpdateInputSchema =
-  PhysicalLocationInputSchema.partial().extend({
-    locationId: z.string().optional(), // Keep ID as optional for updates
-  });
-
-export type PhysicalLocationUpdateInput = z.infer<
-  typeof PhysicalLocationUpdateInputSchema
->;
 
 // ListingUpdateInput
-export const ListingUpdateInputSchema = ListingInputSchema.partial().extend({
-  listingId: z.string().optional(),
-});
-
-export type ListingUpdateInput = z.infer<typeof ListingUpdateInputSchema>;
 
 // ProductUpdateInput
-export const ProductUpdateInputSchema = ProductInputSchema.partial().extend({
-  productId: z.string().optional(),
-});
-
-export type ProductUpdateInput = z.infer<typeof ProductUpdateInputSchema>;
 
 // CompoundFormUpdateInput
-export const CompoundFormUpdateInputSchema =
-  CompoundFormInputSchema.partial().extend({
-    compoundFormId: z.string().optional(),
-  });
-
-export type CompoundFormUpdateInput = z.infer<
-  typeof CompoundFormUpdateInputSchema
->;
 
 // ============================================================================
 // Relationship Input Schemas (with nested create/connect/update support)
 // ============================================================================
 
 // HasLocationRelationshipInput (Create/Connect)
-export const PhysicalLocationRelateInputSchema = z
-  .object({
-    create: PhysicalLocationInputSchema.optional(),
-    connect: z.object({ locationId: z.string() }).optional(),
-  })
-  .refine((data) => (data.create ? 1 : 0) + (data.connect ? 1 : 0) === 1, {
-    message: "Exactly one of 'create' or 'connect' must be provided",
-  });
-
-// HasLocationRelationshipUpdateInput (Create/Connect/Update)
-export const PhysicalLocationRelateUpdateInputSchema = z
-  .object({
-    create: PhysicalLocationInputSchema.optional(),
-    connect: z.object({ locationId: z.string() }).optional(),
-    update: PhysicalLocationUpdateInputSchema.optional(),
-  })
-  .refine(
-    (data) =>
-      (data.create ? 1 : 0) + (data.connect ? 1 : 0) + (data.update ? 1 : 0) ===
-      1,
-    {
-      message:
-        "Exactly one of 'create', 'connect', or 'update' must be provided",
-    }
-  );
 
 export const HasLocationRelationshipInputSchema =
   TemporalValidityInputSchema.extend({
@@ -261,31 +121,6 @@ export type OwnsOrControlsRelationshipInput = z.infer<
 >;
 
 // ListsRelationshipInput (Create/Connect)
-export const ListingRelateInputSchema = z
-  .object({
-    create: ListingInputSchema.optional(),
-    connect: z.object({ listingId: z.string() }).optional(),
-  })
-  .refine((data) => (data.create ? 1 : 0) + (data.connect ? 1 : 0) === 1, {
-    message: "Exactly one of 'create' or 'connect' must be provided",
-  });
-
-// ListsRelationshipUpdateInput (Create/Connect/Update)
-export const ListingRelateUpdateInputSchema = z
-  .object({
-    create: ListingInputSchema.optional(),
-    connect: z.object({ listingId: z.string() }).optional(),
-    update: ListingUpdateInputSchema.optional(),
-  })
-  .refine(
-    (data) =>
-      (data.create ? 1 : 0) + (data.connect ? 1 : 0) + (data.update ? 1 : 0) ===
-      1,
-    {
-      message:
-        "Exactly one of 'create', 'connect', or 'update' must be provided",
-    }
-  );
 
 export const ListsRelationshipInputSchema = TemporalValidityInputSchema.extend({
   listing: ListingRelateInputSchema,
@@ -313,31 +148,6 @@ export type ListsRelationshipInput = z.infer<
 >;
 
 // OffersProductRelationshipInput (Create/Connect)
-export const ProductRelateInputSchema = z
-  .object({
-    create: ProductInputSchema.optional(),
-    connect: z.object({ productId: z.string() }).optional(),
-  })
-  .refine((data) => (data.create ? 1 : 0) + (data.connect ? 1 : 0) === 1, {
-    message: "Exactly one of 'create' or 'connect' must be provided",
-  });
-
-// OffersProductRelationshipUpdateInput (Create/Connect/Update)
-export const ProductRelateUpdateInputSchema = z
-  .object({
-    create: ProductInputSchema.optional(),
-    connect: z.object({ productId: z.string() }).optional(),
-    update: ProductUpdateInputSchema.optional(),
-  })
-  .refine(
-    (data) =>
-      (data.create ? 1 : 0) + (data.connect ? 1 : 0) + (data.update ? 1 : 0) ===
-      1,
-    {
-      message:
-        "Exactly one of 'create', 'connect', or 'update' must be provided",
-    }
-  );
 
 export const OffersProductRelationshipInputSchema =
   TemporalValidityInputSchema.extend({
@@ -356,31 +166,6 @@ export type OffersProductRelationshipInput = z.infer<
 >;
 
 // SuppliesCompoundFormRelationshipInput (Create/Connect)
-export const CompoundFormRelateInputSchema = z
-  .object({
-    create: CompoundFormInputSchema.optional(),
-    connect: z.object({ compoundFormId: z.string() }).optional(),
-  })
-  .refine((data) => (data.create ? 1 : 0) + (data.connect ? 1 : 0) === 1, {
-    message: "Exactly one of 'create' or 'connect' must be provided",
-  });
-
-// SuppliesCompoundFormRelationshipUpdateInput (Create/Connect/Update)
-export const CompoundFormRelateUpdateInputSchema = z
-  .object({
-    create: CompoundFormInputSchema.optional(),
-    connect: z.object({ compoundFormId: z.string() }).optional(),
-    update: CompoundFormUpdateInputSchema.optional(),
-  })
-  .refine(
-    (data) =>
-      (data.create ? 1 : 0) + (data.connect ? 1 : 0) + (data.update ? 1 : 0) ===
-      1,
-    {
-      message:
-        "Exactly one of 'create', 'connect', or 'update' must be provided",
-    }
-  );
 
 export const SuppliesCompoundFormRelationshipInputSchema =
   TemporalValidityInputSchema.extend({
@@ -396,6 +181,158 @@ export const SuppliesCompoundFormRelationshipUpdateInputSchema =
 
 export type SuppliesCompoundFormRelationshipInput = z.infer<
   typeof SuppliesCompoundFormRelationshipInputSchema
+>;
+
+// ManufacturesRelationshipInput (Create/Connect)
+export const ManufacturesRelationshipInputSchema =
+  TemporalValidityInputSchema.extend({
+    compoundForm: CompoundFormRelateInputSchema,
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export const ManufacturesRelationshipUpdateInputSchema =
+  TemporalValidityInputSchema.extend({
+    compoundForm: CompoundFormRelateUpdateInputSchema,
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export type ManufacturesRelationshipInput = z.infer<
+  typeof ManufacturesRelationshipInputSchema
+>;
+
+// ManufacturesProductRelationshipInput (Create/Connect)
+export const ManufacturesProductRelationshipInputSchema =
+  TemporalValidityInputSchema.extend({
+    product: ProductRelateInputSchema,
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export const ManufacturesProductRelationshipUpdateInputSchema =
+  TemporalValidityInputSchema.extend({
+    product: ProductRelateUpdateInputSchema,
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export type ManufacturesProductRelationshipInput = z.infer<
+  typeof ManufacturesProductRelationshipInputSchema
+>;
+
+// ContractManufacturerForOrganizationRelationshipInput (Create/Connect)
+export const ContractManufacturerForOrganizationRelationshipInputSchema =
+  TemporalValidityInputSchema.extend({
+    organization: OrganizationRelateInputSchema,
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export const ContractManufacturerForOrganizationRelationshipUpdateInputSchema =
+  TemporalValidityInputSchema.extend({
+    organization: OrganizationRelateUpdateInputSchema,
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export type ContractManufacturerForOrganizationRelationshipInput = z.infer<
+  typeof ContractManufacturerForOrganizationRelationshipInputSchema
+>;
+
+// ContractManufacturerForProductRelationshipInput (Create/Connect)
+export const ContractManufacturerForProductRelationshipInputSchema =
+  TemporalValidityInputSchema.extend({
+    product: ProductRelateInputSchema,
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export const ContractManufacturerForProductRelationshipUpdateInputSchema =
+  TemporalValidityInputSchema.extend({
+    product: ProductRelateUpdateInputSchema,
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export type ContractManufacturerForProductRelationshipInput = z.infer<
+  typeof ContractManufacturerForProductRelationshipInputSchema
+>;
+
+// ContractManufacturerForCompoundFormRelationshipInput (Create/Connect)
+export const ContractManufacturerForCompoundFormRelationshipInputSchema =
+  TemporalValidityInputSchema.extend({
+    compoundForm: CompoundFormRelateInputSchema,
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export const ContractManufacturerForCompoundFormRelationshipUpdateInputSchema =
+  TemporalValidityInputSchema.extend({
+    compoundForm: CompoundFormRelateUpdateInputSchema,
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export type ContractManufacturerForCompoundFormRelationshipInput = z.infer<
+  typeof ContractManufacturerForCompoundFormRelationshipInputSchema
+>;
+
+// PerformsManufacturingProcessRelationshipInput (Create/Connect)
+export const PerformsManufacturingProcessRelationshipInputSchema =
+  TemporalValidityInputSchema.extend({
+    manufacturingProcess: ManufacturingProcessRelateInputSchema,
+    role: ManufacturingRoleEnum,
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export const PerformsManufacturingProcessRelationshipUpdateInputSchema =
+  TemporalValidityInputSchema.extend({
+    manufacturingProcess: ManufacturingProcessRelateUpdateInputSchema,
+    role: ManufacturingRoleEnum.optional(),
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export type PerformsManufacturingProcessRelationshipInput = z.infer<
+  typeof PerformsManufacturingProcessRelationshipInputSchema
+>;
+
+// DevelopsPlatformRelationshipInput (Create/Connect)
+export const DevelopsPlatformRelationshipInputSchema =
+  TemporalValidityInputSchema.extend({
+    technologyPlatform: TechnologyPlatformRelateInputSchema,
+    relationshipRole: RelationshipRoleEnum.nullable().optional(),
+    notes: z.string().nullable().optional(),
+    source: SourceEnum.nullable().optional(),
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export const DevelopsPlatformRelationshipUpdateInputSchema =
+  TemporalValidityInputSchema.extend({
+    technologyPlatform: TechnologyPlatformRelateUpdateInputSchema,
+    relationshipRole: RelationshipRoleEnum.nullable().optional(),
+    notes: z.string().nullable().optional(),
+    source: SourceEnum.nullable().optional(),
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export type DevelopsPlatformRelationshipInput = z.infer<
+  typeof DevelopsPlatformRelationshipInputSchema
+>;
+
+// UsesPlatformRelationshipInput (Create/Connect)
+export const UsesPlatformRelationshipInputSchema =
+  TemporalValidityInputSchema.extend({
+    technologyPlatform: TechnologyPlatformRelateInputSchema,
+    usageContext: UsageContextEnum.nullable().optional(),
+    isPrimary: z.boolean().nullable().optional(),
+    notes: z.string().nullable().optional(),
+    source: SourceEnum.nullable().optional(),
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export const UsesPlatformRelationshipUpdateInputSchema =
+  TemporalValidityInputSchema.extend({
+    technologyPlatform: TechnologyPlatformRelateUpdateInputSchema,
+    usageContext: UsageContextEnum.nullable().optional(),
+    isPrimary: z.boolean().nullable().optional(),
+    notes: z.string().nullable().optional(),
+    source: SourceEnum.nullable().optional(),
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export type UsesPlatformRelationshipInput = z.infer<
+  typeof UsesPlatformRelationshipInputSchema
 >;
 
 // ============================================================================
@@ -455,6 +392,24 @@ export const OrganizationInputSchema: z.ZodType<any> = z.object({
   suppliesCompoundForm: z
     .array(SuppliesCompoundFormRelationshipInputSchema)
     .optional(),
+  manufactures: z.array(ManufacturesRelationshipInputSchema).optional(),
+  manufacturesProduct: z
+    .array(ManufacturesProductRelationshipInputSchema)
+    .optional(),
+  contractManufacturerForOrganization: z
+    .array(ContractManufacturerForOrganizationRelationshipInputSchema)
+    .optional(),
+  contractManufacturerForProduct: z
+    .array(ContractManufacturerForProductRelationshipInputSchema)
+    .optional(),
+  contractManufacturerForCompoundForm: z
+    .array(ContractManufacturerForCompoundFormRelationshipInputSchema)
+    .optional(),
+  performsManufacturingProcess: z
+    .array(PerformsManufacturingProcessRelationshipInputSchema)
+    .optional(),
+  developsPlatform: z.array(DevelopsPlatformRelationshipInputSchema).optional(),
+  usesPlatform: z.array(UsesPlatformRelationshipInputSchema).optional(),
 });
 
 export type OrganizationInput = z.infer<typeof OrganizationInputSchema>;
@@ -507,7 +462,6 @@ export const UpdateOrganizationInputSchema: z.ZodType<any> = z.object({
   validAt: Neo4jDateTimeString.optional(), // was z.coerce.date()
   invalidAt: Neo4jDateTimeString.optional(), // was z.coerce.date()
   expiredAt: Neo4jDateTimeString.optional(), // was z.coerce.date()
-  createdAt: Neo4jDateTimeString.optional(), // was z.coerce.date()
 
   // Relationships use update versions
   hasLocation: z.array(HasLocationRelationshipUpdateInputSchema).optional(),
@@ -519,6 +473,26 @@ export const UpdateOrganizationInputSchema: z.ZodType<any> = z.object({
   suppliesCompoundForm: z
     .array(SuppliesCompoundFormRelationshipUpdateInputSchema)
     .optional(),
+  manufactures: z.array(ManufacturesRelationshipUpdateInputSchema).optional(),
+  manufacturesProduct: z
+    .array(ManufacturesProductRelationshipUpdateInputSchema)
+    .optional(),
+  contractManufacturerForOrganization: z
+    .array(ContractManufacturerForOrganizationRelationshipUpdateInputSchema)
+    .optional(),
+  contractManufacturerForProduct: z
+    .array(ContractManufacturerForProductRelationshipUpdateInputSchema)
+    .optional(),
+  contractManufacturerForCompoundForm: z
+    .array(ContractManufacturerForCompoundFormRelationshipUpdateInputSchema)
+    .optional(),
+  performsManufacturingProcess: z
+    .array(PerformsManufacturingProcessRelationshipUpdateInputSchema)
+    .optional(),
+  developsPlatform: z
+    .array(DevelopsPlatformRelationshipUpdateInputSchema)
+    .optional(),
+  usesPlatform: z.array(UsesPlatformRelationshipUpdateInputSchema).optional(),
 });
 
 export type UpdateOrganizationInput = z.infer<

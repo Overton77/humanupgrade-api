@@ -2,121 +2,26 @@ import { z } from "zod";
 import {
   OrgTypeEnum,
   BusinessModelEnum,
-  LocationTypeEnum,
-  ListingDomainEnum,
-  PriceTypeEnum,
-  CollectionModeEnum,
-  ProductDomainEnum,
   ListRoleEnum,
   ChannelEnum,
+  RelationshipRoleEnum,
+  UsageContextEnum,
+  SourceEnum,
+  ManufacturingRoleEnum,
 } from "../enums/index.js";
 import {
   Neo4jDateString,
   Neo4jDateTimeString,
 } from "../utils/dateTimeUtils.js";
+import { PhysicalLocationSchema } from "./PhysicalLocationModel.js";
+import { ListingSchema } from "./ListingModel.js";
+import { ProductSchema } from "./ProductModel.js";
+import { TemporalValiditySchema } from "./TemporalValidityModel.js";
+import { CompoundFormSchema } from "./CompoundFormModel.js";
+import { ManufacturingProcessSchema } from "./ManufacturingProcessModel.js";
+import { TechnologyPlatformSchema } from "./TechnologyPlatformModel.js";
 
-// ============================================================================
-// Temporal Validity Schema (used on all relationships)
-// ============================================================================
-//
-// Model layer should validate the RETURNED shape.
-// If your API returns ISO strings (recommended), validate using these.
-// - Date-only: Neo4jDateString ("YYYY-MM-DD")
-// - DateTime: Neo4jDateTimeString (ISO datetime)
-//
-
-export const TemporalValiditySchema = z.object({
-  validAt: Neo4jDateTimeString, // was z.date().nullable()
-  invalidAt: Neo4jDateTimeString, // was z.date().nullable()
-  expiredAt: Neo4jDateTimeString, // was z.date().nullable()
-  createdAt: Neo4jDateTimeString, // was z.date()
-});
-
-export type TemporalValidity = z.infer<typeof TemporalValiditySchema>;
-
-// ============================================================================
-// Base Node Schemas
-// ============================================================================
-
-// PhysicalLocation
-export const PhysicalLocationSchema = z.object({
-  locationId: z.string(),
-  canonicalName: z.string(),
-  locationType: LocationTypeEnum,
-  addressLine1: z.string().nullable(),
-  addressLine2: z.string().nullable(),
-  city: z.string().nullable(),
-  region: z.string().nullable(),
-  postalCode: z.string().nullable(),
-  countryCode: z.string().nullable(),
-  geoLat: z.number().nullable(),
-  geoLon: z.number().nullable(),
-  timezone: z.string().nullable(),
-  jurisdiction: z.string().nullable(),
-  placeTags: z.array(z.string()).nullable(),
-  hoursOfOperation: z.string().nullable(),
-  contactPhone: z.string().nullable(),
-  contactEmail: z.string().nullable(),
-});
-
-export type PhysicalLocation = z.infer<typeof PhysicalLocationSchema>;
-
-// Listing
-export const ListingSchema = z.object({
-  listingId: z.string(),
-  listingDomain: ListingDomainEnum,
-  title: z.string(),
-  description: z.string().nullable(),
-  sku: z.string().nullable(),
-  url: z.string().nullable(),
-  brandName: z.string().nullable(),
-  currency: z.string(),
-  priceAmount: z.number().nullable(),
-  priceType: PriceTypeEnum.nullable(),
-  pricingNotes: z.string().nullable(),
-  constraints: z.string().nullable(),
-  regionsAvailable: z.array(z.string()).nullable(),
-  requiresAppointment: z.boolean().nullable(),
-  collectionMode: CollectionModeEnum.nullable(),
-  turnaroundTime: z.string().nullable(),
-});
-
-export type Listing = z.infer<typeof ListingSchema>;
-
-// Product
-export const ProductSchema = z.object({
-  productId: z.string(),
-  name: z.string(),
-  synonyms: z.array(z.string()).nullable(),
-  productDomain: ProductDomainEnum,
-  productType: z.string().nullable(),
-  intendedUse: z.string().nullable(),
-  description: z.string().nullable(),
-  brandName: z.string().nullable(),
-  modelNumber: z.string().nullable(),
-  ndcCode: z.string().nullable(),
-  upc: z.string().nullable(),
-  gtin: z.string().nullable(),
-  riskClass: z.string().nullable(),
-  currency: z.string().nullable(),
-  priceAmount: z.number().nullable(),
-});
-
-export type Product = z.infer<typeof ProductSchema>;
-
-// CompoundForm
-export const CompoundFormSchema = z.object({
-  compoundFormId: z.string(),
-  canonicalName: z.string(),
-  formType: z.string(),
-  chemicalDifferences: z.string().nullable(),
-  stabilityProfile: z.string().nullable(),
-  solubilityProfile: z.string().nullable(),
-  bioavailabilityNotes: z.string().nullable(),
-  regulatoryStatusSummary: z.string().nullable(),
-});
-
-export type CompoundForm = z.infer<typeof CompoundFormSchema>;
+// TODO: Change Input Types to manufacturesCompoundForm - manufactures is far too vague
 
 // ============================================================================
 // Edge Type Schemas (Relationship + Node)
@@ -179,6 +84,96 @@ export type SuppliesCompoundFormEdge = z.infer<
   typeof SuppliesCompoundFormEdgeSchema
 >;
 
+// ManufacturesEdge (Organization -> CompoundForm)
+export const ManufacturesCompoundFormEdgeSchema = TemporalValiditySchema.extend(
+  {
+    compoundForm: CompoundFormSchema,
+    claimIds: z.array(z.string()),
+  }
+);
+
+export type ManufacturesCompoundFormEdge = z.infer<
+  typeof ManufacturesCompoundFormEdgeSchema
+>;
+
+// ManufacturesProductEdge (Organization -> Product)
+export const ManufacturesProductEdgeSchema = TemporalValiditySchema.extend({
+  product: ProductSchema,
+  claimIds: z.array(z.string()),
+});
+
+export type ManufacturesProductEdge = z.infer<
+  typeof ManufacturesProductEdgeSchema
+>;
+
+// ContractManufacturerForOrganizationEdge (Organization -> Organization)
+export const ContractManufacturerForOrganizationEdgeSchema =
+  TemporalValiditySchema.extend({
+    organization: z.lazy(() => OrganizationSchema),
+    claimIds: z.array(z.string()),
+  });
+
+export type ContractManufacturerForOrganizationEdge = z.infer<
+  typeof ContractManufacturerForOrganizationEdgeSchema
+>;
+
+// ContractManufacturerForProductEdge (Organization -> Product)
+export const ContractManufacturerForProductEdgeSchema =
+  TemporalValiditySchema.extend({
+    product: ProductSchema,
+    claimIds: z.array(z.string()),
+  });
+
+export type ContractManufacturerForProductEdge = z.infer<
+  typeof ContractManufacturerForProductEdgeSchema
+>;
+
+// ContractManufacturerForCompoundFormEdge (Organization -> CompoundForm)
+export const ContractManufacturerForCompoundFormEdgeSchema =
+  TemporalValiditySchema.extend({
+    compoundForm: CompoundFormSchema,
+    claimIds: z.array(z.string()),
+  });
+
+export type ContractManufacturerForCompoundFormEdge = z.infer<
+  typeof ContractManufacturerForCompoundFormEdgeSchema
+>;
+
+// PerformsManufacturingProcessEdge (Organization -> ManufacturingProcess)
+export const PerformsManufacturingProcessEdgeSchema =
+  TemporalValiditySchema.extend({
+    manufacturingProcess: ManufacturingProcessSchema,
+    role: ManufacturingRoleEnum,
+    claimIds: z.array(z.string()),
+  });
+
+export type PerformsManufacturingProcessEdge = z.infer<
+  typeof PerformsManufacturingProcessEdgeSchema
+>;
+
+// DevelopsPlatformEdge (Organization -> TechnologyPlatform)
+export const DevelopsPlatformEdgeSchema = TemporalValiditySchema.extend({
+  technologyPlatform: TechnologyPlatformSchema,
+  relationshipRole: RelationshipRoleEnum.nullable(),
+  notes: z.string().nullable(),
+  source: SourceEnum.nullable(),
+  claimIds: z.array(z.string()),
+});
+
+export type DevelopsPlatformEdge = z.infer<typeof DevelopsPlatformEdgeSchema>;
+
+// UsesPlatformEdge (Organization -> TechnologyPlatform)
+export const UsesPlatformEdgeSchema = TemporalValiditySchema.extend({
+  technologyPlatform: TechnologyPlatformSchema,
+  usageContext: UsageContextEnum.nullable(),
+  isPrimary: z.boolean().nullable(),
+  notes: z.string().nullable(),
+  source: SourceEnum.nullable(),
+  claimIds: z.array(z.string()),
+});
+
+export type UsesPlatformEdge = z.infer<typeof UsesPlatformEdgeSchema>;
+
 // ============================================================================
 // Organization Schema
 // ============================================================================
@@ -234,6 +229,22 @@ export const OrganizationSchema: z.ZodType<any> = z.object({
   lists: z.array(ListsEdgeSchema).nullable(),
   offersProduct: z.array(OffersProductEdgeSchema).nullable(),
   suppliesCompoundForm: z.array(SuppliesCompoundFormEdgeSchema).nullable(),
+  manufactures: z.array(ManufacturesCompoundFormEdgeSchema).nullable(),
+  manufacturesProduct: z.array(ManufacturesProductEdgeSchema).nullable(),
+  contractManufacturerForOrganization: z
+    .array(ContractManufacturerForOrganizationEdgeSchema)
+    .nullable(),
+  contractManufacturerForProduct: z
+    .array(ContractManufacturerForProductEdgeSchema)
+    .nullable(),
+  contractManufacturerForCompoundForm: z
+    .array(ContractManufacturerForCompoundFormEdgeSchema)
+    .nullable(),
+  performsManufacturingProcess: z
+    .array(PerformsManufacturingProcessEdgeSchema)
+    .nullable(),
+  developsPlatform: z.array(DevelopsPlatformEdgeSchema).nullable(),
+  usesPlatform: z.array(UsesPlatformEdgeSchema).nullable(),
 });
 
 export type Organization = z.infer<typeof OrganizationSchema>;

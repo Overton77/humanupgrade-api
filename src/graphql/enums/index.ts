@@ -67,6 +67,7 @@ export const CollectionModeEnum = z.enum([
   "AT_HOME_KIT",
   "IN_PERSON_DRAW",
   "MOBILE_PHLEBOTOMY",
+  "TELEHEALTH",
   "IN_CLINIC",
   "SHIPPING",
   "VIRTUAL",
@@ -105,6 +106,66 @@ export const ChannelEnum = z.enum([
   "OTHER",
 ]);
 
+// ManufacturingProcess enums
+export const ProcessTypeEnum = z.enum([
+  "chemical_synthesis",
+  "fermentation",
+  "extraction",
+  "semi_synthesis",
+  "formulation",
+  "assembly",
+  "packaging",
+  "qc_release",
+  "other",
+]);
+
+export const ScalabilityLevelEnum = z.enum([
+  "lab",
+  "pilot",
+  "commercial",
+  "unknown",
+]);
+
+// TechnologyPlatform enums
+export const PlatformTypeEnum = z.enum([
+  "THERAPEUTIC_PLATFORM",
+  "DIAGNOSTIC_PLATFORM",
+  "MANUFACTURING_PLATFORM",
+  "MODALITY_PLATFORM",
+  "ANALYTICS_PLATFORM",
+  "OTHER",
+]);
+
+// Relationship enums
+export const RelationshipRoleEnum = z.enum([
+  "PRIMARY_DEVELOPER",
+  "CO_DEVELOPER",
+  "MAINTAINER",
+  "STEWARD",
+  "UNKNOWN",
+]);
+
+export const UsageContextEnum = z.enum([
+  "R_AND_D",
+  "PRODUCTION",
+  "QC",
+  "CLINICAL",
+  "ANALYTICS",
+  "OTHER",
+  "UNKNOWN",
+]);
+
+export const SourceEnum = z.enum(["CURATED", "IMPORTED", "DERIVED"]);
+
+export const ManufacturingRoleEnum = z.enum([
+  "primary",
+  "subcontractor",
+  "cdmo",
+  "cmo",
+  "api_supplier",
+  "other",
+]);
+
 // Export TypeScript types
 export type OrgType = z.infer<typeof OrgTypeEnum>;
 export type BusinessModel = z.infer<typeof BusinessModelEnum>;
@@ -115,3 +176,10 @@ export type CollectionMode = z.infer<typeof CollectionModeEnum>;
 export type ProductDomain = z.infer<typeof ProductDomainEnum>;
 export type ListRole = z.infer<typeof ListRoleEnum>;
 export type Channel = z.infer<typeof ChannelEnum>;
+export type ProcessType = z.infer<typeof ProcessTypeEnum>;
+export type ScalabilityLevel = z.infer<typeof ScalabilityLevelEnum>;
+export type PlatformType = z.infer<typeof PlatformTypeEnum>;
+export type RelationshipRole = z.infer<typeof RelationshipRoleEnum>;
+export type UsageContext = z.infer<typeof UsageContextEnum>;
+export type Source = z.infer<typeof SourceEnum>;
+export type ManufacturingRole = z.infer<typeof ManufacturingRoleEnum>;

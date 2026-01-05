@@ -1,0 +1,280 @@
+---
+description: This rule should be applied when we are constructing data loaders for graphql types/models
+alwaysApply: false
+---
+
+# DataLoader Pattern
+
+## Overview
+
+This project uses **DataLoader** to solve the N+1 query problem for GraphQL relationship fields. DataLoaders are **request-scoped** (created per request) and named by **Model.relationshipFieldEdges** convention.
+
+## Pattern Structure
+
+### 1. DataLoader Interface (loaders/entityLoaders.ts)
+
+Define the loader interface organized by Model:
+
+```typescript
+export interface EntityLoaders {
+  Organization: {
+    organizationHasLocationEdges: DataLoader<string, HasLocationEdge[]>;
+    organizationOffersProductEdges: DataLoader<string, OffersProductEdge[]>;
+    // ... more relationship loaders
+  };
+  // Future models: Product, Listing, etc.
+}
+```
+
+**Naming Convention:**
+
+- `Model.relationshipFieldEdges`: `organizationHasLocationEdges`, `organizationOffersProductEdges`
+- Pattern: `{modelName}{RelationshipFieldName}Edges`
+- Returns arrays of edge types (matching GraphQL edge type shape)
+
+### 2. Create Loaders Function
+
+Create request-scoped loaders:
+
+```typescript
+export function createEntityLoaders(): EntityLoaders {
+  return {
+    Organization: {
+      organizationHasLocationEdges: new DataLoader<string, HasLocationEdge[]>(
+        async (organizationIds) => {
+          const rows = await executeRead(async (tx) => {
+            const res = await tx.run(
+              `
+              UNWIND $organizationIds AS organizationId
+  
+              OPTIONAL MATCH (o:Organization {organizationId: organizationId})
+                OPTIONAL MATCH (o)-[hl:HAS_LOCATION]->(pl:PhysicalLocation)
+  
+              WITH organizationId,
+                collect(
+                  CASE WHEN pl IS NULL THEN NULL ELSE {
+                    // Related node
+                    location: properties(pl),
+                    
+                    // Relationship properties
+                    locationRole: hl.locationRole,
+                    isPrimary: hl.isPrimary,
+                    
+                    // DATE-only -> string
+                    startDate: toString(hl.startDate),
+                    endDate: toString(hl.endDate),
+                    
+                    claimIds: coalesce(hl.claimIds, []),
+                    
+                    // DATETIME -> string
+                    validAt: toString(hl.validAt),
+                    invalidAt: toString(hl.invalidAt),
+                    expiredAt: toString(hl.expiredAt),
+                    createdAt: toString(hl.createdAt)
+                  } END
+                ) AS edges
+  
+              RETURN organizationId, [e IN edges WHERE e IS NOT NULL] AS edges
+              `,
+              { organizationIds }
+            );
+
+            return res.records.map((r) => ({
+              organizationId: r.get("organizationId"),
+              edges: r.get("edges"),
+            }));
+          });
+
+          return mapResultsToKeys(organizationIds, rows);
+        },
+        { cacheKeyFn: (k) => k }
+      ),
+      // ... more loaders
+    },
+  };
+}
+```
+
+**Key Points:**
+
+- Use `UNWIND $ids` pattern to batch load
+- Use `OPTIONAL MATCH` for relationships (handles missing relationships)
+- Return shape: `{ relatedNode: properties(node), relationshipProp: value, ... }`
+- Convert DATE to string: `toString(property)`
+- Convert DATETIME to string: `toString(property)`
+- Use `collect()` to gather edges, filter NULLs with `[e IN edges WHERE e IS NOT NULL]`
+- Use `mapResultsToKeys` helper to map results back to input keys
+- Set `cacheKeyFn: (k) => k` for string keys
+
+### 3. Map Results Helper (loaders/utils.ts)
+
+Helper function to map query results back to input keys:
+
+```typescript
+export function mapResultsToKeys<T>(
+  keys: readonly string[],
+  rows: Array<{ organizationId: string; edges: T[] }>
+): T[][] {
+  const byId = new Map<string, T[]>();
+  for (const row of rows) byId.set(row.organizationId, row.edges ?? []);
+  return keys.map((k) => byId.get(k) ?? []);
+}
+```
+
+**Key Points:**
+
+- Builds a Map from query results
+- Returns array matching input keys order
+- Returns empty array `[]` if key not found
+
+### 4. GraphQL Context (context.ts)
+
+Attach loaders to GraphQL context (request-scoped):
+
+```typescript
+export interface GraphQLContext {
+  ip: string;
+  requestId?: string;
+  req?: Request;
+  res?: Response;
+  loaders: {
+    entities: EntityLoaders;
+  };
+}
+
+export function createContext(params: {
+  ip: string;
+  requestId?: string;
+  req?: Request;
+  res?: Response;
+  loaders: {
+    entities: EntityLoaders;
+  };
+}): GraphQLContext {
+  return {
+    ip: params.ip,
+    requestId: params.requestId,
+    req: params.req,
+    res: params.res,
+    loaders: {
+      entities: createEntityLoaders(), // Request-scoped creation
+    },
+  };
+}
+```
+
+**Key Points:**
+
+- `createEntityLoaders()` called per request (request-scoped)
+- Loaders attached to `ctx.loaders.entities`
+- Organized by Model (e.g., `ctx.loaders.entities.Organization`)
+
+### 5. Resolver Usage (resolvers/\*Resolvers.ts)
+
+Use loaders in resolvers:
+
+```typescript
+export const OrganizationResolvers = {
+  hasLocation: (parent: ParentOrg, _args: unknown, ctx: GraphQLContext) =>
+    ctx.loaders.entities.Organization.organizationHasLocationEdges.load(
+      parent.organizationId
+    ),
+
+  offersProduct: (parent: ParentOrg, _args: unknown, ctx: GraphQLContext) =>
+    ctx.loaders.entities.Organization.organizationOffersProductEdges.load(
+      parent.organizationId
+    ),
+};
+```
+
+**Key Points:**
+
+- Access via `ctx.loaders.entities.Model.loaderName.load(key)`
+- Pass the parent node's canonical ID (e.g., `organizationId`)
+- Returns Promise of edge type array (matches GraphQL schema)
+
+## Edge Type Shape
+
+DataLoader must return data matching the **Zod model schema edge type**:
+
+```typescript
+// Model schema (OrganizationModel.ts)
+export const HasLocationEdgeSchema = TemporalValiditySchema.extend({
+  location: PhysicalLocationSchema, // Related node (properties object)
+  locationRole: z.string(),
+  isPrimary: z.boolean().nullable(),
+  startDate: Neo4jDateString,
+  endDate: Neo4jDateString,
+  claimIds: z.array(z.string()),
+});
+
+// DataLoader returns:
+{
+  location: { locationId: "...", canonicalName: "...", ... }, // Node properties
+  locationRole: "...",
+  isPrimary: true,
+  startDate: "2024-01-01", // String (DATE)
+  endDate: "2024-12-31",   // String (DATE)
+  claimIds: ["...", ...],
+  validAt: "2024-01-01T00:00:00.000Z", // String (DATETIME)
+  invalidAt: null,
+  expiredAt: null,
+  createdAt: "2024-01-01T00:00:00.000Z", // String (DATETIME)
+}
+```
+
+**Key Points:**
+
+- Related node returned as properties object: `properties(node)` in Cypher
+- Relationship properties returned directly
+- DATE fields: convert to string with `toString(property)`
+- DATETIME fields: convert to string with `toString(property)`
+- Arrays returned as-is (e.g., `claimIds`)
+
+## Self-Referential Relationships
+
+For self-referential relationships, return the related node properties:
+
+```cypher
+OPTIONAL MATCH (o:Organization {organizationId: organizationId})
+  OPTIONAL MATCH (o)-[oc:OWNS_OR_CONTROLS]->(other:Organization)
+
+WITH organizationId,
+  collect(
+    CASE WHEN other IS NULL THEN NULL ELSE {
+      organization: properties(other), // Node properties
+
+      relationshipType: oc.relationshipType,
+      ownershipPercent: oc.ownershipPercent,
+      // ... relationship properties
+
+      validAt: toString(oc.validAt),
+      // ... temporal validity
+    } END
+  ) AS edges
+
+RETURN organizationId, [e IN edges WHERE e IS NOT NULL] AS edges
+```
+
+## Implementation Checklist
+
+When adding a new relationship loader:
+
+1. ✅ Add loader to `EntityLoaders` interface: `Model.relationshipFieldEdges`
+2. ✅ Implement loader in `createEntityLoaders()`:
+   - Use `UNWIND $ids` pattern
+   - Use `OPTIONAL MATCH` for relationships
+   - Return edge shape: `{ relatedNode: properties(node), relationshipProps, temporalValidity }`
+   - Convert DATE/DATETIME to strings
+   - Use `mapResultsToKeys` helper
+3. ✅ Add resolver in `resolvers/*Resolvers.ts`:
+   - Use `ctx.loaders.entities.Model.loaderName.load(parentId)`
+4. ✅ Test with GraphQL queries
+
+## Reference Examples
+
+- **Loader Implementation**: `src/graphql/loaders/entityLoaders.ts`
+- **Context Creation**: `src/graphql/context.ts`
+- **Resolver Usage**: `src/graphql/resolvers/organizationResolvers.ts`
+- **Utils Helper**: `src/graphql/loaders/utils.ts`
+- **Edge Type Schema**: `src/graphql/types/OrganizationModel.ts`

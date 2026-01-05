@@ -32,4 +32,27 @@ export const OrganizationResolvers = {
     ctx.loaders.entities.Organization.organizationSuppliesCompoundFormEdges.load(
       parent.organizationId
     ),
+
+  manufactures: (parent: ParentOrg, _args: unknown, ctx: GraphQLContext) =>
+    ctx.loaders.entities.Organization.organizationManufacturesEdges.load(
+      parent.organizationId
+    ),
+
+  manufacturesProduct: (
+    parent: ParentOrg,
+    _args: unknown,
+    ctx: GraphQLContext
+  ) =>
+    ctx.loaders.entities.Organization.organizationManufacturesProductEdges.load(
+      parent.organizationId
+    ),
+
+  contractManufacturerForOrganization: (
+    parent: ParentOrg,
+    _args: unknown,
+    ctx: GraphQLContext
+  ) =>
+    ctx.loaders.entities.Organization.organizationContractManufacturerForOrganizationEdges.load(
+      parent.organizationId
+    ),
 };
