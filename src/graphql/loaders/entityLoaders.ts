@@ -11,6 +11,11 @@ import type {
   ManufacturesCompoundFormEdge,
   ManufacturesProductEdge,
   ContractManufacturerForOrganizationEdge,
+  ContractManufacturerForCompoundFormEdge,
+  ContractManufacturerForProductEdge,
+  PerformsManufacturingProcessEdge,
+  UsesPlatformEdge,
+  DevelopsPlatformEdge,
 } from "../types/OrganizationModel.js";
 
 export interface EntityLoaders {
@@ -35,6 +40,23 @@ export interface EntityLoaders {
       string,
       ContractManufacturerForOrganizationEdge[]
     >;
+    organizationContractManufacturerForCompoundFormEdges: DataLoader<
+      string,
+      ContractManufacturerForCompoundFormEdge[]
+    >;
+    organizationContractManufacturerForProductEdges: DataLoader<
+      string,
+      ContractManufacturerForProductEdge[]
+    >;
+    organizationPerformsManufacturingProcessEdges: DataLoader<
+      string,
+      PerformsManufacturingProcessEdge[]
+    >;
+    organizationDevelopsPlatformEdges: DataLoader<
+      string,
+      DevelopsPlatformEdge[]
+    >;
+    organizationUsesPlatformEdges: DataLoader<string, UsesPlatformEdge[]>;
   };
 }
 
@@ -356,6 +378,8 @@ export function createEntityLoaders(): EntityLoaders {
         },
         { cacheKeyFn: (k) => k }
       ),
+      // TODO: It is supposed to be CONTRACT_MANUFACTURER_FOR (CompoundForm | Product | Organization).
+      // TODO: This requires differentiating in mutations and also returning a Union type
 
       organizationContractManufacturerForOrganizationEdges: new DataLoader<
         string,
@@ -368,7 +392,7 @@ export function createEntityLoaders(): EntityLoaders {
               UNWIND $organizationIds AS organizationId
   
               OPTIONAL MATCH (o:Organization {organizationId: organizationId})
-                OPTIONAL MATCH (o)-[cm:CONTRACT_MANUFACTURER_FOR]->(other:Organization)
+                OPTIONAL MATCH (o)-[cm:CONTRACT_MANUFACTURER_FOR_ORGANIZATION]->(other:Organization)
   
               WITH organizationId,
                 collect(
@@ -380,6 +404,221 @@ export function createEntityLoaders(): EntityLoaders {
                     invalidAt: toString(cm.invalidAt),
                     expiredAt: toString(cm.expiredAt),
                     createdAt: toString(cm.createdAt)
+                  } END
+                ) AS edges
+  
+              RETURN organizationId, [e IN edges WHERE e IS NOT NULL] AS edges
+              `,
+              { organizationIds }
+            );
+
+            return res.records.map((r) => ({
+              organizationId: r.get("organizationId"),
+              edges: r.get("edges"),
+            }));
+          });
+
+          return mapResultsToKeys(organizationIds, rows);
+        },
+        { cacheKeyFn: (k) => k }
+      ),
+
+      organizationContractManufacturerForProductEdges: new DataLoader<
+        string,
+        ContractManufacturerForProductEdge[]
+      >(
+        async (organizationIds) => {
+          const rows = await executeRead(async (tx) => {
+            const res = await tx.run(
+              `
+              UNWIND $organizationIds AS organizationId
+  
+              OPTIONAL MATCH (o:Organization {organizationId: organizationId})
+                OPTIONAL MATCH (o)-[cmp:CONTRACT_MANUFACTURER_FOR_PRODUCT]->(p:Product)
+  
+              WITH organizationId,
+                collect(
+                  CASE WHEN p IS NULL THEN NULL ELSE {
+                    product: properties(p),
+                    claimIds: coalesce(cmp.claimIds, []),
+                    // DATETIME -> string
+                    validAt: toString(cmp.validAt),
+                    invalidAt: toString(cmp.invalidAt),
+                    expiredAt: toString(cmp.expiredAt),
+                    createdAt: toString(cmp.createdAt)
+                  } END
+                ) AS edges
+  
+              RETURN organizationId, [e IN edges WHERE e IS NOT NULL] AS edges
+              `,
+              { organizationIds }
+            );
+
+            return res.records.map((r) => ({
+              organizationId: r.get("organizationId"),
+              edges: r.get("edges"),
+            }));
+          });
+
+          return mapResultsToKeys(organizationIds, rows);
+        },
+        { cacheKeyFn: (k) => k }
+      ),
+
+      organizationContractManufacturerForCompoundFormEdges: new DataLoader<
+        string,
+        ContractManufacturerForCompoundFormEdge[]
+      >(
+        async (organizationIds) => {
+          const rows = await executeRead(async (tx) => {
+            const res = await tx.run(
+              `
+              UNWIND $organizationIds AS organizationId
+  
+              OPTIONAL MATCH (o:Organization {organizationId: organizationId})
+                OPTIONAL MATCH (o)-[cmcf:CONTRACT_MANUFACTURER_FOR_COMPOUND_FORM]->(cf:CompoundForm)
+  
+              WITH organizationId,
+                collect(
+                  CASE WHEN cf IS NULL THEN NULL ELSE {
+                    compoundForm: properties(cf),
+                    claimIds: coalesce(cmcf.claimIds, []),
+                    // DATETIME -> string
+                    validAt: toString(cmcf.validAt),
+                    invalidAt: toString(cmcf.invalidAt),
+                    expiredAt: toString(cmcf.expiredAt),
+                    createdAt: toString(cmcf.createdAt)
+                  } END
+                ) AS edges
+  
+              RETURN organizationId, [e IN edges WHERE e IS NOT NULL] AS edges
+              `,
+              { organizationIds }
+            );
+
+            return res.records.map((r) => ({
+              organizationId: r.get("organizationId"),
+              edges: r.get("edges"),
+            }));
+          });
+
+          return mapResultsToKeys(organizationIds, rows);
+        },
+        { cacheKeyFn: (k) => k }
+      ),
+
+      organizationPerformsManufacturingProcessEdges: new DataLoader<
+        string,
+        PerformsManufacturingProcessEdge[]
+      >(
+        async (organizationIds) => {
+          const rows = await executeRead(async (tx) => {
+            const res = await tx.run(
+              `
+              UNWIND $organizationIds AS organizationId
+  
+              OPTIONAL MATCH (o:Organization {organizationId: organizationId})
+                OPTIONAL MATCH (o)-[pmp:PERFORMS_MANUFACTURING_PROCESS]->(mp:ManufacturingProcess)
+  
+              WITH organizationId,
+                collect(
+                  CASE WHEN mp IS NULL THEN NULL ELSE {
+                    manufacturingProcess: properties(mp),
+                    role: pmp.role,
+                    claimIds: coalesce(pmp.claimIds, []),
+                    // DATETIME -> string
+                    validAt: toString(pmp.validAt),
+                    invalidAt: toString(pmp.invalidAt),
+                    expiredAt: toString(pmp.expiredAt),
+                    createdAt: toString(pmp.createdAt)
+                  } END
+                ) AS edges
+  
+              RETURN organizationId, [e IN edges WHERE e IS NOT NULL] AS edges
+              `,
+              { organizationIds }
+            );
+
+            return res.records.map((r) => ({
+              organizationId: r.get("organizationId"),
+              edges: r.get("edges"),
+            }));
+          });
+
+          return mapResultsToKeys(organizationIds, rows);
+        },
+        { cacheKeyFn: (k) => k }
+      ),
+
+      organizationDevelopsPlatformEdges: new DataLoader<
+        string,
+        DevelopsPlatformEdge[]
+      >(
+        async (organizationIds) => {
+          const rows = await executeRead(async (tx) => {
+            const res = await tx.run(
+              `
+              UNWIND $organizationIds AS organizationId
+  
+              OPTIONAL MATCH (o:Organization {organizationId: organizationId})
+                OPTIONAL MATCH (o)-[dp:DEVELOPS_PLATFORM]->(tp:TechnologyPlatform)
+  
+              WITH organizationId,
+                collect(
+                  CASE WHEN tp IS NULL THEN NULL ELSE {
+                    technologyPlatform: properties(tp),
+                    relationshipRole: dp.relationshipRole,
+                    notes: dp.notes,
+                    source: dp.source,
+                    claimIds: coalesce(dp.claimIds, []),
+                    // DATETIME -> string
+                    validAt: toString(dp.validAt),
+                    invalidAt: toString(dp.invalidAt),
+                    expiredAt: toString(dp.expiredAt),
+                    createdAt: toString(dp.createdAt)
+                  } END
+                ) AS edges
+  
+              RETURN organizationId, [e IN edges WHERE e IS NOT NULL] AS edges
+              `,
+              { organizationIds }
+            );
+
+            return res.records.map((r) => ({
+              organizationId: r.get("organizationId"),
+              edges: r.get("edges"),
+            }));
+          });
+
+          return mapResultsToKeys(organizationIds, rows);
+        },
+        { cacheKeyFn: (k) => k }
+      ),
+
+      organizationUsesPlatformEdges: new DataLoader<string, UsesPlatformEdge[]>(
+        async (organizationIds) => {
+          const rows = await executeRead(async (tx) => {
+            const res = await tx.run(
+              `
+              UNWIND $organizationIds AS organizationId
+  
+              OPTIONAL MATCH (o:Organization {organizationId: organizationId})
+                OPTIONAL MATCH (o)-[up:USES_PLATFORM]->(tp:TechnologyPlatform)
+  
+              WITH organizationId,
+                collect(
+                  CASE WHEN tp IS NULL THEN NULL ELSE {
+                    technologyPlatform: properties(tp),
+                    usageContext: up.usageContext,
+                    isPrimary: up.isPrimary,
+                    notes: up.notes,
+                    source: up.source,
+                    claimIds: coalesce(up.claimIds, []),
+                    // DATETIME -> string
+                    validAt: toString(up.validAt),
+                    invalidAt: toString(up.invalidAt),
+                    expiredAt: toString(up.expiredAt),
+                    createdAt: toString(up.createdAt)
                   } END
                 ) AS edges
   
