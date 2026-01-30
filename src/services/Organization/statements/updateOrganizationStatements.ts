@@ -1,10 +1,17 @@
-export const updateOrganizationCypher = `
-  OPTIONAL MATCH (o:Organization {organizationId: $organizationId})
+import { OrgIdentifierKey } from "../types.js";
+
+export function buildOrgUpdateCypher(identifierKey: OrgIdentifierKey) {    
+
+  return `  
+
+  OPTIONAL MATCH (o:Organization { ${identifierKey}: $idValue })
   CALL apoc.util.validate(
     o IS NULL,
-    'updateOrganization failed: Organization not found for organizationId %s',
-    [$organizationId]
-  )
+    'updateOrganization failed: Organization not found for ${identifierKey} %s',
+    [$idValue]
+  ) 
+
+  SET o.organizationId = coalesce(o.organizationId, randomUUID()) 
   SET o += {
     name: CASE WHEN $name IS NULL THEN o.name ELSE $name END,
   
@@ -70,7 +77,15 @@ export const updateOrganizationCypher = `
     expiredAt: CASE WHEN $expiredAt IS NULL THEN o.expiredAt ELSE $expiredAt END
   }
   RETURN o
-            `;
+  
+  
+  `
+
+
+}
+
+
+
 export const updateOrganizationHasLocationCypher = `       
   MATCH (o:Organization {organizationId: $organizationId})
   UNWIND $hasLocation AS rel
@@ -1873,7 +1888,7 @@ export const returnUpdatedOrganizationCypher = `
           `;
 
 export const updateOrganizationStatements = {
-  updateOrganizationCypher,
+  buildOrgUpdateCypher,
   updateOrganizationHasLocationCypher,
   updateOrganizationOwnsOrControlsCypher,
   updateOrganizationListsCypher,

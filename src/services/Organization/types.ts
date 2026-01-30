@@ -1,0 +1,1 @@
+export type OrgIdentifierKey = "organizationId" | "legalName" | "publicTicker";

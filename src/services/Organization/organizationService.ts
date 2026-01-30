@@ -17,20 +17,25 @@ import { Organization } from "../../graphql/types/OrganizationModel.js";
 import {
   createOrganizationStatements,
   updateOrganizationStatements,
-} from "./statements/index.js";
+} from "./statements/index.js";  
+import { resolveOrgIdentifier } from "./utils/resolveOrgIdentity.js";
+
+
+
+
 
 export async function updateOrganizationWithOptionalRelations(
   input: UpdateOrganizationInput
 ): Promise<Organization> {
-  const validated = validateInput(
+  const validated: UpdateOrganizationInput = validateInput(
     UpdateOrganizationInputSchema,
     input,
     "UpdateOrganizationInputWithOptionalRelations"
   );
 
   // Keep params as primitives/arrays; each tx.run block plucks what it needs.
-  const params = {
-    organizationId: validated.organizationId,
+  const params: UpdateOrganizationInput = {
+    organizationId: validated.organizationId ?? null, 
 
     // node fields
     name: validated.name ?? null,
@@ -82,22 +87,48 @@ export async function updateOrganizationWithOptionalRelations(
     performsManufacturingProcess: validated.performsManufacturingProcess ?? [],
     developsPlatform: validated.developsPlatform ?? [],
     usesPlatform: validated.usesPlatform ?? [],
-  };
+  }; 
+
+  const {key, value} = resolveOrgIdentifier(params);   
+  const updateCypher = updateOrganizationStatements.buildOrgUpdateCypher(key);  
+
+
 
   try {
     const organization = await executeWrite(async (tx) => {
       // ------------------------------------------------------------
       // 0) Ensure org exists + update its scalar fields
-      // ------------------------------------------------------------
+      // ------------------------------------------------------------ 
+
+      let org: Organization | null; 
       {
         const res = await tx.run(
-          updateOrganizationStatements.updateOrganizationCypher,
-          params
+          updateCypher,
+          {...params, idValue: value}
         );
 
         const record = firstRecordOrNull(res);
-        if (!record) throw new Error("updateOrganization: no record returned");
-      }
+        if (!record) throw new Error("updateOrganization: no record returned");  
+
+        const orgRecord = record.get("o");  
+
+        if (!orgRecord) throw Errors.internalError("Organization not found");    
+
+        org = orgRecord; 
+
+
+      }    
+
+      const finalOrgId: string | null = org?.properties?.organizationId ?? org?.organizationId;    
+
+      if (!finalOrgId)
+        throw Errors.internalError("Organization ID is required");   
+
+      const nextParams: UpdateOrganizationInput = {...params, organizationId: finalOrgId};
+
+       
+
+
 
       // ------------------------------------------------------------
       // 1) HAS_LOCATION (create / connect / update) — strict semantics
@@ -105,7 +136,7 @@ export async function updateOrganizationWithOptionalRelations(
       if (params.hasLocation.length) {
         await tx.run(
           updateOrganizationStatements.updateOrganizationHasLocationCypher,
-          params
+          nextParams
         );
       }
 
@@ -115,14 +146,14 @@ export async function updateOrganizationWithOptionalRelations(
       if (params.ownsOrControls.length) {
         await tx.run(
           updateOrganizationStatements.updateOrganizationOwnsOrControlsCypher,
-          params
+          nextParams
         );
       }
 
       if (params.lists.length) {
         await tx.run(
           updateOrganizationStatements.updateOrganizationListsCypher,
-          params
+          nextParams
         );
       }
 
@@ -132,7 +163,7 @@ export async function updateOrganizationWithOptionalRelations(
       if (params.offersProduct.length) {
         await tx.run(
           updateOrganizationStatements.updateOrganizationOffersProductCypher,
-          params
+          nextParams
         );
       }
 
@@ -142,7 +173,7 @@ export async function updateOrganizationWithOptionalRelations(
       if (params.suppliesCompoundForm.length) {
         await tx.run(
           updateOrganizationStatements.updateOrganizationSuppliesCompoundFormCypher,
-          params
+         nextParams
         );
       }
 
@@ -154,7 +185,7 @@ export async function updateOrganizationWithOptionalRelations(
         await tx.run(
           updateOrganizationStatements.updateOrganizationManufacturesCompoundFormCypher,
 
-          params
+          nextParams
         );
       }
 
@@ -164,7 +195,7 @@ export async function updateOrganizationWithOptionalRelations(
       if (params.manufacturesProduct.length) {
         await tx.run(
           updateOrganizationStatements.updateOrganizationManufacturesProductCypher,
-          params
+          nextParams
         );
       }
 
@@ -174,7 +205,7 @@ export async function updateOrganizationWithOptionalRelations(
       if (params.contractManufacturerForOrganization.length) {
         await tx.run(
           updateOrganizationStatements.updateOrganizationContractManufacturerForOrganizationCypher,
-          params
+          nextParams
         );
       }
 
@@ -184,7 +215,7 @@ export async function updateOrganizationWithOptionalRelations(
       if (params.contractManufacturerForProduct.length) {
         await tx.run(
           updateOrganizationStatements.updateOrganizationContractManufacturerForProductCypher,
-          params
+         nextParams
         );
       }
 
@@ -194,7 +225,7 @@ export async function updateOrganizationWithOptionalRelations(
       if (params.contractManufacturerForCompoundForm.length) {
         await tx.run(
           updateOrganizationStatements.updateOrganizationContractManufacturerForCompoundFormCypher,
-          params
+          nextParams
         );
       }
 
@@ -204,7 +235,7 @@ export async function updateOrganizationWithOptionalRelations(
       if (params.performsManufacturingProcess.length) {
         await tx.run(
           updateOrganizationStatements.updateOrganizationPerformsManufacturingProcessCypher,
-          params
+          nextParams
         );
       }
 
@@ -214,7 +245,7 @@ export async function updateOrganizationWithOptionalRelations(
       if (params.developsPlatform.length) {
         await tx.run(
           updateOrganizationStatements.updateOrganizationDevelopsPlatformCypher,
-          params
+          nextParams
         );
       }
 
@@ -224,7 +255,7 @@ export async function updateOrganizationWithOptionalRelations(
       if (params.usesPlatform.length) {
         await tx.run(
           updateOrganizationStatements.updateOrganizationUsesPlatformCypher,
-          params
+          nextParams
         );
       }
 
@@ -233,7 +264,7 @@ export async function updateOrganizationWithOptionalRelations(
       // ------------------------------------------------------------
       const final = await tx.run(
         updateOrganizationStatements.returnUpdatedOrganizationCypher,
-        { organizationId: params.organizationId }
+        { organizationId: finalOrgId }
       );
 
       const record = firstRecordOrNull(final);
@@ -267,8 +298,8 @@ export async function createOrganizationWithOptionalRelations(
   // - For relationship arrays, prefer [] (not null) so UNWIND is predictable.
   // - For scalar/primitive arrays (aliases, tags), your existing null/merge behavior is fine.
   const params = {
-    organizationId: validated.organizationId,
-    name: validated.name,
+    organizationId: validated.organizationId ?? null, 
+    name: validated.name ?? null,
     aliases: validated.aliases ?? null,
     orgType: validated.orgType,
     description: validated.description ?? null,
@@ -321,7 +352,7 @@ export async function createOrganizationWithOptionalRelations(
   };
 
   const {
-    upsertOrganizationsCypher,
+    buildOrgUpsertCypher,
     organizationHasLocationCypher,
     organizationOwnsOrControlsCypher,
     organizationListsCypher,
@@ -336,65 +367,81 @@ export async function createOrganizationWithOptionalRelations(
     organizationDevelopsPlatformCypher,
     organizationUsesPlatformCypher,
     returnOrganizationsCypher,
-  } = createOrganizationStatements;
+  } = createOrganizationStatements; 
+
+  const {key, value} = resolveOrgIdentifier(params);  
+
+  const upsertCypher = buildOrgUpsertCypher(key); 
 
   try {
     const organization = await executeWrite(async (tx) => {
       // 1) Upsert org
-      const upsertRes = await tx.run(upsertOrganizationsCypher, params);
+      const upsertRes = await tx.run(upsertCypher, {...params, idValue: value});
       const upsertRecord = firstRecordOrNull(upsertRes);
       if (!upsertRecord)
-        throw new Error("createOrganization: no record returned from upsert");
+        throw new Error("createOrganization: no record returned from upsert"); 
+
+      const org = upsertRecord.get("o"); 
+
+      const resolvedOrgId = org?.properties?.organizationId ?? org?.organizationId;   
+  
+
+      if (!resolvedOrgId)
+        throw Errors.internalError("Organization ID is required");  
+
+      const nextParams = {...params, organizationId: resolvedOrgId};
+
+      
 
       // 2) Relationship statements (each its own Cypher statement, still same TX)
       if (params.hasLocation.length) {
-        await tx.run(organizationHasLocationCypher, params);
+        await tx.run(organizationHasLocationCypher, nextParams);
       }
       if (params.ownsOrControls.length) {
-        await tx.run(organizationOwnsOrControlsCypher, params);
+        await tx.run(organizationOwnsOrControlsCypher, nextParams);
       }
       if (params.lists.length) {
-        await tx.run(organizationListsCypher, params);
+        await tx.run(organizationListsCypher, nextParams);
       }
       if (params.offersProduct.length) {
-        await tx.run(organizationOffersProductCypher, params);
+        await tx.run(organizationOffersProductCypher, nextParams);
       }
       if (params.suppliesCompoundForm.length) {
-        await tx.run(organizationSuppliesCompoundFormCypher, params);
+        await tx.run(organizationSuppliesCompoundFormCypher, nextParams);
       }
       if (params.manufactures.length) {
-        await tx.run(organizationManufacturesCompoundFormCypher, params);
+        await tx.run(organizationManufacturesCompoundFormCypher, nextParams);
       }
       if (params.manufacturesProduct.length) {
-        await tx.run(organizationManufacturesProductCypher, params);
+        await tx.run(organizationManufacturesProductCypher, nextParams);
       }
       if (params.contractManufacturerForOrganization.length) {
         await tx.run(
           organizationContractManufacturerForOrganizationCypher,
-          params
+          nextParams
         );
       }
       if (params.contractManufacturerForProduct.length) {
-        await tx.run(organizationContractManufacturerForProductCypher, params);
+        await tx.run(organizationContractManufacturerForProductCypher, nextParams);
       }
       if (params.contractManufacturerForCompoundForm.length) {
         await tx.run(
           organizationContractManufacturerForCompoundFormCypher,
-          params
+          nextParams
         );
       }
       if (params.performsManufacturingProcess.length) {
-        await tx.run(organizationPerformsManufacturingProcessCypher, params);
+        await tx.run(organizationPerformsManufacturingProcessCypher, nextParams);
       }
       if (params.developsPlatform.length) {
-        await tx.run(organizationDevelopsPlatformCypher, params);
+        await tx.run(organizationDevelopsPlatformCypher, nextParams);
       }
       if (params.usesPlatform.length) {
-        await tx.run(organizationUsesPlatformCypher, params);
+        await tx.run(organizationUsesPlatformCypher, nextParams);
       }
 
       // 3) Return org at end
-      const finalRes = await tx.run(returnOrganizationsCypher, params);
+      const finalRes = await tx.run(returnOrganizationsCypher, nextParams);
       const finalRecord = firstRecordOrNull(finalRes);
       if (!finalRecord)
         throw new Error("createOrganization: org not found after writes");

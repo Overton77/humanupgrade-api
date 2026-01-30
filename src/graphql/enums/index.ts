@@ -166,6 +166,24 @@ export const ManufacturingRoleEnum = z.enum([
   "other",
 ]);
 
+// Product relationship enums
+export const LabTestRoleEnum = z.enum([
+  "primary",
+  "component",
+  "reflex",
+  "add_on",
+  "eligibility_gate",
+]);
+
+export const PanelRoleEnum = z.enum(["primary", "variant", "legacy"]);
+
+export const CompoundFormRoleEnum = z.enum([
+  "active",
+  "excipient",
+  "carrier",
+  "other",
+]);
+
 // Export TypeScript types
 export type OrgType = z.infer<typeof OrgTypeEnum>;
 export type BusinessModel = z.infer<typeof BusinessModelEnum>;
@@ -183,3 +201,6 @@ export type RelationshipRole = z.infer<typeof RelationshipRoleEnum>;
 export type UsageContext = z.infer<typeof UsageContextEnum>;
 export type Source = z.infer<typeof SourceEnum>;
 export type ManufacturingRole = z.infer<typeof ManufacturingRoleEnum>;
+export type LabTestRole = z.infer<typeof LabTestRoleEnum>;
+export type PanelRole = z.infer<typeof PanelRoleEnum>;
+export type CompoundFormRole = z.infer<typeof CompoundFormRoleEnum>;

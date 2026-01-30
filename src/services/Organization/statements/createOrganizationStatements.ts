@@ -1,8 +1,17 @@
-export const upsertOrganizationsCypher = `
-MERGE (o:Organization {organizationId: $organizationId})
-ON CREATE SET o.createdAt = datetime()
+import { OrgIdentifierKey } from "../types.js";
 
-SET o += {
+export function buildOrgUpsertCypher(identifierKey: OrgIdentifierKey) {
+  return `
+  MERGE (o:Organization { ${identifierKey}: $idValue }) 
+ 
+
+  ON CREATE SET o.createdAt = datetime() 
+
+  SET o.organizationId = coalesce(o.organizationId, randomUUID()) 
+  
+
+SET o += {   
+  
   name: CASE WHEN $name IS NULL THEN o.name ELSE $name END,
 
   aliases: CASE
@@ -66,7 +75,10 @@ SET o += {
 }
 
 RETURN o
-`;
+
+  `  
+}
+
 
 // NOTE: apoc.util.validate is VOID for you -> NO "YIELD value"
 export const organizationHasLocationCypher = `
@@ -1315,7 +1327,7 @@ RETURN o
 `;
 
 export const createOrganizationStatements = {
-  upsertOrganizationsCypher,
+  buildOrgUpsertCypher,
   organizationHasLocationCypher,
   organizationOwnsOrControlsCypher,
   organizationListsCypher,

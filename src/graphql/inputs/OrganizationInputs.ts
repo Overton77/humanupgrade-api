@@ -151,13 +151,13 @@ export type ListsRelationshipInput = z.infer<
 
 export const OffersProductRelationshipInputSchema =
   TemporalValidityInputSchema.extend({
-    product: ProductRelateInputSchema,
+    product: z.lazy(() => ProductRelateInputSchema),
     // No additional properties, just temporal validity
   });
 
 export const OffersProductRelationshipUpdateInputSchema =
   TemporalValidityInputSchema.extend({
-    product: ProductRelateUpdateInputSchema,
+    product: z.lazy(() => ProductRelateUpdateInputSchema),
     // No additional properties, just temporal validity
   });
 
@@ -203,13 +203,13 @@ export type ManufacturesRelationshipInput = z.infer<
 // ManufacturesProductRelationshipInput (Create/Connect)
 export const ManufacturesProductRelationshipInputSchema =
   TemporalValidityInputSchema.extend({
-    product: ProductRelateInputSchema,
+    product: z.lazy(() => ProductRelateInputSchema),
     claimIds: z.array(z.string()).optional(),
   });
 
 export const ManufacturesProductRelationshipUpdateInputSchema =
   TemporalValidityInputSchema.extend({
-    product: ProductRelateUpdateInputSchema,
+    product: z.lazy(() => ProductRelateUpdateInputSchema),
     claimIds: z.array(z.string()).optional(),
   });
 
@@ -237,13 +237,13 @@ export type ContractManufacturerForOrganizationRelationshipInput = z.infer<
 // ContractManufacturerForProductRelationshipInput (Create/Connect)
 export const ContractManufacturerForProductRelationshipInputSchema =
   TemporalValidityInputSchema.extend({
-    product: ProductRelateInputSchema,
+    product: z.lazy(() => ProductRelateInputSchema),
     claimIds: z.array(z.string()).optional(),
   });
 
 export const ContractManufacturerForProductRelationshipUpdateInputSchema =
   TemporalValidityInputSchema.extend({
-    product: ProductRelateUpdateInputSchema,
+    product: z.lazy(() => ProductRelateUpdateInputSchema),
     claimIds: z.array(z.string()).optional(),
   });
 
