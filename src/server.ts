@@ -23,6 +23,7 @@ import { GraphQLFormattedError } from "graphql";
 import { buildFormatError } from "./graphql/formatError.js";
 import { graphqlRateLimitPlugin } from "./lib/rateLimit/graphqlRateLimitPlugin.js";
 import { initRedis } from "./lib/redisClient.js";
+import { initRedisPubSub } from "./lib/redisPubSub.js";
 import { graphqlRedisRateLimitPlugin } from "./lib/rateLimit/rateLimitPlugin.js";
 import cookieParser from "cookie-parser";
 import { createEntityLoaders } from "./graphql/loaders/entityLoaders.js";
@@ -33,6 +34,7 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   await connectToDatabase(env.dbName);
   await initRedis();
+  await initRedisPubSub();
 
   const schemaPath = path.join(__dirname, "graphql", "schema.graphql");
   const typeDefs = readFileSync(schemaPath, "utf8");

@@ -23,6 +23,12 @@ export async function initRedisPubSub(): Promise<void> {
 
 export function chUserActivity(userId: string): string {
   return `user.activity.${userId}`;
+} 
+
+export function chEmbeddingJobEvents(targetType: string, targetId?: string): string {
+  return targetId
+    ? `embedding.job.${targetType}.${targetId}`
+    : `embedding.job.${targetType}`;
 }
 
 export function chUserDashboardInvalidate(userId: string): string {

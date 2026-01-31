@@ -167,6 +167,27 @@ enum ManufacturingRole {
   other
 }
 
+enum LabTestRole {
+  primary
+  component
+  reflex
+  add_on
+  eligibility_gate
+}
+
+enum PanelRole {
+  primary
+  variant
+  legacy
+}
+
+enum CompoundFormRole {
+  active
+  excipient
+  carrier
+  other
+}
+
 # ============================================================================
 # Base Node Types
 # ============================================================================
@@ -216,6 +237,7 @@ type Product {
   synonyms: [String!]
   productDomain: ProductDomain!
   productType: String
+  productFingerprint: String
   intendedUse: String
   description: String
   brandName: String
@@ -226,6 +248,24 @@ type Product {
   riskClass: String
   currency: String
   priceAmount: Float
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime! 
+
+  # Searchability and Vector 
+
+  searchText: String   
+  embedding: [Float!] 
+  # Relationships
+  deliversLabTest: [DeliversLabTestEdge!]
+  implementsPanel: [ImplementsPanelEdge!]
+  containsCompoundForm: [ContainsCompoundFormEdge!]
+  followsPathway: [FollowsPathwayEdge!]
+  inCategory: [InCategoryEdge!]
+  usesPlatform: [ProductUsesPlatformEdge!]
+  hasRegulatoryStatus: [HasRegulatoryStatusEdge!]
+  manufacturedBy: [ManufacturedByEdge!]
 }
 
 type CompoundForm {
@@ -260,6 +300,65 @@ type TechnologyPlatform {
   aliases: [String!]
   platformType: PlatformType!
   description: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type LabTest {
+  labTestId: ID!
+  name: String!
+  synonyms: [String!]
+  loincCodes: [String!]
+  cptCodes: [String!]
+  whatItMeasures: String
+  prepRequirements: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type ProductCategory {
+  categoryId: ID!
+  name: String!
+  description: String
+  aliases: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type PanelDefinition {
+  panelDefinitionId: ID!
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type RegulatoryStatus {
+  regulatoryStatusId: ID!
+  status: String
+  effectiveDate: DateTime
+  statusDetails: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type RegulatoryPathway {
+  pathwayId: ID!
+  authority: String!
+  pathwayType: String!
+  pathwayName: String!
+  requirementsSummary: String
   validAt: DateTime
   invalidAt: DateTime
   expiredAt: DateTime
@@ -408,6 +507,91 @@ type UsesPlatformEdge {
   createdAt: DateTime!
 }
 
+type DeliversLabTestEdge {
+  labTest: LabTest!
+  role: LabTestRole!
+  quantity: Int
+  componentName: String
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type ImplementsPanelEdge {
+  panelDefinition: PanelDefinition!
+  panelRole: PanelRole
+  versionLabel: String
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type ContainsCompoundFormEdge {
+  compoundForm: CompoundForm!
+  dose: Float
+  doseUnit: String
+  role: CompoundFormRole
+  standardizedTo: String
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type FollowsPathwayEdge {
+  regulatoryPathway: RegulatoryPathway!
+  jurisdictionId: String
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type InCategoryEdge {
+  productCategory: ProductCategory!
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type ProductUsesPlatformEdge {
+  technologyPlatform: TechnologyPlatform!
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type HasRegulatoryStatusEdge {
+  regulatoryStatus: RegulatoryStatus!
+  status: String
+  effectiveDate: DateTime
+  statusDetails: String
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type ManufacturedByEdge {
+  organization: Organization!
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
 # ============================================================================
 # Organization Type
 # ============================================================================
@@ -420,7 +604,8 @@ type Organization {
   description: String
   businessModel: BusinessModel
   primaryIndustryTags: [String!]
-  regionsServed: [String!]
+  regionsServed: [String!] 
+  # add isActive or use validAt/invalidAt/expiredAt
   legalName: String
   legalStructure: String
   ownershipType: String
@@ -444,7 +629,11 @@ type Organization {
   validAt: DateTime
   invalidAt: DateTime
   expiredAt: DateTime
-  createdAt: DateTime!
+  createdAt: DateTime! 
+
+  # Searchability and Vector 
+  searchText: String   
+  embedding: [Float!] 
   # Relationships
   hasLocation: [HasLocationEdge!]
   ownsOrControls: [OwnsOrControlsEdge!]
@@ -517,6 +706,7 @@ input ProductInput {
   synonyms: [String!]
   productDomain: ProductDomain!
   productType: String
+  productFingerprint: String
   intendedUse: String
   description: String
   brandName: String
@@ -527,6 +717,19 @@ input ProductInput {
   riskClass: String
   currency: String
   priceAmount: Float
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  # Relationships
+  deliversLabTest: [DeliversLabTestRelationshipInput!]
+  implementsPanel: [ImplementsPanelRelationshipInput!]
+  containsCompoundForm: [ContainsCompoundFormRelationshipInput!]
+  followsPathway: [FollowsPathwayRelationshipInput!]
+  inCategory: [InCategoryRelationshipInput!]
+  usesPlatform: [ProductUsesPlatformRelationshipInput!]
+  hasRegulatoryStatus: [HasRegulatoryStatusRelationshipInput!]
+  manufacturedBy: [ManufacturedByRelationshipInput!]
 }
 
 input CompoundFormInput {
@@ -538,6 +741,65 @@ input CompoundFormInput {
   solubilityProfile: String
   bioavailabilityNotes: String
   regulatoryStatusSummary: String
+}
+
+input LabTestInput {
+  labTestId: ID
+  name: String!
+  synonyms: [String!]
+  loincCodes: [String!]
+  cptCodes: [String!]
+  whatItMeasures: String
+  prepRequirements: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ProductCategoryInput {
+  categoryId: ID
+  name: String!
+  description: String
+  aliases: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input PanelDefinitionInput {
+  panelDefinitionId: ID
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input RegulatoryStatusInput {
+  regulatoryStatusId: ID
+  status: String
+  effectiveDate: DateTime
+  statusDetails: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input RegulatoryPathwayInput {
+  pathwayId: ID
+  authority: String!
+  pathwayType: String!
+  pathwayName: String!
+  requirementsSummary: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
 }
 
 # ============================================================================
@@ -589,6 +851,7 @@ input ProductUpdateInput {
   synonyms: [String!]
   productDomain: ProductDomain
   productType: String
+  productFingerprint: String
   intendedUse: String
   description: String
   brandName: String
@@ -599,6 +862,18 @@ input ProductUpdateInput {
   riskClass: String
   currency: String
   priceAmount: Float
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  # Relationships (using update versions)
+  deliversLabTest: [DeliversLabTestRelationshipUpdateInput!]
+  implementsPanel: [ImplementsPanelRelationshipUpdateInput!]
+  containsCompoundForm: [ContainsCompoundFormRelationshipUpdateInput!]
+  followsPathway: [FollowsPathwayRelationshipUpdateInput!]
+  inCategory: [InCategoryRelationshipUpdateInput!]
+  usesPlatform: [ProductUsesPlatformRelationshipUpdateInput!]
+  hasRegulatoryStatus: [HasRegulatoryStatusRelationshipUpdateInput!]
+  manufacturedBy: [ManufacturedByRelationshipUpdateInput!]
 }
 
 input CompoundFormUpdateInput {
@@ -610,6 +885,65 @@ input CompoundFormUpdateInput {
   solubilityProfile: String
   bioavailabilityNotes: String
   regulatoryStatusSummary: String
+}
+
+input LabTestUpdateInput {
+  labTestId: ID
+  name: String
+  synonyms: [String!]
+  loincCodes: [String!]
+  cptCodes: [String!]
+  whatItMeasures: String
+  prepRequirements: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ProductCategoryUpdateInput {
+  categoryId: ID
+  name: String
+  description: String
+  aliases: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input PanelDefinitionUpdateInput {
+  panelDefinitionId: ID
+  canonicalName: String
+  aliases: [String!]
+  description: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input RegulatoryStatusUpdateInput {
+  regulatoryStatusId: ID
+  status: String
+  effectiveDate: DateTime
+  statusDetails: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input RegulatoryPathwayUpdateInput {
+  pathwayId: ID
+  authority: String
+  pathwayType: String
+  pathwayName: String
+  requirementsSummary: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
 }
 
 input ManufacturingProcessInput {
@@ -812,6 +1146,81 @@ input ProductRelateUpdateInput {
 
 input ProductConnectInput {
   productId: ID!
+}
+
+input LabTestRelateInput {
+  create: LabTestInput
+  connect: LabTestConnectInput
+}
+
+input LabTestRelateUpdateInput {
+  create: LabTestInput
+  connect: LabTestConnectInput
+  update: LabTestUpdateInput
+}
+
+input LabTestConnectInput {
+  labTestId: ID!
+}
+
+input ProductCategoryRelateInput {
+  create: ProductCategoryInput
+  connect: ProductCategoryConnectInput
+}
+
+input ProductCategoryRelateUpdateInput {
+  create: ProductCategoryInput
+  connect: ProductCategoryConnectInput
+  update: ProductCategoryUpdateInput
+}
+
+input ProductCategoryConnectInput {
+  categoryId: ID!
+}
+
+input PanelDefinitionRelateInput {
+  create: PanelDefinitionInput
+  connect: PanelDefinitionConnectInput
+}
+
+input PanelDefinitionRelateUpdateInput {
+  create: PanelDefinitionInput
+  connect: PanelDefinitionConnectInput
+  update: PanelDefinitionUpdateInput
+}
+
+input PanelDefinitionConnectInput {
+  panelDefinitionId: ID!
+}
+
+input RegulatoryStatusRelateInput {
+  create: RegulatoryStatusInput
+  connect: RegulatoryStatusConnectInput
+}
+
+input RegulatoryStatusRelateUpdateInput {
+  create: RegulatoryStatusInput
+  connect: RegulatoryStatusConnectInput
+  update: RegulatoryStatusUpdateInput
+}
+
+input RegulatoryStatusConnectInput {
+  regulatoryStatusId: ID!
+}
+
+input RegulatoryPathwayRelateInput {
+  create: RegulatoryPathwayInput
+  connect: RegulatoryPathwayConnectInput
+}
+
+input RegulatoryPathwayRelateUpdateInput {
+  create: RegulatoryPathwayInput
+  connect: RegulatoryPathwayConnectInput
+  update: RegulatoryPathwayUpdateInput
+}
+
+input RegulatoryPathwayConnectInput {
+  pathwayId: ID!
 }
 
 input OffersProductRelationshipInput {
@@ -1051,6 +1460,176 @@ input UsesPlatformRelationshipUpdateInput {
   createdAt: DateTime
 }
 
+input DeliversLabTestRelationshipInput {
+  labTest: LabTestRelateInput!
+  role: LabTestRole!
+  quantity: Int
+  componentName: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input DeliversLabTestRelationshipUpdateInput {
+  labTest: LabTestRelateUpdateInput!
+  role: LabTestRole
+  quantity: Int
+  componentName: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ImplementsPanelRelationshipInput {
+  panelDefinition: PanelDefinitionRelateInput!
+  panelRole: PanelRole
+  versionLabel: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ImplementsPanelRelationshipUpdateInput {
+  panelDefinition: PanelDefinitionRelateUpdateInput!
+  panelRole: PanelRole
+  versionLabel: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ContainsCompoundFormRelationshipInput {
+  compoundForm: CompoundFormRelateInput!
+  dose: Float
+  doseUnit: String
+  role: CompoundFormRole
+  standardizedTo: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ContainsCompoundFormRelationshipUpdateInput {
+  compoundForm: CompoundFormRelateUpdateInput!
+  dose: Float
+  doseUnit: String
+  role: CompoundFormRole
+  standardizedTo: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input FollowsPathwayRelationshipInput {
+  regulatoryPathway: RegulatoryPathwayRelateInput!
+  jurisdictionId: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input FollowsPathwayRelationshipUpdateInput {
+  regulatoryPathway: RegulatoryPathwayRelateUpdateInput!
+  jurisdictionId: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input InCategoryRelationshipInput {
+  productCategory: ProductCategoryRelateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input InCategoryRelationshipUpdateInput {
+  productCategory: ProductCategoryRelateUpdateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ProductUsesPlatformRelationshipInput {
+  technologyPlatform: TechnologyPlatformRelateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ProductUsesPlatformRelationshipUpdateInput {
+  technologyPlatform: TechnologyPlatformRelateUpdateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input HasRegulatoryStatusRelationshipInput {
+  regulatoryStatus: RegulatoryStatusRelateInput!
+  status: String
+  effectiveDate: DateTime
+  statusDetails: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input HasRegulatoryStatusRelationshipUpdateInput {
+  regulatoryStatus: RegulatoryStatusRelateUpdateInput!
+  status: String
+  effectiveDate: DateTime
+  statusDetails: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ManufacturedByRelationshipInput {
+  organization: OrganizationRelateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ManufacturedByRelationshipUpdateInput {
+  organization: OrganizationRelateUpdateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
 input OrganizationInput {
   organizationId: ID
   name: String!
@@ -1146,17 +1725,289 @@ input UpdateOrganizationInput {
   performsManufacturingProcess: [PerformsManufacturingProcessRelationshipUpdateInput!]
   developsPlatform: [DevelopsPlatformRelationshipUpdateInput!]
   usesPlatform: [UsesPlatformRelationshipUpdateInput!]
+}  
+
+
+
+# ============================================================================
+# Search Input Types
+# ============================================================================   
+
+"""
+Which retrieval strategy to use.
+- FIELD_ONLY: filters/sorts only (no q ranking)
+- FULLTEXT_ONLY: lexical match via Neo4j fulltext index
+- VECTOR_ONLY: semantic match via Neo4j vector index
+- HYBRID: combines FULLTEXT + VECTOR (recommended default)
+"""
+enum SearchMode {
+  FIELD_ONLY
+  FULLTEXT_ONLY
+  VECTOR_ONLY
+  HYBRID
 }
+
+"""
+Cursor pagination input.
+
+Use `after` to fetch the next page.
+`first` should be small-ish (10-50) for ranked search.
+"""
+input PageInput {
+  first: Int! = 20
+  after: String
+}
+
+"""
+Standard page info for cursor pagination.
+"""
+type PageInfo {
+  hasNextPage: Boolean!
+  endCursor: String
+}
+
+# ----------------------------------------------------------------------------
+# Explainable scoring
+# ----------------------------------------------------------------------------
+
+enum SearchReasonKind {
+  FULLTEXT_MATCH
+  VECTOR_MATCH
+  EXACT_MATCH
+  FILTER_APPLIED
+  BOOST_APPLIED
+}
+
+type SearchReason {
+  kind: SearchReasonKind!
+  field: String
+  value: String
+  score: Float
+  detail: String
+}
+
+# ----------------------------------------------------------------------------
+# Organization Search
+# ----------------------------------------------------------------------------
+
+input OrganizationFilterInput {
+  orgTypeIn: [OrgType!]
+  businessModelIn: [BusinessModel!]
+
+  regionsServedAny: [String!]
+  primaryIndustryTagsAny: [String!]
+
+  publicTicker: String
+
+  employeeCountMinGte: Int
+  employeeCountMaxLte: Int
+
+  """
+  Optional: if you materialize isActive on the node.
+  If you don't store it yet, ignore this field in resolvers (or treat null as no-op).
+  """
+  isActive: Boolean
+}
+
+enum OrganizationSortField {
+  NAME
+  CREATED_AT
+  EMPLOYEE_COUNT_MIN
+  EMPLOYEE_COUNT_MAX
+}
+
+enum SortDirection {
+  ASC
+  DESC
+}
+
+input OrganizationSortInput {
+  field: OrganizationSortField!
+  direction: SortDirection! = DESC
+}
+
+input OrganizationSearchInput {
+  """
+  Query text. If omitted/empty, FIELD_ONLY mode is usually used.
+  """
+  q: String
+
+  mode: SearchMode = HYBRID
+
+  filter: OrganizationFilterInput
+
+  """
+  Sort is only guaranteed to be respected when mode=FIELD_ONLY or q is empty.
+  Ranked modes (FULLTEXT/VECTOR/HYBRID) primarily sort by score.
+  """
+  sort: OrganizationSortInput
+
+  page: PageInput = { first: 20 }
+
+  """
+  When true, return score reasons (why it matched).
+  Off by default to keep responses small/fast.
+  """
+  explain: Boolean = false
+}
+
+type OrganizationSearchHit {
+  node: Organization!
+  score: Float
+  reasons: [SearchReason!]
+}
+
+type OrganizationSearchResult {
+  items: [OrganizationSearchHit!]!
+  pageInfo: PageInfo!
+}
+
+# ----------------------------------------------------------------------------
+# Product Search
+# ----------------------------------------------------------------------------
+
+input ProductFilterInput {
+  productDomainIn: [ProductDomain!]
+  riskClassIn: [String!]
+
+  currency: String
+  priceAmountGte: Float
+  priceAmountLte: Float
+
+  # Identifier exact matches
+  brandName: String
+  modelNumber: String
+  ndcCode: String
+  upc: String
+  gtin: String
+
+  isActive: Boolean
+}
+
+enum ProductSortField {
+  NAME
+  CREATED_AT
+  PRICE_AMOUNT
+}
+
+input ProductSortInput {
+  field: ProductSortField!
+  direction: SortDirection! = DESC
+}
+
+input ProductSearchInput {
+  q: String
+  mode: SearchMode = HYBRID
+
+  filter: ProductFilterInput
+  sort: ProductSortInput
+
+  page: PageInput = { first: 20 }
+  explain: Boolean = false
+}
+
+type ProductSearchHit {
+  node: Product!
+  score: Float
+  reasons: [SearchReason!]
+}
+
+type ProductSearchResult {
+  items: [ProductSearchHit!]!
+  pageInfo: PageInfo!
+}
+
+# ----------------------------------------------------------------------------
+# Autocomplete
+# ----------------------------------------------------------------------------
+
+enum AutocompleteEntityType {
+  ORGANIZATION
+  PRODUCT
+}
+
+type AutocompleteItem {
+  id: ID!
+  label: String!
+  subtitle: String
+} 
+
+# ----------------------------------------------------------------------------
+# Embedding
+# ----------------------------------------------------------------------------
+
+enum EmbeddingTargetType {
+  ORGANIZATION
+  PRODUCT  
+  # Add All Other Types that have embeddings on their searchText or other fields 
+} 
+
+enum EmbeddingJobStatus {
+  QUEUED
+  RUNNING
+  COMPLETE
+  SKIPPED
+  FAILED
+}
+ 
+
+
+
+input UpsertEmbeddingInput {
+  targetType: EmbeddingTargetType!
+  targetId: ID! 
+
+  # Optional: let you override rules (rarely used)
+  force: Boolean = false 
+
+  requestId: String 
+}
+
+type UpsertEmbeddingResult {
+  targetType: EmbeddingTargetType!
+  targetId: ID!
+  status: EmbeddingJobStatus!
+  message: String 
+  jobId: String 
+} 
+
+type EmbeddingJobEvent {
+  targetType: EmbeddingTargetType!
+  targetId: ID!
+  status: EmbeddingJobStatus!
+  jobId: String
+  requestId: String
+  message: String
+  error: String
+  updatedAt: DateTime!
+} 
+
+
+
 
 # ============================================================================
 # Query & Mutation
 # ============================================================================
 
 type Query {
-  organizations: [Organization!]!
+  organizations: [Organization!]! 
+  products: [Product!]! 
+  searchOrganizations(input: OrganizationSearchInput!): OrganizationSearchResult!
+  # searchProducts(input: ProductSearchInput!): ProductSearchResult! 
+  #   autocompleteOrganizations(q: String!, first: Int = 10): [AutocompleteItem!]!
+  # autocompleteProducts(q: String!, first: Int = 10): [AutocompleteItem!]!
 }
 
 type Mutation {
   createOrganization(input: OrganizationInput!): Organization!
   updateOrganization(input: UpdateOrganizationInput!): Organization!
+  createProduct(input: ProductInput!): Product!
+  updateProduct(input: ProductUpdateInput!): Product! 
+  upsertEmbedding(input: UpsertEmbeddingInput!): UpsertEmbeddingResult! 
+  upsertEmbeddings(inputs: [UpsertEmbeddingInput!]!): [UpsertEmbeddingResult!]! 
+}
+
+
+type Subscription { 
+  embeddingJobEvents(targetType: EmbeddingTargetType!, targetID: ID): EmbeddingJobEvent! 
 }

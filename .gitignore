@@ -107,4 +107,4 @@ docker-compose.staging.yml
 
 
 **/complete_refactor/** 
-
+**/neo4j_prisma_refactor/** 

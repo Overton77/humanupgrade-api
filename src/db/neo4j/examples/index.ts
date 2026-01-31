@@ -33,7 +33,7 @@ import {
   type EagerResult,
   type CypherParams,
   type TxConfig,
-} from "../query.js";
+} from "../executor.js";
 
 /**
  * ------------------------------------------------------------

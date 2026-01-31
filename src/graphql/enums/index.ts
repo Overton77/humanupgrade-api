@@ -184,6 +184,42 @@ export const CompoundFormRoleEnum = z.enum([
   "other",
 ]);
 
+// Search enums
+export const SearchModeEnum = z.enum([
+  "FIELD_ONLY",
+  "FULLTEXT_ONLY",
+  "VECTOR_ONLY",
+  "HYBRID",
+]);
+
+export const SearchReasonKindEnum = z.enum([
+  "FULLTEXT_MATCH",
+  "VECTOR_MATCH",
+  "EXACT_MATCH",
+  "FILTER_APPLIED",
+  "BOOST_APPLIED",
+]);
+
+export const OrganizationSortFieldEnum = z.enum([
+  "NAME",
+  "CREATED_AT",
+  "EMPLOYEE_COUNT_MIN",
+  "EMPLOYEE_COUNT_MAX",
+]);
+
+export const SortDirectionEnum = z.enum(["ASC", "DESC"]);
+
+// Embedding enums
+export const EmbeddingTargetTypeEnum = z.enum(["ORGANIZATION", "PRODUCT"]);
+
+export const EmbeddingJobStatusEnum = z.enum([
+  "QUEUED",
+  "RUNNING",
+  "COMPLETE",
+  "SKIPPED",
+  "FAILED",
+]);
+
 // Export TypeScript types
 export type OrgType = z.infer<typeof OrgTypeEnum>;
 export type BusinessModel = z.infer<typeof BusinessModelEnum>;
@@ -204,3 +240,9 @@ export type ManufacturingRole = z.infer<typeof ManufacturingRoleEnum>;
 export type LabTestRole = z.infer<typeof LabTestRoleEnum>;
 export type PanelRole = z.infer<typeof PanelRoleEnum>;
 export type CompoundFormRole = z.infer<typeof CompoundFormRoleEnum>;
+export type SearchMode = z.infer<typeof SearchModeEnum>;
+export type SearchReasonKind = z.infer<typeof SearchReasonKindEnum>;
+export type OrganizationSortField = z.infer<typeof OrganizationSortFieldEnum>;
+export type SortDirection = z.infer<typeof SortDirectionEnum>;
+export type EmbeddingTargetType = z.infer<typeof EmbeddingTargetTypeEnum>;
+export type EmbeddingJobStatus = z.infer<typeof EmbeddingJobStatusEnum>;

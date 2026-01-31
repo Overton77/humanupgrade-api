@@ -1,13 +1,15 @@
 import {
   executeWrite,
-  firstRecordOrNull,
-} from "../../db/neo4j/query.js";
-
+  executeRead,
+} from "../../db/neo4j/executor.js";
+import { firstRecordOrNull } from "../../db/neo4j/utils.js";
 import { logger } from "../../lib/logger.js";
 import { validateInput } from "../../lib/validation.js";
 import {
   ProductInput,
   ProductInputSchema,
+  UpdateProductInput,
+  UpdateProductInputSchema,
 } from "../../graphql/inputs/ProductInputs.js";
 import { Product } from "../../graphql/types/ProductModel.js";
 import { createProductStatements } from "./statements/createProductStatements.js"; 
@@ -16,7 +18,7 @@ import { findExistingProductIdCypher } from "./statements/findExistingProductCyp
 import { buildProductUpsertCypher } from "./statements/createProductStatements.js";
 import { computeProductFingerprint, resolveProductIdentifier } from "./utils/resolveProductIdentity.js";
 import { Errors } from "../../lib/errors.js";
-import { buildProductUpdateCypher } from "./statements/updateProductStatements.js";
+import { buildProductUpdateCypher, updateProductStatements } from "./statements/updateProductStatements.js";
 
 export async function createProductWithOptionalRelations(
   input: ProductInput
@@ -149,3 +151,167 @@ export async function createProductWithOptionalRelations(
   }
 }
 
+export async function updateProductWithOptionalRelations(
+  input: UpdateProductInput
+): Promise<Product> {
+  const validated = validateInput(
+    UpdateProductInputSchema,
+    input,
+    "UpdateProductInputWithOptionalRelations"
+  );
+
+  // Keep params as primitives/arrays; each tx.run block plucks what it needs.
+  const params = {
+    productId: validated.productId ?? null,
+    name: validated.name ?? null,
+    synonyms: validated.synonyms ?? null,
+    productDomain: validated.productDomain ?? null,
+    productType: validated.productType ?? null,
+    productFingerprint: validated.productFingerprint ?? null,
+    intendedUse: validated.intendedUse ?? null,
+    description: validated.description ?? null,
+    brandName: validated.brandName ?? null,
+    modelNumber: validated.modelNumber ?? null,
+    ndcCode: validated.ndcCode ?? null,
+    upc: validated.upc ?? null,
+    gtin: validated.gtin ?? null,
+    riskClass: validated.riskClass ?? null,
+    currency: validated.currency ?? null,
+    priceAmount: validated.priceAmount ?? null,
+    validAt: validated.validAt ?? null,
+    invalidAt: validated.invalidAt ?? null,
+    expiredAt: validated.expiredAt ?? null,
+
+    // Relationship arrays — ALWAYS arrays
+    deliversLabTest: validated.deliversLabTest ?? [],
+    implementsPanel: validated.implementsPanel ?? [],
+    containsCompoundForm: validated.containsCompoundForm ?? [],
+    followsPathway: validated.followsPathway ?? [],
+  };
+
+  // Resolve identifier for update
+  const { key, value } = resolveProductIdentifier(params);
+  const updateCypher = buildProductUpdateCypher(key);
+
+  try {
+    const product = await executeWrite(async (tx) => {
+      // ------------------------------------------------------------
+      // 0) Ensure product exists + update its scalar fields
+      // ------------------------------------------------------------
+      let productNode: Product | null;
+      {
+        const res = await tx.run(updateCypher, { ...params, idValue: value });
+
+        const record = firstRecordOrNull(res);
+        if (!record) throw new Error("updateProduct: no record returned");
+
+        const prodRecord = record.get("p");
+
+        if (!prodRecord) throw Errors.internalError("Product not found");
+
+        productNode = prodRecord;
+      }
+
+      const finalProductId: string | null =
+        (productNode as any)?.properties?.productId ?? (productNode as any)?.productId;
+
+      if (!finalProductId)
+        throw Errors.internalError("Product ID is required");
+
+      const nextParams = {
+        ...params,
+        productId: finalProductId,
+      };
+
+      // ------------------------------------------------------------
+      // 1) DELIVERS_LAB_TEST (create / connect / update)
+      // ------------------------------------------------------------
+      if (params.deliversLabTest.length) {
+        await tx.run(
+          updateProductStatements.updateProductDeliversLabTestCypher,
+          nextParams
+        );
+      }
+
+      // ------------------------------------------------------------
+      // 2) IMPLEMENTS_PANEL (create / connect / update)
+      // ------------------------------------------------------------
+      if (params.implementsPanel.length) {
+        await tx.run(
+          updateProductStatements.updateProductImplementsPanelCypher,
+          nextParams
+        );
+      }
+
+      // ------------------------------------------------------------
+      // 3) CONTAINS_COMPOUND_FORM (create / connect / update)
+      // ------------------------------------------------------------
+      if (params.containsCompoundForm.length) {
+        await tx.run(
+          updateProductStatements.updateProductContainsCompoundFormCypher,
+          nextParams
+        );
+      }
+
+      // ------------------------------------------------------------
+      // 4) FOLLOWS_PATHWAY (create / connect / update)
+      // ------------------------------------------------------------
+      if (params.followsPathway.length) {
+        await tx.run(
+          updateProductStatements.updateProductFollowsPathwayCypher,
+          nextParams
+        );
+      }
+
+      // ------------------------------------------------------------
+      // 5) Return updated product
+      // ------------------------------------------------------------
+      const final = await tx.run(
+        updateProductStatements.returnUpdatedProductCypher,
+        { productId: finalProductId }
+      );
+
+      const record = firstRecordOrNull(final);
+      if (!record) throw new Error("updateProduct: product not found after writes");
+      const node = record.get("p");
+      return node?.properties ?? node;
+    });
+
+    return product as Product;
+  } catch (err: any) {
+    logger.error("Neo4j write failed", {
+      message: err?.message,
+      code: err?.code,
+      name: err?.name,
+      stack: err?.stack,
+    });
+    throw err;
+  }
+}
+
+
+export async function findAllProducts(): Promise<Product[]> { 
+
+     try {  
+
+      const products = await executeRead(async (tx) => {
+        const result = await tx.run(
+          `
+            MATCH (p:Product)
+            RETURN properties(p) AS product
+            ORDER BY p.createdAt DESC
+          `
+        );
+
+        return result.records.map((record: Record<string, any>) =>
+          record.get("product")
+        );
+      });
+
+      return products as Product[];
+
+     } catch (err) { 
+      throw Errors.internalError("Internal Error. Try again later", err)
+     }
+
+}

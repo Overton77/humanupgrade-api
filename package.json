@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "tsx --watch src/server.ts",
     "create-vector-indices": "tsx src/scripts/createVectorIndices.ts",
+    "ensure-search-indexes-neo4j": "tsx scripts/ensure-search-indexes.ts",
     "build": "tsc && pnpm copy-schema",
     "copy-schema": "copyfiles -u 1 src/graphql/schema.graphql dist",
     "start": "node dist/server.js",
@@ -15,6 +16,8 @@
     "verify:neo4j": "tsx scripts/oneoffs/verifyNeo4j.ts",
     "start:recommendations:worker": "tsx --watch src/workers/recommendations.worker.ts",
     "start:trending:worker": "tsx --watch src/workers/trending.worker.ts",
+    "start:embedding:worker": "tsx src/services/workers/runEmbeddingWorker.ts",
+    "start:embedding:worker:watch": "tsx --watch src/services/workers/runEmbeddingWorker.ts",
     "dev:all": "concurrently -k -n server,recommendations,trending -c blue,green,magenta \"pnpm dev\" \"pnpm start:recommendations:worker\" \"pnpm start:trending:worker\""
   },
   "keywords": [],

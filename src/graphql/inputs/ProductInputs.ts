@@ -26,6 +26,7 @@ const ProductBaseInputSchema = z.object({
   synonyms: z.array(z.string()).nullable().optional(),
   productDomain: ProductDomainEnum,
   productType: z.string().nullable().optional(),
+  productFingerprint: z.string().nullable().optional(),
   intendedUse: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   brandName: z.string().nullable().optional(),

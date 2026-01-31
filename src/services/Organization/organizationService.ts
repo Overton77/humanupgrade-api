@@ -1,8 +1,8 @@
 import {
   executeWrite,
-  firstRecordOrNull,
   executeRead,
-} from "../../db/neo4j/query.js";
+} from "../../db/neo4j/executor.js";
+import { firstRecordOrNull } from "../../db/neo4j/utils.js";
 
 import { Errors } from "../../lib/errors.js";
 import { logger } from "../../lib/logger.js";

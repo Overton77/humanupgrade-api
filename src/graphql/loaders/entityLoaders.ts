@@ -1,6 +1,9 @@
 import DataLoader from "dataloader";
-import { executeRead } from "../../db/neo4j/query.js";
-import { mapResultsToKeys } from "./utils.js";
+import { executeRead } from "../../db/neo4j/executor.js";
+import {
+  mapOrganizationResultsToKeys,
+  mapProductResultsToKeys,
+} from "./utils.js";
 
 import type {
   HasLocationEdge,
@@ -17,6 +20,12 @@ import type {
   UsesPlatformEdge,
   DevelopsPlatformEdge,
 } from "../types/OrganizationModel.js";
+import type {
+  DeliversLabTestEdge,
+  ImplementsPanelEdge,
+  ContainsCompoundFormEdge,
+  FollowsPathwayEdge,
+} from "../types/ProductModel.js";
 
 export interface EntityLoaders {
   Organization: {
@@ -57,6 +66,15 @@ export interface EntityLoaders {
       DevelopsPlatformEdge[]
     >;
     organizationUsesPlatformEdges: DataLoader<string, UsesPlatformEdge[]>;
+  };
+  Product: {
+    productDeliversLabTestEdges: DataLoader<string, DeliversLabTestEdge[]>;
+    productImplementsPanelEdges: DataLoader<string, ImplementsPanelEdge[]>;
+    productContainsCompoundFormEdges: DataLoader<
+      string,
+      ContainsCompoundFormEdge[]
+    >;
+    productFollowsPathwayEdges: DataLoader<string, FollowsPathwayEdge[]>;
   };
 }
 
@@ -108,7 +126,7 @@ export function createEntityLoaders(): EntityLoaders {
             }));
           });
 
-          return mapResultsToKeys(organizationIds, rows);
+          return mapOrganizationResultsToKeys(organizationIds, rows);
         },
         { cacheKeyFn: (k) => k }
       ),
@@ -161,7 +179,7 @@ export function createEntityLoaders(): EntityLoaders {
             }));
           });
 
-          return mapResultsToKeys(organizationIds, rows);
+          return mapOrganizationResultsToKeys(organizationIds, rows);
         },
         { cacheKeyFn: (k) => k }
       ),
@@ -209,7 +227,7 @@ export function createEntityLoaders(): EntityLoaders {
             }));
           });
 
-          return mapResultsToKeys(organizationIds, rows);
+          return mapOrganizationResultsToKeys(organizationIds, rows);
         },
         { cacheKeyFn: (k) => k }
       ),
@@ -251,7 +269,7 @@ export function createEntityLoaders(): EntityLoaders {
             }));
           });
 
-          return mapResultsToKeys(organizationIds, rows);
+          return mapOrganizationResultsToKeys(organizationIds, rows);
         },
         { cacheKeyFn: (k) => k }
       ),
@@ -292,7 +310,7 @@ export function createEntityLoaders(): EntityLoaders {
           }));
         });
 
-        return mapResultsToKeys(organizationIds, rows);
+        return mapOrganizationResultsToKeys(organizationIds, rows);
       }),
 
       organizationManufacturesEdges: new DataLoader<
@@ -332,7 +350,7 @@ export function createEntityLoaders(): EntityLoaders {
             }));
           });
 
-          return mapResultsToKeys(organizationIds, rows);
+          return mapOrganizationResultsToKeys(organizationIds, rows);
         },
         { cacheKeyFn: (k) => k }
       ),
@@ -374,7 +392,7 @@ export function createEntityLoaders(): EntityLoaders {
             }));
           });
 
-          return mapResultsToKeys(organizationIds, rows);
+          return mapOrganizationResultsToKeys(organizationIds, rows);
         },
         { cacheKeyFn: (k) => k }
       ),
@@ -418,7 +436,7 @@ export function createEntityLoaders(): EntityLoaders {
             }));
           });
 
-          return mapResultsToKeys(organizationIds, rows);
+          return mapOrganizationResultsToKeys(organizationIds, rows);
         },
         { cacheKeyFn: (k) => k }
       ),
@@ -460,7 +478,7 @@ export function createEntityLoaders(): EntityLoaders {
             }));
           });
 
-          return mapResultsToKeys(organizationIds, rows);
+          return mapOrganizationResultsToKeys(organizationIds, rows);
         },
         { cacheKeyFn: (k) => k }
       ),
@@ -502,7 +520,7 @@ export function createEntityLoaders(): EntityLoaders {
             }));
           });
 
-          return mapResultsToKeys(organizationIds, rows);
+          return mapOrganizationResultsToKeys(organizationIds, rows);
         },
         { cacheKeyFn: (k) => k }
       ),
@@ -545,7 +563,7 @@ export function createEntityLoaders(): EntityLoaders {
             }));
           });
 
-          return mapResultsToKeys(organizationIds, rows);
+          return mapOrganizationResultsToKeys(organizationIds, rows);
         },
         { cacheKeyFn: (k) => k }
       ),
@@ -590,7 +608,7 @@ export function createEntityLoaders(): EntityLoaders {
             }));
           });
 
-          return mapResultsToKeys(organizationIds, rows);
+          return mapOrganizationResultsToKeys(organizationIds, rows);
         },
         { cacheKeyFn: (k) => k }
       ),
@@ -633,7 +651,180 @@ export function createEntityLoaders(): EntityLoaders {
             }));
           });
 
-          return mapResultsToKeys(organizationIds, rows);
+          return mapOrganizationResultsToKeys(organizationIds, rows);
+        },
+        { cacheKeyFn: (k) => k }
+      ),
+    },
+    Product: {
+      productDeliversLabTestEdges: new DataLoader<
+        string,
+        DeliversLabTestEdge[]
+      >(
+        async (productIds) => {
+          const rows = await executeRead(async (tx) => {
+            const res = await tx.run(
+              `
+              UNWIND $productIds AS productId
+
+              OPTIONAL MATCH (p:Product {productId: productId})
+                OPTIONAL MATCH (p)-[dlt:DELIVERS_LAB_TEST]->(lt:LabTest)
+
+              WITH productId,
+                collect(
+                  CASE WHEN lt IS NULL THEN NULL ELSE {
+                    labTest: properties(lt),
+                    role: dlt.role,
+                    quantity: dlt.quantity,
+                    componentName: dlt.componentName,
+                    claimIds: coalesce(dlt.claimIds, []),
+                    // DATETIME -> string
+                    validAt: toString(dlt.validAt),
+                    invalidAt: toString(dlt.invalidAt),
+                    expiredAt: toString(dlt.expiredAt),
+                    createdAt: toString(dlt.createdAt)
+                  } END
+                ) AS edges
+
+              RETURN productId, [e IN edges WHERE e IS NOT NULL] AS edges
+              `,
+              { productIds }
+            );
+
+            return res.records.map((r) => ({
+              productId: r.get("productId"),
+              edges: r.get("edges"),
+            }));
+          });
+
+          return mapProductResultsToKeys(productIds, rows);
+        },
+        { cacheKeyFn: (k) => k }
+      ),
+
+      productImplementsPanelEdges: new DataLoader<string, ImplementsPanelEdge[]>(
+        async (productIds) => {
+          const rows = await executeRead(async (tx) => {
+            const res = await tx.run(
+              `
+              UNWIND $productIds AS productId
+
+              OPTIONAL MATCH (p:Product {productId: productId})
+                OPTIONAL MATCH (p)-[ip:IMPLEMENTS_PANEL]->(pd:PanelDefinition)
+
+              WITH productId,
+                collect(
+                  CASE WHEN pd IS NULL THEN NULL ELSE {
+                    panelDefinition: properties(pd),
+                    panelRole: ip.panelRole,
+                    versionLabel: ip.versionLabel,
+                    claimIds: coalesce(ip.claimIds, []),
+                    // DATETIME -> string
+                    validAt: toString(ip.validAt),
+                    invalidAt: toString(ip.invalidAt),
+                    expiredAt: toString(ip.expiredAt),
+                    createdAt: toString(ip.createdAt)
+                  } END
+                ) AS edges
+
+              RETURN productId, [e IN edges WHERE e IS NOT NULL] AS edges
+              `,
+              { productIds }
+            );
+
+            return res.records.map((r) => ({
+              productId: r.get("productId"),
+              edges: r.get("edges"),
+            }));
+          });
+
+          return mapProductResultsToKeys(productIds, rows);
+        },
+        { cacheKeyFn: (k) => k }
+      ),
+
+      productContainsCompoundFormEdges: new DataLoader<
+        string,
+        ContainsCompoundFormEdge[]
+      >(
+        async (productIds) => {
+          const rows = await executeRead(async (tx) => {
+            const res = await tx.run(
+              `
+              UNWIND $productIds AS productId
+
+              OPTIONAL MATCH (p:Product {productId: productId})
+                OPTIONAL MATCH (p)-[ccf:CONTAINS_COMPOUND_FORM]->(cf:CompoundForm)
+
+              WITH productId,
+                collect(
+                  CASE WHEN cf IS NULL THEN NULL ELSE {
+                    compoundForm: properties(cf),
+                    dose: ccf.dose,
+                    doseUnit: ccf.doseUnit,
+                    role: ccf.role,
+                    standardizedTo: ccf.standardizedTo,
+                    claimIds: coalesce(ccf.claimIds, []),
+                    // DATETIME -> string
+                    validAt: toString(ccf.validAt),
+                    invalidAt: toString(ccf.invalidAt),
+                    expiredAt: toString(ccf.expiredAt),
+                    createdAt: toString(ccf.createdAt)
+                  } END
+                ) AS edges
+
+              RETURN productId, [e IN edges WHERE e IS NOT NULL] AS edges
+              `,
+              { productIds }
+            );
+
+            return res.records.map((r) => ({
+              productId: r.get("productId"),
+              edges: r.get("edges"),
+            }));
+          });
+
+          return mapProductResultsToKeys(productIds, rows);
+        },
+        { cacheKeyFn: (k) => k }
+      ),
+
+      productFollowsPathwayEdges: new DataLoader<string, FollowsPathwayEdge[]>(
+        async (productIds) => {
+          const rows = await executeRead(async (tx) => {
+            const res = await tx.run(
+              `
+              UNWIND $productIds AS productId
+
+              OPTIONAL MATCH (p:Product {productId: productId})
+                OPTIONAL MATCH (p)-[fp:FOLLOWS_PATHWAY]->(rp:RegulatoryPathway)
+
+              WITH productId,
+                collect(
+                  CASE WHEN rp IS NULL THEN NULL ELSE {
+                    regulatoryPathway: properties(rp),
+                    jurisdictionId: fp.jurisdictionId,
+                    claimIds: coalesce(fp.claimIds, []),
+                    // DATETIME -> string
+                    validAt: toString(fp.validAt),
+                    invalidAt: toString(fp.invalidAt),
+                    expiredAt: toString(fp.expiredAt),
+                    createdAt: toString(fp.createdAt)
+                  } END
+                ) AS edges
+
+              RETURN productId, [e IN edges WHERE e IS NOT NULL] AS edges
+              `,
+              { productIds }
+            );
+
+            return res.records.map((r) => ({
+              productId: r.get("productId"),
+              edges: r.get("edges"),
+            }));
+          });
+
+          return mapProductResultsToKeys(productIds, rows);
         },
         { cacheKeyFn: (k) => k }
       ),
