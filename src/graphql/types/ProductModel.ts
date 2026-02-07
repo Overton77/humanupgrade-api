@@ -10,6 +10,7 @@ import { RegulatoryStatusSchema } from "./RegulatoryStatusModel.js";
 import { CompoundFormSchema } from "./CompoundFormModel.js";
 import { TechnologyPlatformSchema } from "./TechnologyPlatformModel.js";
 import { OrganizationSchema } from "./OrganizationModel.js";
+import { ResearchRunRefSchema } from "./ResearchRunRefModel.js";
 
 // ============================================================================
 // Edge Type Schemas (Relationship + Node)
@@ -92,6 +93,18 @@ export const ManufacturedByEdgeSchema = TemporalValiditySchema.extend({
 
 export type ManufacturedByEdge = z.infer<typeof ManufacturedByEdgeSchema>;
 
+// GeneratedByEdge (Product -> ResearchRunRef)
+export const GeneratedByEdgeSchema = TemporalValiditySchema.extend({
+  researchRunRef: ResearchRunRefSchema,
+  operation: z.string(), // CREATED | UPDATED | EXTRACTED | LINKED | SUMMARIZED | EMBEDDED
+  stageKey: z.string().nullable(),
+  subStageKey: z.string().nullable(),
+  extractorVersion: z.string().nullable(),
+  extractedAt: Neo4jDateTimeString,
+});
+
+export type GeneratedByEdge = z.infer<typeof GeneratedByEdgeSchema>;
+
 // ============================================================================
 // Product Schema
 // ============================================================================
@@ -116,8 +129,8 @@ export const ProductSchema = z.object({
 
   // Lifecycle fields
   validAt: Neo4jDateTimeString,
-  invalidAt: Neo4jDateTimeString,
-  expiredAt: Neo4jDateTimeString,
+  invalidAt: Neo4jDateTimeString.nullable(),
+  expiredAt: Neo4jDateTimeString.nullable(),
   createdAt: Neo4jDateTimeString,
 
   // Relationships as arrays of edge types
@@ -129,6 +142,7 @@ export const ProductSchema = z.object({
   usesPlatform: z.array(ProductUsesPlatformEdgeSchema).nullable(),
   hasRegulatoryStatus: z.array(HasRegulatoryStatusEdgeSchema).nullable(),
   manufacturedBy: z.array(ManufacturedByEdgeSchema).nullable(),
+  generatedBy: z.array(GeneratedByEdgeSchema).nullable(),
 });
 
 export type Product = z.infer<typeof ProductSchema>;

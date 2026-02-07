@@ -41,5 +41,6 @@ export const env = {
   neo4jAuraInstanceId: requireEnv("NEO4J_AURA_INSTANCE_ID"),
   neo4jAuraPassword: requireEnv("NEO4J_AURA_PASSWORD"),
   neo4jAuraUsername: requireEnv("NEO4J_AURA_USERNAME"),
-  neo4jAuraDatabaseName: requireEnv("NEO4J_AURA_DATABASE_NAME"),
+  neo4jAuraDatabaseName: requireEnv("NEO4J_AURA_DATABASE_NAME"), 
+  defaultEmbeddingDimension: parseInt(requireEnv("DEFAULT_EMBEDDING_DIMENSION"), 10),
 };

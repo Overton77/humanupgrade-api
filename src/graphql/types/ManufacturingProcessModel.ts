@@ -19,8 +19,8 @@ export const ManufacturingProcessSchema = z.object({
   qualityRisks: z.array(z.string()).nullable(),
   scalabilityLevel: ScalabilityLevelEnum.nullable(),
   validAt: Neo4jDateTimeString,
-  invalidAt: Neo4jDateTimeString,
-  expiredAt: Neo4jDateTimeString,
+  invalidAt: Neo4jDateTimeString.nullable(),
+  expiredAt: Neo4jDateTimeString.nullable(),
   createdAt: Neo4jDateTimeString,
 });
 

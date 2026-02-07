@@ -12,8 +12,8 @@ export const RegulatoryPathwaySchema = z.object({
   pathwayName: z.string(),
   requirementsSummary: z.string().nullable(),
   validAt: Neo4jDateTimeString,
-  invalidAt: Neo4jDateTimeString,
-  expiredAt: Neo4jDateTimeString,
+  invalidAt: Neo4jDateTimeString.nullable(),
+  expiredAt: Neo4jDateTimeString.nullable(),
   createdAt: Neo4jDateTimeString,
 });
 

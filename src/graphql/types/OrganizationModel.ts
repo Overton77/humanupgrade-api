@@ -20,6 +20,7 @@ import { TemporalValiditySchema } from "./TemporalValidityModel.js";
 import { CompoundFormSchema } from "./CompoundFormModel.js";
 import { ManufacturingProcessSchema } from "./ManufacturingProcessModel.js";
 import { TechnologyPlatformSchema } from "./TechnologyPlatformModel.js";
+import { ResearchRunRefSchema } from "./ResearchRunRefModel.js";
 
 // TODO: Change Input Types to manufacturesCompoundForm - manufactures is far too vague
 
@@ -174,6 +175,18 @@ export const UsesPlatformEdgeSchema = TemporalValiditySchema.extend({
 
 export type UsesPlatformEdge = z.infer<typeof UsesPlatformEdgeSchema>;
 
+// GeneratedByEdge (Organization -> ResearchRunRef)
+export const GeneratedByEdgeSchema = TemporalValiditySchema.extend({
+  researchRunRef: ResearchRunRefSchema,
+  operation: z.string(), // CREATED | UPDATED | EXTRACTED | LINKED | SUMMARIZED | EMBEDDED
+  stageKey: z.string().nullable(),
+  subStageKey: z.string().nullable(),
+  extractorVersion: z.string().nullable(),
+  extractedAt: Neo4jDateTimeString,
+});
+
+export type GeneratedByEdge = z.infer<typeof GeneratedByEdgeSchema>;
+
 // ============================================================================
 // Organization Schema
 // ============================================================================
@@ -219,8 +232,8 @@ export const OrganizationSchema: z.ZodType<any> = z.object({
 
   // DATETIME
   validAt: Neo4jDateTimeString, // was z.date().nullable()
-  invalidAt: Neo4jDateTimeString, // was z.date().nullable()
-  expiredAt: Neo4jDateTimeString, // was z.date().nullable()
+  invalidAt: Neo4jDateTimeString.nullable(), // was z.date().nullable()
+  expiredAt: Neo4jDateTimeString.nullable(), // was z.date().nullable()
   createdAt: Neo4jDateTimeString, // was z.date()
 
   // Relationships as arrays of edge types
@@ -245,6 +258,7 @@ export const OrganizationSchema: z.ZodType<any> = z.object({
     .nullable(),
   developsPlatform: z.array(DevelopsPlatformEdgeSchema).nullable(),
   usesPlatform: z.array(UsesPlatformEdgeSchema).nullable(),
+  generatedBy: z.array(GeneratedByEdgeSchema).nullable(),
 });
 
 export type Organization = z.infer<typeof OrganizationSchema>;

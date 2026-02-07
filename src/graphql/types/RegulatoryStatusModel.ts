@@ -11,8 +11,8 @@ export const RegulatoryStatusSchema = z.object({
   effectiveDate: Neo4jDateTimeString.nullable(),
   statusDetails: z.string().nullable(),
   validAt: Neo4jDateTimeString,
-  invalidAt: Neo4jDateTimeString,
-  expiredAt: Neo4jDateTimeString,
+  invalidAt: Neo4jDateTimeString.nullable(),
+  expiredAt: Neo4jDateTimeString.nullable(),
   createdAt: Neo4jDateTimeString,
 });
 

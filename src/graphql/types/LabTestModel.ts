@@ -14,9 +14,10 @@ export const LabTestSchema = z.object({
   whatItMeasures: z.string().nullable(),
   prepRequirements: z.string().nullable(),
   validAt: Neo4jDateTimeString,
-  invalidAt: Neo4jDateTimeString,
-  expiredAt: Neo4jDateTimeString,
+  invalidAt: Neo4jDateTimeString.nullable(),
+  expiredAt: Neo4jDateTimeString.nullable(),
   createdAt: Neo4jDateTimeString,
+  updatedAt: Neo4jDateTimeString,
 });
 
 export type LabTest = z.infer<typeof LabTestSchema>;

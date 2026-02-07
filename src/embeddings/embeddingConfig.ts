@@ -3,7 +3,9 @@
 import type { EmbeddingTargetType } from "../graphql/enums/index.js";
 
 // Re-export for convenience
-export type { EmbeddingTargetType };
+export type { EmbeddingTargetType };  
+
+
 
 export type EmbeddingConfig = {
   label: "Organization" | "Product";

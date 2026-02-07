@@ -12,8 +12,9 @@ import { ProductInput, UpdateProductInput } from "../inputs/ProductInputs.js";
 import { Organization } from "../types/OrganizationModel.js"; 
 import { Product } from "../types/ProductModel.js"; 
 import { EmbeddingMutations } from "./embeddingMutations.js";
+import { UnstructuredIngestionMutations } from "./UnstructuredIngestionResolvers.js";
+import { ProvenanceMutations } from "./ProvenanceResolvers.js";
 
-const SALT_ROUNDS = 10;
 
 export const Mutation = {
   createOrganization: async (
@@ -59,4 +60,6 @@ export const Mutation = {
     return product; 
   },
   ...EmbeddingMutations,
+  ...UnstructuredIngestionMutations,
+  ...ProvenanceMutations,
 };

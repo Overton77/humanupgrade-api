@@ -1,5 +1,6 @@
 import z from "zod";
-import { LocationTypeEnum } from "../enums/index.js";
+import { LocationTypeEnum } from "../enums/index.js";  
+import { Neo4jDateTimeString } from "../utils/dateTimeUtils.js";
 
 export const PhysicalLocationSchema = z.object({
   locationId: z.string(),
@@ -19,6 +20,10 @@ export const PhysicalLocationSchema = z.object({
   hoursOfOperation: z.string().nullable(),
   contactPhone: z.string().nullable(),
   contactEmail: z.string().nullable(),
+  validAt: Neo4jDateTimeString,
+  invalidAt: Neo4jDateTimeString.nullable(),
+  expiredAt: Neo4jDateTimeString.nullable(),
+  createdAt: Neo4jDateTimeString,
 });
 
 export type PhysicalLocation = z.infer<typeof PhysicalLocationSchema>;

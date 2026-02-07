@@ -1,6 +1,7 @@
 import z from "zod";
 import { ListingDomainEnum, PriceTypeEnum } from "../enums/index.js";
 import { CollectionModeEnum } from "../enums/index.js";
+import { Neo4jDateTimeString } from "../utils/dateTimeUtils.js";
 
 export const ListingSchema = z.object({
   listingId: z.string(),
@@ -18,7 +19,11 @@ export const ListingSchema = z.object({
   regionsAvailable: z.array(z.string()).nullable(),
   requiresAppointment: z.boolean().nullable(),
   collectionMode: CollectionModeEnum.nullable(),
-  turnaroundTime: z.string().nullable(),
+  turnaroundTime: z.string().nullable(),  
+  invalidAt: Neo4jDateTimeString.nullable(),
+  expiredAt: Neo4jDateTimeString.nullable(),
+  createdAt: Neo4jDateTimeString,  
+  updatedAt: Neo4jDateTimeString
 });
 
 export type Listing = z.infer<typeof ListingSchema>;
