@@ -4,6 +4,7 @@ import { Query } from "./Query.js";
 import { Subscriptions } from "./Subscriptions.js";
 import { OrganizationResolvers } from "./OrganizationResolvers.js";
 import { ProductResolvers } from "./ProductResolvers.js";
+import { EvidenceSourceRefResultResolvers } from "./EvidenceSourceRefResultResolvers.js";
 
 const DateTimeScalar = new GraphQLScalarType({
   name: "DateTime",
@@ -40,5 +41,8 @@ export const resolvers = {
   },
   Product: {
     ...ProductResolvers,
+  },
+  EvidenceSourceRefResult: {
+    ...EvidenceSourceRefResultResolvers,
   },
 };

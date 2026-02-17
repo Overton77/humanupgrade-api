@@ -4,6 +4,84 @@ import { TemporalValidityInputSchema } from "./TemporalValidityInputs.js";
 import { EvidenceProvenanceSchema, EvidenceProvenance } from "./IngestionProvenanceInput.js";
 
 // ============================================================================
+// GraphQL Input Types (flattened structure as received from GraphQL)
+// ============================================================================
+// These types match the GraphQL schema structure exactly as it comes from the API.
+// They are transformed into the nested service types below.
+
+export const GraphQLEvidenceSourceRefInputSchema = z.object({
+  kind: z.enum(["Document", "Chunk"]),
+  documentId: z.string().nullable().optional(),
+  chunkId: z.string().nullable().optional(),
+});
+
+export type GraphQLEvidenceSourceRefInput = z.infer<
+  typeof GraphQLEvidenceSourceRefInputSchema
+>;
+
+export const GraphQLEvidenceTargetRefInputSchema = z.object({
+  nodeId: z.string().nullable().optional(),
+  label: z.string().nullable().optional(),
+  uniqueKey: z.string().nullable().optional(),
+  uniqueKeyValue: z.string().nullable().optional(),
+});
+
+export type GraphQLEvidenceTargetRefInput = z.infer<
+  typeof GraphQLEvidenceTargetRefInputSchema
+>;
+
+export const GraphQLEvidenceEdgeInputSchema = z.object({
+  type: z.enum(["ABOUT", "MENTIONS", "IS_PRIMARY_SOURCE"]),
+  source: GraphQLEvidenceSourceRefInputSchema,
+  target: GraphQLEvidenceTargetRefInputSchema,
+  
+  // Temporal validity fields (common to all edge types)
+  validAt: Neo4jDateTimeString.optional(),
+  invalidAt: Neo4jDateTimeString.optional(),
+  expiredAt: Neo4jDateTimeString.optional(),
+  createdAt: Neo4jDateTimeString.optional(),
+  
+  // Provenance fields (common to all edge types)
+  mongoRunId: z.string(),
+  mongoPlanId: z.string().nullable().optional(),
+  stageKey: z.string().nullable().optional(),
+  subStageKey: z.string().nullable().optional(),
+  extractorVersion: z.string().nullable().optional(),
+  extractedAt: Neo4jDateTimeString,
+  
+  // ABOUT edge specific fields (used when type="ABOUT")
+  aboutness: z.number().min(0).max(1).nullable().optional(),
+  aspect: z.string().nullable().optional(),
+  stance: z.string().nullable().optional(),
+  
+  // MENTIONS edge specific fields (used when type="MENTIONS")
+  linkingMethod: z.string().nullable().optional(),
+  surfaceForm: z.string().nullable().optional(),
+  charStart: z.number().int().nullable().optional(),
+  charEnd: z.number().int().nullable().optional(),
+  
+  // IS_PRIMARY_SOURCE edge specific fields (used when type="IS_PRIMARY_SOURCE")
+  notes: z.string().nullable().optional(),
+  
+  // Confidence (used by ABOUT, MENTIONS, and IS_PRIMARY_SOURCE)
+  confidence: z.number().min(0).max(1).nullable().optional(),
+});
+
+export type GraphQLEvidenceEdgeInput = z.infer<
+  typeof GraphQLEvidenceEdgeInputSchema
+>;
+
+export const GraphQLUpsertEvidenceEdgesInputSchema = z.object({
+  edges: z.array(GraphQLEvidenceEdgeInputSchema).min(1),
+});
+
+export type GraphQLUpsertEvidenceEdgesInput = z.infer<
+  typeof GraphQLUpsertEvidenceEdgesInputSchema
+>;
+
+// ============================================================================
+// Service Input Types (nested structure used by service functions)
+// ============================================================================
 // SourceRef
 // ============================================================================
 
@@ -47,6 +125,114 @@ export const EvidenceTargetRefSchema = z
 export type EvidenceTargetRef = z.infer<typeof EvidenceTargetRefSchema>;
 
 
+
+// ============================================================================
+// Transform: GraphQL Input -> Service Input
+// ============================================================================
+
+/**
+ * Transforms a GraphQL flattened input to the nested service input structure.
+ * This function validates the GraphQL input and converts it to the format expected by service functions.
+ */
+export function transformGraphQLEvidenceEdgeInput(
+  input: GraphQLEvidenceEdgeInput
+): EvidenceEdgeInput {
+  // Transform target: GraphQL has all optional fields
+  // Service expects nodeId OR (label + uniqueKey + uniqueKeyValue)
+  const target: EvidenceTargetRef = {
+    nodeId: input.target.nodeId ?? undefined,
+    label: input.target.label ?? undefined,
+    uniqueKey: input.target.uniqueKey ?? undefined,
+    uniqueKeyValue: input.target.uniqueKeyValue ?? undefined,
+  };
+
+  // Build base props object with nested structure
+  const baseProps = {
+    // Temporal validity
+    validAt: input.validAt ?? undefined,
+    invalidAt: input.invalidAt ?? undefined,
+    expiredAt: input.expiredAt ?? undefined,
+    createdAt: input.createdAt ?? undefined,
+    // Provenance
+    mongoRunId: input.mongoRunId,
+    mongoPlanId: input.mongoPlanId ?? undefined,
+    stageKey: input.stageKey ?? undefined,
+    subStageKey: input.subStageKey ?? undefined,
+    extractorVersion: input.extractorVersion ?? undefined,
+    extractedAt: input.extractedAt,
+  };
+
+  // Handle each edge type with proper source validation and typing
+  if (input.type === "ABOUT") {
+    // ABOUT edges can have Document or Chunk as source
+    const source: EvidenceSourceRef =
+      input.source.kind === "Document"
+        ? {
+            kind: "Document",
+            documentId: input.source.documentId!,
+          }
+        : {
+            kind: "Chunk",
+            chunkId: input.source.chunkId!,
+          };
+
+    return {
+      type: "ABOUT",
+      source,
+      target,
+      props: {
+        ...baseProps,
+        aboutness: input.aboutness ?? undefined,
+        aspect: input.aspect ?? undefined,
+        stance: input.stance ?? undefined,
+        confidence: input.confidence ?? undefined,
+      } as AboutEdgePropsInput,
+    } as EvidenceAboutEdgeInput;
+  } else if (input.type === "MENTIONS") {
+    // MENTIONS edges must have Chunk as source
+    if (input.source.kind !== "Chunk") {
+      throw new Error("MENTIONS edges require Chunk as source");
+    }
+    const source: { kind: "Chunk"; chunkId: string } = {
+      kind: "Chunk",
+      chunkId: input.source.chunkId!,
+    };
+
+    return {
+      type: "MENTIONS",
+      source,
+      target,
+      props: {
+        ...baseProps,
+        confidence: input.confidence ?? undefined,
+        linkingMethod: input.linkingMethod ?? undefined,
+        surfaceForm: input.surfaceForm ?? undefined,
+        charStart: input.charStart ?? undefined,
+        charEnd: input.charEnd ?? undefined,
+      } as MentionsEdgePropsInput,
+    } as EvidenceMentionsEdgeInput;
+  } else {
+    // IS_PRIMARY_SOURCE edges must have Document as source
+    if (input.source.kind !== "Document") {
+      throw new Error("IS_PRIMARY_SOURCE edges require Document as source");
+    }
+    const source: { kind: "Document"; documentId: string } = {
+      kind: "Document",
+      documentId: input.source.documentId!,
+    };
+
+    return {
+      type: "IS_PRIMARY_SOURCE",
+      source,
+      target,
+      props: {
+        ...baseProps,
+        confidence: input.confidence ?? undefined,
+        notes: input.notes ?? undefined,
+      } as IsPrimarySourceEdgePropsInput,
+    } as EvidenceIsPrimarySourceEdgeInput;
+  }
+}
 
 // ============================================================================
 // Helpers: combine schemas WITHOUT .merge()

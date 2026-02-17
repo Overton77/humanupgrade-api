@@ -2201,7 +2201,6 @@ input HasRegulatoryStatusRelationshipInput {
   expiredAt: DateTime
   createdAt: DateTime
 }
-
 input HasRegulatoryStatusRelationshipUpdateInput {
   regulatoryStatus: RegulatoryStatusRelateUpdateInput!
   status: String
@@ -2631,4 +2630,8 @@ type Mutation {
 
 type Subscription { 
   embeddingJobEvents(targetType: EmbeddingTargetType!, targetID: ID): EmbeddingJobEvent! 
+  documentIngested(documentId: String): Document! 
+  documentTextVersionBundleIngested(documentTextVersionId: String): UpsertDocumentTextVersionBundleResult! 
+  evidenceEdgeUpserted(relKey: String): UpsertEvidenceEdgeResult!   
+ 
 }
