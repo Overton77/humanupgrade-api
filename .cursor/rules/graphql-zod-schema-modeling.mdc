@@ -9,7 +9,10 @@ alwaysApply: false
 
 This project models Neo4j knowledge graph entities using a consistent pattern: **Edge Types** that combine relationship properties with related nodes. This enables type-safe GraphQL APIs with clear relationship semantics.
 
-## Pattern Structure
+## Pattern Structure 
+
+** NOTE that we will sometimes use one major Upsert pattern for a model and only use connect,create (create with upsert logic) for 
+relationship types **
 
 ### 1. GraphQL Schema (schema.graphql)
 

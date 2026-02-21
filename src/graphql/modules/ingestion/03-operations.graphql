@@ -1,0 +1,19 @@
+extend type Mutation { 
+  upsertEmbedding(input: UpsertEmbeddingInput!): UpsertEmbeddingResult! 
+  upsertEmbeddings(inputs: [UpsertEmbeddingInput!]!): [UpsertEmbeddingResult!]!  
+  upsertResearchPlanRef(input: UpsertResearchPlanRefInput!): ResearchPlanRef! 
+  upsertResearchRunRef(input: UpsertResearchRunRefInput!): ResearchRunRef!  
+  linkResearchRunUsesPlan(input: LinkResearchRunUsesPlanInput!): ResearchRunRef! 
+  upsertDocument(input: UpsertDocumentInput!): Document!   
+  upsertDocumentTextVersionBundle(input: UpsertDocumentTextVersionBundleInput!): UpsertDocumentTextVersionBundleResult! 
+  upsertEvidenceEdge(input: EvidenceEdgeInput!): UpsertEvidenceEdgeResult!
+  upsertEvidenceEdges(input: [UpsertEvidenceEdgesInput!]!): [UpsertEvidenceEdgesResult!]!
+} 
+
+
+extend type Subscription { 
+     embeddingJobEvents(targetType: EmbeddingTargetType!, targetID: ID): EmbeddingJobEvent! 
+  documentIngested(documentId: String): Document! 
+  documentTextVersionBundleIngested(documentTextVersionId: String): UpsertDocumentTextVersionBundleResult! 
+  evidenceEdgeUpserted(relKey: String): UpsertEvidenceEdgeResult!  
+}

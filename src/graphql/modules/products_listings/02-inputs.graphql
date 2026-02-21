@@ -1,0 +1,447 @@
+input ListingInput {
+  listingId: ID
+  listingDomain: ListingDomain!
+  title: String!
+  description: String
+  sku: String
+  url: String
+  brandName: String
+  currency: String!
+  priceAmount: Float
+  priceType: PriceType
+  pricingNotes: String
+  constraints: String
+  regionsAvailable: [String!]
+  requiresAppointment: Boolean
+  collectionMode: CollectionMode
+  turnaroundTime: String
+}
+
+input ProductInput {
+  productId: ID
+  name: String!
+  synonyms: [String!]
+  productDomain: ProductDomain!
+  productType: String
+  productFingerprint: String
+  intendedUse: String
+  description: String
+  brandName: String
+  modelNumber: String
+  ndcCode: String
+  upc: String
+  gtin: String
+  riskClass: String
+  currency: String
+  priceAmount: Float
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  # Relationships
+  deliversLabTest: [DeliversLabTestRelationshipInput!]
+  implementsPanel: [ImplementsPanelRelationshipInput!]
+  containsCompoundForm: [ContainsCompoundFormRelationshipInput!]
+  followsPathway: [FollowsPathwayRelationshipInput!]
+  inCategory: [InCategoryRelationshipInput!]
+  usesPlatform: [ProductUsesPlatformRelationshipInput!]
+  hasRegulatoryStatus: [HasRegulatoryStatusRelationshipInput!]
+  manufacturedBy: [ManufacturedByRelationshipInput!]
+} 
+
+
+
+input ListingRelateInput {
+  create: ListingInput
+  connect: ListingConnectInput
+}
+
+input ListingRelateUpdateInput {
+  create: ListingInput
+  connect: ListingConnectInput
+  update: ListingUpdateInput
+}
+
+input ListingConnectInput {
+  listingId: ID!
+}
+
+input ListsRelationshipInput {
+  listing: ListingRelateInput!
+  listRole: ListRole!
+  channel: Channel
+  regionsOverrides: [String!]
+  collectionModesOverrides: [String!]
+  availabilityNotes: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+} 
+
+input ListingUpdateInput {
+  listingId: ID
+  listingDomain: ListingDomain
+  title: String
+  description: String
+  sku: String
+  url: String
+  brandName: String
+  currency: String
+  priceAmount: Float
+  priceType: PriceType
+  pricingNotes: String
+  constraints: String
+  regionsAvailable: [String!]
+  requiresAppointment: Boolean
+  collectionMode: CollectionMode
+  turnaroundTime: String
+}
+
+
+input ProductUpdateInput {
+  productId: ID
+  name: String
+  synonyms: [String!]
+  productDomain: ProductDomain
+  productType: String
+  productFingerprint: String
+  intendedUse: String
+  description: String
+  brandName: String
+  modelNumber: String
+  ndcCode: String
+  upc: String
+  gtin: String
+  riskClass: String
+  currency: String
+  priceAmount: Float
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  # Relationships (using update versions)
+  deliversLabTest: [DeliversLabTestRelationshipUpdateInput!]
+  implementsPanel: [ImplementsPanelRelationshipUpdateInput!]
+  containsCompoundForm: [ContainsCompoundFormRelationshipUpdateInput!]
+  followsPathway: [FollowsPathwayRelationshipUpdateInput!]
+  inCategory: [InCategoryRelationshipUpdateInput!]
+  usesPlatform: [ProductUsesPlatformRelationshipUpdateInput!]
+  hasRegulatoryStatus: [HasRegulatoryStatusRelationshipUpdateInput!]
+  manufacturedBy: [ManufacturedByRelationshipUpdateInput!]
+}
+
+input ListsRelationshipUpdateInput {
+  listing: ListingRelateUpdateInput!
+  listRole: ListRole
+  channel: Channel
+  regionsOverrides: [String!]
+  collectionModesOverrides: [String!]
+  availabilityNotes: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ProductRelateInput {
+  create: ProductInput
+  connect: ProductConnectInput
+}
+
+input ProductRelateUpdateInput {
+  create: ProductInput
+  connect: ProductConnectInput
+  update: ProductUpdateInput
+}
+
+input ProductConnectInput {
+  productId: ID!
+}  
+
+input ProductCategoryInput {
+  categoryId: ID
+  name: String!
+  description: String
+  aliases: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+} 
+
+input ProductCategoryUpdateInput {
+  categoryId: ID
+  name: String
+  description: String
+  aliases: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ProductCategoryRelateInput {
+  create: ProductCategoryInput
+  connect: ProductCategoryConnectInput
+}
+
+input ProductCategoryRelateUpdateInput {
+  create: ProductCategoryInput
+  connect: ProductCategoryConnectInput
+  update: ProductCategoryUpdateInput
+}
+
+input ProductCategoryConnectInput {
+  categoryId: ID!
+}  
+
+
+input DeliversLabTestRelationshipInput {
+  labTest: LabTestRelateInput!
+  role: LabTestRole!
+  quantity: Int
+  componentName: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input DeliversLabTestRelationshipUpdateInput {
+  labTest: LabTestRelateUpdateInput!
+  role: LabTestRole
+  quantity: Int
+  componentName: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ImplementsPanelRelationshipInput {
+  panelDefinition: PanelDefinitionRelateInput!
+  panelRole: PanelRole
+  versionLabel: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ImplementsPanelRelationshipUpdateInput {
+  panelDefinition: PanelDefinitionRelateUpdateInput!
+  panelRole: PanelRole
+  versionLabel: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ContainsCompoundFormRelationshipInput {
+  compoundForm: CompoundFormRelateInput!
+  dose: Float
+  doseUnit: String
+  role: CompoundFormRole
+  standardizedTo: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ContainsCompoundFormRelationshipUpdateInput {
+  compoundForm: CompoundFormRelateUpdateInput!
+  dose: Float
+  doseUnit: String
+  role: CompoundFormRole
+  standardizedTo: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input FollowsPathwayRelationshipInput {
+  regulatoryPathway: RegulatoryPathwayRelateInput!
+  jurisdictionId: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input FollowsPathwayRelationshipUpdateInput {
+  regulatoryPathway: RegulatoryPathwayRelateUpdateInput!
+  jurisdictionId: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input InCategoryRelationshipInput {
+  productCategory: ProductCategoryRelateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input InCategoryRelationshipUpdateInput {
+  productCategory: ProductCategoryRelateUpdateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ProductUsesPlatformRelationshipInput {
+  technologyPlatform: TechnologyPlatformRelateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ProductUsesPlatformRelationshipUpdateInput {
+  technologyPlatform: TechnologyPlatformRelateUpdateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input HasRegulatoryStatusRelationshipInput {
+  regulatoryStatus: RegulatoryStatusRelateInput!
+  status: String
+  effectiveDate: DateTime
+  statusDetails: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+input HasRegulatoryStatusRelationshipUpdateInput {
+  regulatoryStatus: RegulatoryStatusRelateUpdateInput!
+  status: String
+  effectiveDate: DateTime
+  statusDetails: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ManufacturedByRelationshipInput {
+  organization: OrganizationRelateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ManufacturedByRelationshipUpdateInput {
+  organization: OrganizationRelateUpdateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+
+# Regulatory moved to product_listings inputs 
+
+input RegulatoryStatusRelateInput {
+  create: RegulatoryStatusInput
+  connect: RegulatoryStatusConnectInput
+}
+
+input RegulatoryStatusRelateUpdateInput {
+  create: RegulatoryStatusInput
+  connect: RegulatoryStatusConnectInput
+  update: RegulatoryStatusUpdateInput
+}
+
+input RegulatoryStatusConnectInput {
+  regulatoryStatusId: ID!
+}
+
+input RegulatoryPathwayRelateInput {
+  create: RegulatoryPathwayInput
+  connect: RegulatoryPathwayConnectInput
+}
+
+input RegulatoryPathwayRelateUpdateInput {
+  create: RegulatoryPathwayInput
+  connect: RegulatoryPathwayConnectInput
+  update: RegulatoryPathwayUpdateInput
+}
+
+input RegulatoryPathwayConnectInput {
+  pathwayId: ID!
+}  
+
+input RegulatoryStatusInput {
+  regulatoryStatusId: ID
+  status: String
+  effectiveDate: DateTime
+  statusDetails: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input RegulatoryPathwayInput {
+  pathwayId: ID
+  authority: String!
+  pathwayType: String!
+  pathwayName: String!
+  requirementsSummary: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+} 
+
+input RegulatoryStatusUpdateInput {
+  regulatoryStatusId: ID
+  status: String
+  effectiveDate: DateTime
+  statusDetails: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input RegulatoryPathwayUpdateInput {
+  pathwayId: ID
+  authority: String
+  pathwayType: String
+  pathwayName: String
+  requirementsSummary: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}

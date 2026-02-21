@@ -1,0 +1,137 @@
+type HasLocationEdge {
+  location: PhysicalLocation!
+  locationRole: String!
+  isPrimary: Boolean
+  startDate: DateTime
+  endDate: DateTime
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type OwnsOrControlsEdge {
+  organization: Organization!
+  relationshipType: String!
+  ownershipPercent: Float
+  controlType: String
+  effectiveFrom: DateTime
+  effectiveTo: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type ListsEdge {
+  listing: Listing!
+  listRole: ListRole!
+  channel: Channel
+  regionsOverrides: [String!]
+  collectionModesOverrides: [String!]
+  availabilityNotes: String
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type OffersProductEdge {
+  product: Product!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type SuppliesCompoundFormEdge {
+  compoundForm: CompoundForm!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type ManufacturesEdge {
+  compoundForm: CompoundForm!
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type ManufacturesProductEdge {
+  product: Product!
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type ContractManufacturerForOrganizationEdge {
+  organization: Organization!
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type ContractManufacturerForProductEdge {
+  product: Product!
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type ContractManufacturerForCompoundFormEdge {
+  compoundForm: CompoundForm!
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type PerformsManufacturingProcessEdge {
+  manufacturingProcess: ManufacturingProcess!
+  role: ManufacturingRole!
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type DevelopsPlatformEdge {
+  technologyPlatform: TechnologyPlatform!
+  relationshipRole: RelationshipRole
+  notes: String
+  source: Source
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type UsesPlatformEdge {
+  technologyPlatform: TechnologyPlatform!
+  usageContext: UsageContext
+  isPrimary: Boolean
+  notes: String
+  source: Source
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}

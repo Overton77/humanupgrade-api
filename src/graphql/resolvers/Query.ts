@@ -24,6 +24,7 @@ export const Query = {
 
     const result = await searchOrganizations(args.input, { embedder });
     return result;
-  }
+  }, 
+ 
   
 };

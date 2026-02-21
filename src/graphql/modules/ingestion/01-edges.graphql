@@ -1,0 +1,99 @@
+type UsesPlanEdge {
+  researchPlanRef: ResearchPlanRef!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type HasSegmentationEdge {
+  segmentation: Segmentation!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type SegmentationHasChunkEdge {
+  chunk: Chunk!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type NextChunkEdge {
+  chunk: Chunk!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type MentionsEdge {
+  # Target node properties will be resolved at query time
+  # For now, we include provenance fields that are on the relationship
+  confidence: Float
+  linkingMethod: String
+  surfaceForm: String
+  # Provenance fields (also on relationship)
+  mongoRunId: String!
+  mongoPlanId: String
+  stageKey: String
+  subStageKey: String
+  extractorVersion: String
+  extractedAt: DateTime!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type AboutEdge {
+  # Target node properties will be resolved at query time
+  # For now, we include relationship-specific properties
+  aboutness: Float
+  aspect: String
+  stance: String
+  # Provenance fields (also on relationship)
+  mongoRunId: String!
+  mongoPlanId: String
+  stageKey: String
+  subStageKey: String
+  extractorVersion: String
+  extractedAt: DateTime!
+  confidence: Float
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type HasTextVersionEdge {
+  documentTextVersion: DocumentTextVersion!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type HasChunkEdge {
+  chunk: Chunk!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type GeneratedByEdge {
+  researchRunRef: ResearchRunRef!
+  operation: String!
+  stageKey: String
+  subStageKey: String
+  extractorVersion: String
+  extractedAt: DateTime!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}

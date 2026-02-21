@@ -1,0 +1,8 @@
+extend type Mutation { 
+     createLabTest(input: LabTestInput!): LabTest!
+  updateLabTest(input: UpdateLabTestInput!): LabTest!
+  createPanelDefinition(input: PanelDefinitionInput!): PanelDefinition!
+  updatePanelDefinition(input: UpdatePanelDefinitionInput!): PanelDefinition!
+  createBiomarker(input: BiomarkerInput!): Biomarker!
+  updateBiomarker(input: UpdateBiomarkerInput!): Biomarker!
+} 

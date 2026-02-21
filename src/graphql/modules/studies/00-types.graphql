@@ -1,0 +1,112 @@
+type Study {
+  studyId: ID!
+  registrySource: String
+  registryId: String
+  doi: String
+  internalStudyCode: String
+  canonicalTitle: String!
+  studyKind: StudyKind!
+  shortTitle: String
+  aliases: [String!]
+  designKind: DesignKind
+  status: StudyStatus
+  phase: String
+  sampleSize: Int
+  randomized: Boolean
+  blinded: BlindedKind
+  comparatorType: ComparatorType
+  keywords: [String!]
+  locations: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+  # Relationships
+  evaluates: [StudyEvaluatesEdge!]
+  sponsoredBy: [StudySponsoredByEdge!]
+  runBy: [StudyRunByEdge!]
+  investigatedBy: [StudyInvestigatedByEdge!]
+  studiesPopulations: [StudyStudiesPopulationEdge!]
+  hasDatasets: [StudyHasDatasetEdge!]
+  investigatesConditions: [StudyInvestigatesConditionEdge!]
+  hasOutcomes: [StudyHasOutcomeEdge!]
+} 
+
+
+type Population {
+  populationId: ID!
+  name: String
+  populationKind: PopulationKind!
+  species: String
+  strain: String
+  cellLine: String
+  diseaseState: String
+  ageMin: Int
+  ageMax: Int
+  ageUnit: String
+  sex: Sex
+  n: Int
+  inclusionCriteria: [String!]
+  exclusionCriteria: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type Dataset {
+  datasetId: ID!
+  name: String!
+  description: String
+  datasetKind: DatasetKind!
+  format: String
+  license: String
+  accessLevel: DatasetAccessLevel
+  sourceSystem: String
+  uri: String
+  checksum: String
+  version: String
+  publishedAt: DateTime
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type StudyOutcome {
+  studyOutcomeId: ID!
+  canonicalName: String!
+  displayName: String
+  aliases: [String!]
+  description: String
+  outcomeCategory: OutcomeCategory!
+  polarityHint: PolarityHint
+  domain: OutcomeDomain
+  measurementType: OutcomeMeasurementType
+  unit: String
+  biologicalMatrix: String
+  analyte: String
+  timeHorizon: String
+  standardSystem: String
+  standardCode: String
+  standardLabel: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type Condition {
+  conditionId: ID!
+  name: String!
+  aliases: [String!]
+  description: String
+  icdCodes: [String!]
+  snomedCodes: [String!]
+  meshTerms: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+

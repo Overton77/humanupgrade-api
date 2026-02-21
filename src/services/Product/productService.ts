@@ -62,7 +62,11 @@ export async function createProductWithOptionalRelations(
     deliversLabTest: validated.deliversLabTest ?? [],
     implementsPanel: validated.implementsPanel ?? [],
     containsCompoundForm: validated.containsCompoundForm ?? [],
-    followsPathway: validated.followsPathway ?? [],
+    followsPathway: validated.followsPathway ?? [], 
+    inCategory: validated.inCategory ?? [],
+    usesPlatform: validated.usesPlatform ?? [],
+    hasRegulatoryStatus: validated.hasRegulatoryStatus ?? [],
+    manufacturedBy: validated.manufacturedBy ?? [],
   };
 
   const {
@@ -70,6 +74,10 @@ export async function createProductWithOptionalRelations(
     productImplementsPanelCypher,
     productContainsCompoundFormCypher,
     productFollowsPathwayCypher,
+    productInCategoryCypher,
+    productUsesPlatformCypher,
+    productHasRegulatoryStatusCypher,
+    productManufacturedByCypher,
     returnProductsCypher,
   } = createProductStatements;
 
@@ -127,6 +135,18 @@ export async function createProductWithOptionalRelations(
       }
       if (nextParams.followsPathway.length) {
         await tx.run(productFollowsPathwayCypher, nextParams);
+      }
+      if (nextParams.inCategory.length) {
+        await tx.run(productInCategoryCypher, nextParams);
+      }
+      if (nextParams.usesPlatform.length) {
+        await tx.run(productUsesPlatformCypher, nextParams);
+      }
+      if (nextParams.hasRegulatoryStatus.length) {
+        await tx.run(productHasRegulatoryStatusCypher, nextParams);
+      }
+      if (nextParams.manufacturedBy.length) {
+        await tx.run(productManufacturedByCypher, nextParams);
       }
 
       // 3) Return product at end
@@ -187,6 +207,10 @@ export async function updateProductWithOptionalRelations(
     implementsPanel: validated.implementsPanel ?? [],
     containsCompoundForm: validated.containsCompoundForm ?? [],
     followsPathway: validated.followsPathway ?? [],
+    inCategory: validated.inCategory ?? [],
+    usesPlatform: validated.usesPlatform ?? [],
+    hasRegulatoryStatus: validated.hasRegulatoryStatus ?? [],
+    manufacturedBy: validated.manufacturedBy ?? [],
   };
 
   // Resolve identifier for update
@@ -264,7 +288,47 @@ export async function updateProductWithOptionalRelations(
       }
 
       // ------------------------------------------------------------
-      // 5) Return updated product
+      // 5) IN_CATEGORY (create / connect / update)
+      // ------------------------------------------------------------
+      if (params.inCategory.length) {
+        await tx.run(
+          updateProductStatements.updateProductInCategoryCypher,
+          nextParams
+        );
+      }
+
+      // ------------------------------------------------------------
+      // 6) USES_PLATFORM (create / connect / update)
+      // ------------------------------------------------------------
+      if (params.usesPlatform.length) {
+        await tx.run(
+          updateProductStatements.updateProductUsesPlatformCypher,
+          nextParams
+        );
+      }
+
+      // ------------------------------------------------------------
+      // 7) HAS_REGULATORY_STATUS (create / connect / update)
+      // ------------------------------------------------------------
+      if (params.hasRegulatoryStatus.length) {
+        await tx.run(
+          updateProductStatements.updateProductHasRegulatoryStatusCypher,
+          nextParams
+        );
+      }
+
+      // ------------------------------------------------------------
+      // 8) MANUFACTURED_BY (create / connect / update)
+      // ------------------------------------------------------------
+      if (params.manufacturedBy.length) {
+        await tx.run(
+          updateProductStatements.updateProductManufacturedByCypher,
+          nextParams
+        );
+      }
+
+      // ------------------------------------------------------------
+      // 9) Return updated product
       // ------------------------------------------------------------
       const final = await tx.run(
         updateProductStatements.returnUpdatedProductCypher,

@@ -395,6 +395,377 @@ CALL {
 RETURN 1 AS ok
 `;
 
+// ==================================================================
+// IN_CATEGORY (create OR connect) (CONNECT = HARD FAIL if missing)
+// ==================================================================
+export const productInCategoryCypher = `
+MATCH (p:Product {productId: $productId})
+
+UNWIND coalesce($inCategory, []) AS icRel
+CALL {
+  // ---- CREATE branch ----
+  WITH p, icRel 
+  WITH p, icRel 
+  WHERE icRel.productCategory.create IS NOT NULL
+
+  MERGE (pc:ProductCategory {
+    categoryId: coalesce(icRel.productCategory.create.categoryId, randomUUID())
+  })
+  ON CREATE SET pc.createdAt = datetime()
+
+  SET pc += {
+    name: CASE WHEN icRel.productCategory.create.name IS NULL THEN pc.name ELSE icRel.productCategory.create.name END,
+    description: CASE WHEN icRel.productCategory.create.description IS NULL THEN pc.description ELSE icRel.productCategory.create.description END,
+    aliases: CASE
+      WHEN icRel.productCategory.create.aliases IS NULL THEN pc.aliases
+      ELSE apoc.coll.toSet(coalesce(pc.aliases, []) + coalesce(icRel.productCategory.create.aliases, []))
+    END,
+    validAt: CASE WHEN icRel.productCategory.create.validAt IS NULL THEN pc.validAt ELSE icRel.productCategory.create.validAt END,
+    invalidAt: CASE WHEN icRel.productCategory.create.invalidAt IS NULL THEN pc.invalidAt ELSE icRel.productCategory.create.invalidAt END,
+    expiredAt: CASE WHEN icRel.productCategory.create.expiredAt IS NULL THEN pc.expiredAt ELSE icRel.productCategory.create.expiredAt END
+  }
+
+  MERGE (p)-[r:IN_CATEGORY]->(pc)
+  ON CREATE SET r.createdAt = datetime()
+
+  SET r += {
+    claimIds: CASE
+      WHEN icRel.claimIds IS NULL THEN r.claimIds
+      ELSE apoc.coll.toSet(coalesce(r.claimIds, []) + coalesce(icRel.claimIds, []))
+    END,
+    createdAt: CASE WHEN icRel.createdAt IS NULL THEN r.createdAt ELSE icRel.createdAt END,
+    validAt: CASE WHEN icRel.validAt IS NULL THEN r.validAt ELSE icRel.validAt END,
+    invalidAt: CASE WHEN icRel.invalidAt IS NULL THEN r.invalidAt ELSE icRel.invalidAt END,
+    expiredAt: CASE WHEN icRel.expiredAt IS NULL THEN r.expiredAt ELSE icRel.expiredAt END
+  }
+
+  RETURN 1 AS ok
+
+  UNION
+
+  // ---- CONNECT branch (HARD FAIL if missing) ----
+  WITH p, icRel 
+  WITH p, icRel
+  WHERE icRel.productCategory.connect IS NOT NULL
+
+  OPTIONAL MATCH (pc:ProductCategory {categoryId: icRel.productCategory.connect.categoryId})
+  WITH p, icRel, pc
+
+  CALL apoc.util.validate(
+    pc IS NULL,
+    'IN_CATEGORY connect failed: ProductCategory not found for categoryId %s',
+    [icRel.productCategory.connect.categoryId]
+  )
+
+  MERGE (p)-[r:IN_CATEGORY]->(pc)
+  ON CREATE SET r.createdAt = datetime()
+
+  SET r += {
+    claimIds: CASE
+      WHEN icRel.claimIds IS NULL THEN r.claimIds
+      ELSE apoc.coll.toSet(coalesce(r.claimIds, []) + coalesce(icRel.claimIds, []))
+    END,
+    createdAt: CASE WHEN icRel.createdAt IS NULL THEN r.createdAt ELSE icRel.createdAt END,
+    validAt: CASE WHEN icRel.validAt IS NULL THEN r.validAt ELSE icRel.validAt END,
+    invalidAt: CASE WHEN icRel.invalidAt IS NULL THEN r.invalidAt ELSE icRel.invalidAt END,
+    expiredAt: CASE WHEN icRel.expiredAt IS NULL THEN r.expiredAt ELSE icRel.expiredAt END
+  }
+
+  RETURN 1 AS ok
+}
+
+RETURN 1 AS ok
+`;
+
+// ==================================================================
+// USES_PLATFORM (create OR connect) (CONNECT = HARD FAIL if missing)
+// ==================================================================
+export const productUsesPlatformCypher = `
+MATCH (p:Product {productId: $productId})
+
+UNWIND coalesce($usesPlatform, []) AS upRel
+CALL {
+  // ---- CREATE branch ----
+  WITH p, upRel 
+  WITH p, upRel 
+  WHERE upRel.technologyPlatform.create IS NOT NULL
+
+  MERGE (tp:TechnologyPlatform {
+    platformId: coalesce(upRel.technologyPlatform.create.platformId, randomUUID())
+  })
+  ON CREATE SET tp.createdAt = datetime()
+
+  SET tp += {
+    canonicalName: CASE WHEN upRel.technologyPlatform.create.canonicalName IS NULL THEN tp.canonicalName ELSE upRel.technologyPlatform.create.canonicalName END,
+    aliases: CASE
+      WHEN upRel.technologyPlatform.create.aliases IS NULL THEN tp.aliases
+      ELSE apoc.coll.toSet(coalesce(tp.aliases, []) + coalesce(upRel.technologyPlatform.create.aliases, []))
+    END,
+    platformType: CASE WHEN upRel.technologyPlatform.create.platformType IS NULL THEN tp.platformType ELSE upRel.technologyPlatform.create.platformType END,
+    description: CASE WHEN upRel.technologyPlatform.create.description IS NULL THEN tp.description ELSE upRel.technologyPlatform.create.description END,
+    validAt: CASE WHEN upRel.technologyPlatform.create.validAt IS NULL THEN tp.validAt ELSE upRel.technologyPlatform.create.validAt END,
+    invalidAt: CASE WHEN upRel.technologyPlatform.create.invalidAt IS NULL THEN tp.invalidAt ELSE upRel.technologyPlatform.create.invalidAt END,
+    expiredAt: CASE WHEN upRel.technologyPlatform.create.expiredAt IS NULL THEN tp.expiredAt ELSE upRel.technologyPlatform.create.expiredAt END
+  }
+
+  MERGE (p)-[r:USES_PLATFORM]->(tp)
+  ON CREATE SET r.createdAt = datetime()
+
+  SET r += {
+    claimIds: CASE
+      WHEN upRel.claimIds IS NULL THEN r.claimIds
+      ELSE apoc.coll.toSet(coalesce(r.claimIds, []) + coalesce(upRel.claimIds, []))
+    END,
+    createdAt: CASE WHEN upRel.createdAt IS NULL THEN r.createdAt ELSE upRel.createdAt END,
+    validAt: CASE WHEN upRel.validAt IS NULL THEN r.validAt ELSE upRel.validAt END,
+    invalidAt: CASE WHEN upRel.invalidAt IS NULL THEN r.invalidAt ELSE upRel.invalidAt END,
+    expiredAt: CASE WHEN upRel.expiredAt IS NULL THEN r.expiredAt ELSE upRel.expiredAt END
+  }
+
+  RETURN 1 AS ok
+
+  UNION
+
+  // ---- CONNECT branch (HARD FAIL if missing) ----
+  WITH p, upRel 
+  WITH p, upRel
+  WHERE upRel.technologyPlatform.connect IS NOT NULL
+
+  OPTIONAL MATCH (tp:TechnologyPlatform {platformId: upRel.technologyPlatform.connect.platformId})
+  WITH p, upRel, tp
+
+  CALL apoc.util.validate(
+    tp IS NULL,
+    'USES_PLATFORM connect failed: TechnologyPlatform not found for platformId %s',
+    [upRel.technologyPlatform.connect.platformId]
+  )
+
+  MERGE (p)-[r:USES_PLATFORM]->(tp)
+  ON CREATE SET r.createdAt = datetime()
+
+  SET r += {
+    claimIds: CASE
+      WHEN upRel.claimIds IS NULL THEN r.claimIds
+      ELSE apoc.coll.toSet(coalesce(r.claimIds, []) + coalesce(upRel.claimIds, []))
+    END,
+    createdAt: CASE WHEN upRel.createdAt IS NULL THEN r.createdAt ELSE upRel.createdAt END,
+    validAt: CASE WHEN upRel.validAt IS NULL THEN r.validAt ELSE upRel.validAt END,
+    invalidAt: CASE WHEN upRel.invalidAt IS NULL THEN r.invalidAt ELSE upRel.invalidAt END,
+    expiredAt: CASE WHEN upRel.expiredAt IS NULL THEN r.expiredAt ELSE upRel.expiredAt END
+  }
+
+  RETURN 1 AS ok
+}
+
+RETURN 1 AS ok
+`;
+
+// ==================================================================
+// HAS_REGULATORY_STATUS (create OR connect) (CONNECT = HARD FAIL if missing)
+// ==================================================================
+export const productHasRegulatoryStatusCypher = `
+MATCH (p:Product {productId: $productId})
+
+UNWIND coalesce($hasRegulatoryStatus, []) AS hrsRel
+CALL {
+  // ---- CREATE branch ----
+  WITH p, hrsRel 
+  WITH p, hrsRel 
+  WHERE hrsRel.regulatoryStatus.create IS NOT NULL
+
+  MERGE (rs:RegulatoryStatus {
+    regulatoryStatusId: coalesce(hrsRel.regulatoryStatus.create.regulatoryStatusId, randomUUID())
+  })
+  ON CREATE SET rs.createdAt = datetime()
+
+  SET rs += {
+    status: CASE WHEN hrsRel.regulatoryStatus.create.status IS NULL THEN rs.status ELSE hrsRel.regulatoryStatus.create.status END,
+    effectiveDate: CASE WHEN hrsRel.regulatoryStatus.create.effectiveDate IS NULL THEN rs.effectiveDate ELSE hrsRel.regulatoryStatus.create.effectiveDate END,
+    statusDetails: CASE WHEN hrsRel.regulatoryStatus.create.statusDetails IS NULL THEN rs.statusDetails ELSE hrsRel.regulatoryStatus.create.statusDetails END,
+    validAt: CASE WHEN hrsRel.regulatoryStatus.create.validAt IS NULL THEN rs.validAt ELSE hrsRel.regulatoryStatus.create.validAt END,
+    invalidAt: CASE WHEN hrsRel.regulatoryStatus.create.invalidAt IS NULL THEN rs.invalidAt ELSE hrsRel.regulatoryStatus.create.invalidAt END,
+    expiredAt: CASE WHEN hrsRel.regulatoryStatus.create.expiredAt IS NULL THEN rs.expiredAt ELSE hrsRel.regulatoryStatus.create.expiredAt END
+  }
+
+  MERGE (p)-[r:HAS_REGULATORY_STATUS]->(rs)
+  ON CREATE SET r.createdAt = datetime()
+
+  SET r += {
+    status: CASE WHEN hrsRel.status IS NULL THEN r.status ELSE hrsRel.status END,
+    effectiveDate: CASE WHEN hrsRel.effectiveDate IS NULL THEN r.effectiveDate ELSE hrsRel.effectiveDate END,
+    statusDetails: CASE WHEN hrsRel.statusDetails IS NULL THEN r.statusDetails ELSE hrsRel.statusDetails END,
+    claimIds: CASE
+      WHEN hrsRel.claimIds IS NULL THEN r.claimIds
+      ELSE apoc.coll.toSet(coalesce(r.claimIds, []) + coalesce(hrsRel.claimIds, []))
+    END,
+    createdAt: CASE WHEN hrsRel.createdAt IS NULL THEN r.createdAt ELSE hrsRel.createdAt END,
+    validAt: CASE WHEN hrsRel.validAt IS NULL THEN r.validAt ELSE hrsRel.validAt END,
+    invalidAt: CASE WHEN hrsRel.invalidAt IS NULL THEN r.invalidAt ELSE hrsRel.invalidAt END,
+    expiredAt: CASE WHEN hrsRel.expiredAt IS NULL THEN r.expiredAt ELSE hrsRel.expiredAt END
+  }
+
+  RETURN 1 AS ok
+
+  UNION
+
+  // ---- CONNECT branch (HARD FAIL if missing) ----
+  WITH p, hrsRel 
+  WITH p, hrsRel
+  WHERE hrsRel.regulatoryStatus.connect IS NOT NULL
+
+  OPTIONAL MATCH (rs:RegulatoryStatus {regulatoryStatusId: hrsRel.regulatoryStatus.connect.regulatoryStatusId})
+  WITH p, hrsRel, rs
+
+  CALL apoc.util.validate(
+    rs IS NULL,
+    'HAS_REGULATORY_STATUS connect failed: RegulatoryStatus not found for regulatoryStatusId %s',
+    [hrsRel.regulatoryStatus.connect.regulatoryStatusId]
+  )
+
+  MERGE (p)-[r:HAS_REGULATORY_STATUS]->(rs)
+  ON CREATE SET r.createdAt = datetime()
+
+  SET r += {
+    status: CASE WHEN hrsRel.status IS NULL THEN r.status ELSE hrsRel.status END,
+    effectiveDate: CASE WHEN hrsRel.effectiveDate IS NULL THEN r.effectiveDate ELSE hrsRel.effectiveDate END,
+    statusDetails: CASE WHEN hrsRel.statusDetails IS NULL THEN r.statusDetails ELSE hrsRel.statusDetails END,
+    claimIds: CASE
+      WHEN hrsRel.claimIds IS NULL THEN r.claimIds
+      ELSE apoc.coll.toSet(coalesce(r.claimIds, []) + coalesce(hrsRel.claimIds, []))
+    END,
+    createdAt: CASE WHEN hrsRel.createdAt IS NULL THEN r.createdAt ELSE hrsRel.createdAt END,
+    validAt: CASE WHEN hrsRel.validAt IS NULL THEN r.validAt ELSE hrsRel.validAt END,
+    invalidAt: CASE WHEN hrsRel.invalidAt IS NULL THEN r.invalidAt ELSE hrsRel.invalidAt END,
+    expiredAt: CASE WHEN hrsRel.expiredAt IS NULL THEN r.expiredAt ELSE hrsRel.expiredAt END
+  }
+
+  RETURN 1 AS ok
+}
+
+RETURN 1 AS ok
+`;
+
+// ==================================================================
+// MANUFACTURED_BY (create OR connect) (CONNECT = HARD FAIL if missing)
+// Note: This is an incoming relationship exposed as outgoing
+// In Neo4j: (Organization)-[:MANUFACTURES_PRODUCT]->(Product)
+// ==================================================================
+export const productManufacturedByCypher = `
+MATCH (p:Product {productId: $productId})
+
+UNWIND coalesce($manufacturedBy, []) AS mbRel
+CALL {
+  // ---- CREATE branch ----
+  WITH p, mbRel 
+  WITH p, mbRel 
+  WHERE mbRel.organization.create IS NOT NULL
+
+  MERGE (o:Organization {
+    organizationId: coalesce(mbRel.organization.create.organizationId, randomUUID())
+  })
+  ON CREATE SET o.createdAt = datetime()
+
+  SET o.organizationId = coalesce(o.organizationId, randomUUID())
+
+  SET o += {
+    name: CASE WHEN mbRel.organization.create.name IS NULL THEN o.name ELSE mbRel.organization.create.name END,
+    aliases: CASE
+      WHEN mbRel.organization.create.aliases IS NULL THEN o.aliases
+      ELSE apoc.coll.toSet(coalesce(o.aliases, []) + coalesce(mbRel.organization.create.aliases, []))
+    END,
+    orgType: CASE WHEN mbRel.organization.create.orgType IS NULL THEN o.orgType ELSE mbRel.organization.create.orgType END,
+    description: CASE WHEN mbRel.organization.create.description IS NULL THEN o.description ELSE mbRel.organization.create.description END,
+    businessModel: CASE WHEN mbRel.organization.create.businessModel IS NULL THEN o.businessModel ELSE mbRel.organization.create.businessModel END,
+    primaryIndustryTags: CASE
+      WHEN mbRel.organization.create.primaryIndustryTags IS NULL THEN o.primaryIndustryTags
+      ELSE apoc.coll.toSet(coalesce(o.primaryIndustryTags, []) + coalesce(mbRel.organization.create.primaryIndustryTags, []))
+    END,
+    regionsServed: CASE
+      WHEN mbRel.organization.create.regionsServed IS NULL THEN o.regionsServed
+      ELSE apoc.coll.toSet(coalesce(o.regionsServed, []) + coalesce(mbRel.organization.create.regionsServed, []))
+    END,
+    legalName: CASE WHEN mbRel.organization.create.legalName IS NULL THEN o.legalName ELSE mbRel.organization.create.legalName END,
+    legalStructure: CASE WHEN mbRel.organization.create.legalStructure IS NULL THEN o.legalStructure ELSE mbRel.organization.create.legalStructure END,
+    ownershipType: CASE WHEN mbRel.organization.create.ownershipType IS NULL THEN o.ownershipType ELSE mbRel.organization.create.ownershipType END,
+    jurisdictionsOfIncorporation: CASE
+      WHEN mbRel.organization.create.jurisdictionsOfIncorporation IS NULL THEN o.jurisdictionsOfIncorporation
+      ELSE apoc.coll.toSet(coalesce(o.jurisdictionsOfIncorporation, []) + coalesce(mbRel.organization.create.jurisdictionsOfIncorporation, []))
+    END,
+    websiteUrl: CASE WHEN mbRel.organization.create.websiteUrl IS NULL THEN o.websiteUrl ELSE mbRel.organization.create.websiteUrl END,
+    defaultCollectionModes: CASE
+      WHEN mbRel.organization.create.defaultCollectionModes IS NULL THEN o.defaultCollectionModes
+      ELSE apoc.coll.toSet(coalesce(o.defaultCollectionModes, []) + coalesce(mbRel.organization.create.defaultCollectionModes, []))
+    END,
+    defaultRegionsAvailable: CASE
+      WHEN mbRel.organization.create.defaultRegionsAvailable IS NULL THEN o.defaultRegionsAvailable
+      ELSE apoc.coll.toSet(coalesce(o.defaultRegionsAvailable, []) + coalesce(mbRel.organization.create.defaultRegionsAvailable, []))
+    END,
+    publicTicker: CASE WHEN mbRel.organization.create.publicTicker IS NULL THEN o.publicTicker ELSE mbRel.organization.create.publicTicker END,
+    fundingStage: CASE WHEN mbRel.organization.create.fundingStage IS NULL THEN o.fundingStage ELSE mbRel.organization.create.fundingStage END,
+    employeeCountMin: CASE WHEN mbRel.organization.create.employeeCountMin IS NULL THEN o.employeeCountMin ELSE mbRel.organization.create.employeeCountMin END,
+    employeeCountMax: CASE WHEN mbRel.organization.create.employeeCountMax IS NULL THEN o.employeeCountMax ELSE mbRel.organization.create.employeeCountMax END,
+    employeeCountAsOf: CASE WHEN mbRel.organization.create.employeeCountAsOf IS NULL THEN o.employeeCountAsOf ELSE mbRel.organization.create.employeeCountAsOf END,
+    revenueAnnualMin: CASE WHEN mbRel.organization.create.revenueAnnualMin IS NULL THEN o.revenueAnnualMin ELSE mbRel.organization.create.revenueAnnualMin END,
+    revenueAnnualMax: CASE WHEN mbRel.organization.create.revenueAnnualMax IS NULL THEN o.revenueAnnualMax ELSE mbRel.organization.create.revenueAnnualMax END,
+    revenueAnnualCurrency: CASE WHEN mbRel.organization.create.revenueAnnualCurrency IS NULL THEN o.revenueAnnualCurrency ELSE mbRel.organization.create.revenueAnnualCurrency END,
+    revenueAnnualAsOf: CASE WHEN mbRel.organization.create.revenueAnnualAsOf IS NULL THEN o.revenueAnnualAsOf ELSE mbRel.organization.create.revenueAnnualAsOf END,
+    validAt: CASE WHEN mbRel.organization.create.validAt IS NULL THEN o.validAt ELSE mbRel.organization.create.validAt END,
+    invalidAt: CASE WHEN mbRel.organization.create.invalidAt IS NULL THEN o.invalidAt ELSE mbRel.organization.create.invalidAt END,
+    expiredAt: CASE WHEN mbRel.organization.create.expiredAt IS NULL THEN o.expiredAt ELSE mbRel.organization.create.expiredAt END
+  }
+
+  MERGE (o)-[r:MANUFACTURES_PRODUCT]->(p)
+  ON CREATE SET r.createdAt = datetime()
+
+  SET r += {
+    claimIds: CASE
+      WHEN mbRel.claimIds IS NULL THEN r.claimIds
+      ELSE apoc.coll.toSet(coalesce(r.claimIds, []) + coalesce(mbRel.claimIds, []))
+    END,
+    createdAt: CASE WHEN mbRel.createdAt IS NULL THEN r.createdAt ELSE mbRel.createdAt END,
+    validAt: CASE WHEN mbRel.validAt IS NULL THEN r.validAt ELSE mbRel.validAt END,
+    invalidAt: CASE WHEN mbRel.invalidAt IS NULL THEN r.invalidAt ELSE mbRel.invalidAt END,
+    expiredAt: CASE WHEN mbRel.expiredAt IS NULL THEN r.expiredAt ELSE mbRel.expiredAt END
+  }
+
+  RETURN 1 AS ok
+
+  UNION
+
+  // ---- CONNECT branch (HARD FAIL if missing) ----
+  WITH p, mbRel 
+  WITH p, mbRel
+  WHERE mbRel.organization.connect IS NOT NULL
+
+  OPTIONAL MATCH (o:Organization {organizationId: mbRel.organization.connect.organizationId})
+  WITH p, mbRel, o
+
+  CALL apoc.util.validate(
+    o IS NULL,
+    'MANUFACTURED_BY connect failed: Organization not found for organizationId %s',
+    [mbRel.organization.connect.organizationId]
+  )
+
+  MERGE (o)-[r:MANUFACTURES_PRODUCT]->(p)
+  ON CREATE SET r.createdAt = datetime()
+
+  SET r += {
+    claimIds: CASE
+      WHEN mbRel.claimIds IS NULL THEN r.claimIds
+      ELSE apoc.coll.toSet(coalesce(r.claimIds, []) + coalesce(mbRel.claimIds, []))
+    END,
+    createdAt: CASE WHEN mbRel.createdAt IS NULL THEN r.createdAt ELSE mbRel.createdAt END,
+    validAt: CASE WHEN mbRel.validAt IS NULL THEN r.validAt ELSE mbRel.validAt END,
+    invalidAt: CASE WHEN mbRel.invalidAt IS NULL THEN r.invalidAt ELSE mbRel.invalidAt END,
+    expiredAt: CASE WHEN mbRel.expiredAt IS NULL THEN r.expiredAt ELSE mbRel.expiredAt END
+  }
+
+  RETURN 1 AS ok
+}
+
+RETURN 1 AS ok
+`;
+
 export const returnProductsCypher = `
 MATCH (p:Product {productId: $productId})
 RETURN p
@@ -405,6 +776,10 @@ export const createProductStatements = {
   productImplementsPanelCypher,
   productContainsCompoundFormCypher,
   productFollowsPathwayCypher,
+  productInCategoryCypher,
+  productUsesPlatformCypher,
+  productHasRegulatoryStatusCypher,
+  productManufacturedByCypher,
   returnProductsCypher,
 };
 

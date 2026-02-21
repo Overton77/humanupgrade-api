@@ -1,0 +1,6 @@
+input TemporalValidityInput {
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}

@@ -1,0 +1,502 @@
+input OrganizationInput {
+  organizationId: ID
+  name: String!
+  aliases: [String!]
+  orgType: OrgType!
+  description: String
+  businessModel: BusinessModel
+  primaryIndustryTags: [String!]
+  regionsServed: [String!]
+  legalName: String
+  legalStructure: String
+  ownershipType: String
+  jurisdictionsOfIncorporation: [String!]
+  websiteUrl: String
+  defaultCollectionModes: [String!]
+  defaultRegionsAvailable: [String!]
+  publicTicker: String
+  fundingStage: String
+  employeeCountMin: Int
+  employeeCountMax: Int
+  employeeCountAsOf: DateTime
+  revenueAnnualMin: Float
+  revenueAnnualMax: Float
+  revenueAnnualCurrency: String
+  revenueAnnualAsOf: DateTime
+  valuationMin: Float
+  valuationMax: Float
+  valuationCurrency: String
+  valuationAsOf: DateTime
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  # Relationships
+  hasLocation: [HasLocationRelationshipInput!]
+  ownsOrControls: [OwnsOrControlsRelationshipInput!]
+  lists: [ListsRelationshipInput!]
+  offersProduct: [OffersProductRelationshipInput!]
+  suppliesCompoundForm: [SuppliesCompoundFormRelationshipInput!]
+  manufactures: [ManufacturesRelationshipInput!]
+  manufacturesProduct: [ManufacturesProductRelationshipInput!]
+  contractManufacturerForOrganization: [ContractManufacturerForOrganizationRelationshipInput!]
+  contractManufacturerForProduct: [ContractManufacturerForProductRelationshipInput!]
+  contractManufacturerForCompoundForm: [ContractManufacturerForCompoundFormRelationshipInput!]
+  performsManufacturingProcess: [PerformsManufacturingProcessRelationshipInput!]
+  developsPlatform: [DevelopsPlatformRelationshipInput!]
+  usesPlatform: [UsesPlatformRelationshipInput!]
+}
+
+input UpdateOrganizationInput {
+  organizationId: ID
+  name: String
+  aliases: [String!]
+  orgType: OrgType
+  description: String
+  businessModel: BusinessModel
+  primaryIndustryTags: [String!]
+  regionsServed: [String!]
+  legalName: String
+  legalStructure: String
+  ownershipType: String
+  jurisdictionsOfIncorporation: [String!]
+  websiteUrl: String
+  defaultCollectionModes: [String!]
+  defaultRegionsAvailable: [String!]
+  publicTicker: String
+  fundingStage: String
+  employeeCountMin: Int
+  employeeCountMax: Int
+  employeeCountAsOf: DateTime
+  revenueAnnualMin: Float
+  revenueAnnualMax: Float
+  revenueAnnualCurrency: String
+  revenueAnnualAsOf: DateTime
+  valuationMin: Float
+  valuationMax: Float
+  valuationCurrency: String
+  valuationAsOf: DateTime
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  # Relationships (using update versions)
+  hasLocation: [HasLocationRelationshipUpdateInput!]
+  ownsOrControls: [OwnsOrControlsRelationshipUpdateInput!]
+  lists: [ListsRelationshipUpdateInput!]
+  offersProduct: [OffersProductRelationshipUpdateInput!]
+  suppliesCompoundForm: [SuppliesCompoundFormRelationshipUpdateInput!]
+  manufactures: [ManufacturesRelationshipUpdateInput!]
+  manufacturesProduct: [ManufacturesProductRelationshipUpdateInput!]
+  contractManufacturerForOrganization: [ContractManufacturerForOrganizationRelationshipUpdateInput!]
+  contractManufacturerForProduct: [ContractManufacturerForProductRelationshipUpdateInput!]
+  contractManufacturerForCompoundForm: [ContractManufacturerForCompoundFormRelationshipUpdateInput!]
+  performsManufacturingProcess: [PerformsManufacturingProcessRelationshipUpdateInput!]
+  developsPlatform: [DevelopsPlatformRelationshipUpdateInput!]
+  usesPlatform: [UsesPlatformRelationshipUpdateInput!]
+}  
+
+
+input PhysicalLocationInput {
+  locationId: ID
+  canonicalName: String!
+  locationType: LocationType!
+  addressLine1: String
+  addressLine2: String
+  city: String
+  region: String
+  postalCode: String
+  countryCode: String
+  geoLat: Float
+  geoLon: Float
+  timezone: String
+  jurisdiction: String
+  placeTags: [String!]
+  hoursOfOperation: String
+  contactPhone: String
+  contactEmail: String
+}
+
+input PhysicalLocationRelateInput {
+  create: PhysicalLocationInput
+  connect: PhysicalLocationConnectInput
+}
+
+input PhysicalLocationRelateUpdateInput {
+  create: PhysicalLocationInput
+  connect: PhysicalLocationConnectInput
+  update: PhysicalLocationUpdateInput
+}
+
+input PhysicalLocationConnectInput {
+  locationId: ID!
+} 
+
+input PhysicalLocationUpdateInput {
+  locationId: ID
+  canonicalName: String
+  locationType: LocationType
+  addressLine1: String
+  addressLine2: String
+  city: String
+  region: String
+  postalCode: String
+  countryCode: String
+  geoLat: Float
+  geoLon: Float
+  timezone: String
+  jurisdiction: String
+  placeTags: [String!]
+  hoursOfOperation: String
+  contactPhone: String
+  contactEmail: String
+}
+
+input HasLocationRelationshipInput {
+  location: PhysicalLocationRelateInput!
+  locationRole: String!
+  isPrimary: Boolean
+  startDate: DateTime
+  endDate: DateTime
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input HasLocationRelationshipUpdateInput {
+  location: PhysicalLocationRelateUpdateInput!
+  locationRole: String
+  isPrimary: Boolean
+  startDate: DateTime
+  endDate: DateTime
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input OrganizationRelateInput {
+  create: OrganizationInput
+  connect: OrganizationConnectInput
+}
+
+input OrganizationRelateUpdateInput {
+  create: OrganizationInput
+  connect: OrganizationConnectInput
+  update: UpdateOrganizationInput
+}
+
+input OrganizationConnectInput {
+  organizationId: ID!
+}
+
+input OwnsOrControlsRelationshipInput {
+  organization: OrganizationRelateInput!
+  relationshipType: String!
+  ownershipPercent: Float
+  controlType: String
+  effectiveFrom: DateTime
+  effectiveTo: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input OwnsOrControlsRelationshipUpdateInput {
+  organization: OrganizationRelateUpdateInput!
+  relationshipType: String
+  ownershipPercent: Float
+  controlType: String
+  effectiveFrom: DateTime
+  effectiveTo: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}  
+
+
+
+input OffersProductRelationshipInput {
+  product: ProductRelateInput!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input OffersProductRelationshipUpdateInput {
+  product: ProductRelateUpdateInput!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+} 
+
+input SuppliesCompoundFormRelationshipInput {
+  compoundForm: CompoundFormRelateInput!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input SuppliesCompoundFormRelationshipUpdateInput {
+  compoundForm: CompoundFormRelateUpdateInput!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ManufacturingProcessRelateInput {
+  create: ManufacturingProcessInput
+  connect: ManufacturingProcessConnectInput
+} 
+
+input ManufacturingProcessInput {
+  manufacturingProcessId: ID
+  canonicalName: String!
+  processType: ProcessType!
+  description: String
+  inputs: [String!]
+  outputs: [String!]
+  qualityRisks: [String!]
+  scalabilityLevel: ScalabilityLevel
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ManufacturingProcessUpdateInput {
+  manufacturingProcessId: ID
+  canonicalName: String
+  processType: ProcessType
+  description: String
+  inputs: [String!]
+  outputs: [String!]
+  qualityRisks: [String!]
+  scalabilityLevel: ScalabilityLevel
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input TechnologyPlatformInput {
+  platformId: ID
+  canonicalName: String!
+  aliases: [String!]
+  platformType: PlatformType!
+  description: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input TechnologyPlatformUpdateInput {
+  platformId: ID
+  canonicalName: String
+  aliases: [String!]
+  platformType: PlatformType
+  description: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+
+input ManufacturingProcessRelateUpdateInput {
+  create: ManufacturingProcessInput
+  connect: ManufacturingProcessConnectInput
+  update: ManufacturingProcessUpdateInput
+}
+
+input ManufacturingProcessConnectInput {
+  manufacturingProcessId: ID!
+}
+
+input TechnologyPlatformRelateInput {
+  create: TechnologyPlatformInput
+  connect: TechnologyPlatformConnectInput
+}
+
+input TechnologyPlatformRelateUpdateInput {
+  create: TechnologyPlatformInput
+  connect: TechnologyPlatformConnectInput
+  update: TechnologyPlatformUpdateInput
+}
+
+input TechnologyPlatformConnectInput {
+  platformId: ID!
+}
+
+input ManufacturesRelationshipInput {
+  compoundForm: CompoundFormRelateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ManufacturesRelationshipUpdateInput {
+  compoundForm: CompoundFormRelateUpdateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ManufacturesProductRelationshipInput {
+  product: ProductRelateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ManufacturesProductRelationshipUpdateInput {
+  product: ProductRelateUpdateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ContractManufacturerForOrganizationRelationshipInput {
+  organization: OrganizationRelateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ContractManufacturerForOrganizationRelationshipUpdateInput {
+  organization: OrganizationRelateUpdateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ContractManufacturerForProductRelationshipInput {
+  product: ProductRelateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ContractManufacturerForProductRelationshipUpdateInput {
+  product: ProductRelateUpdateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ContractManufacturerForCompoundFormRelationshipInput {
+  compoundForm: CompoundFormRelateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ContractManufacturerForCompoundFormRelationshipUpdateInput {
+  compoundForm: CompoundFormRelateUpdateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input PerformsManufacturingProcessRelationshipInput {
+  manufacturingProcess: ManufacturingProcessRelateInput!
+  role: ManufacturingRole!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input PerformsManufacturingProcessRelationshipUpdateInput {
+  manufacturingProcess: ManufacturingProcessRelateUpdateInput!
+  role: ManufacturingRole
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input DevelopsPlatformRelationshipInput {
+  technologyPlatform: TechnologyPlatformRelateInput!
+  relationshipRole: RelationshipRole
+  notes: String
+  source: Source
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input DevelopsPlatformRelationshipUpdateInput {
+  technologyPlatform: TechnologyPlatformRelateUpdateInput!
+  relationshipRole: RelationshipRole
+  notes: String
+  source: Source
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input UsesPlatformRelationshipInput {
+  technologyPlatform: TechnologyPlatformRelateInput!
+  usageContext: UsageContext
+  isPrimary: Boolean
+  notes: String
+  source: Source
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input UsesPlatformRelationshipUpdateInput {
+  technologyPlatform: TechnologyPlatformRelateUpdateInput!
+  usageContext: UsageContext
+  isPrimary: Boolean
+  notes: String
+  source: Source
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}

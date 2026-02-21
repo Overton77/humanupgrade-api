@@ -1,0 +1,44 @@
+type SearchReason {
+  kind: SearchReasonKind!
+  field: String
+  value: String
+  score: Float
+  detail: String
+} 
+
+type AutocompleteItem {
+  id: ID!
+  label: String!
+  subtitle: String
+}  
+
+
+type OrganizationSearchHit {
+  node: Organization!
+  score: Float
+  reasons: [SearchReason!]
+}
+
+type OrganizationSearchResult {
+  items: [OrganizationSearchHit!]!
+  pageInfo: PageInfo!
+} 
+
+type ProductSearchHit {
+  node: Product!
+  score: Float
+  reasons: [SearchReason!]
+}
+
+type ProductSearchResult {
+  items: [ProductSearchHit!]!
+  pageInfo: PageInfo!
+} 
+
+type SearchSurface {
+  searchText: String
+  searchTextEmbedding: [Float!]
+  searchTextModel: String
+  searchTextVersion: String
+  searchTextUpdatedAt: DateTime
+}

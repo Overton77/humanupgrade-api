@@ -1,0 +1,193 @@
+type ResearchPlanRef {
+  researchPlanRefId: ID!
+  mongoPlanId: String!
+  label: String
+  version: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type ResearchRunRef {
+  researchRunRefId: ID!
+  mongoRunId: String!
+  label: String
+  startedAt: DateTime!
+  endedAt: DateTime!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  usesPlan: [UsesPlanEdge!]
+} 
+
+
+type DocumentTextVersion {
+  documentTextVersionId: ID!
+  textVersionHash: String!
+  source: String!
+  language: String
+  text: String!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  searchText: String
+  searchTextEmbedding: [Float!]
+  searchTextModel: String
+  searchTextVersion: String
+  searchTextUpdatedAt: DateTime
+  hasSegmentation: [HasSegmentationEdge!]
+}
+
+type Segmentation {
+  segmentationId: ID!
+  segmentationHash: String!
+  strategy: String!
+  chunkSize: Int!
+  overlap: Int!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  hasChunk: [SegmentationHasChunkEdge!]
+}
+
+type Chunk {
+  chunkId: ID!
+  chunkKey: String!
+  index: Int!
+  text: String!
+  charStart: Int
+  charEnd: Int
+  startMs: Int
+  endMs: Int
+  embedding: [Float!]
+  embeddingModel: String
+  embeddingVersion: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  nextChunk: NextChunkEdge
+  mentions: [MentionsEdge!]
+  about: [AboutEdge!]
+}
+
+type Document {
+  documentId: ID!
+  documentKey: String!
+  type: String!
+  title: String
+  url: String
+  publishedAt: DateTime!
+  retrievedAt: DateTime!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  searchText: String
+  searchTextEmbedding: [Float!]
+  searchTextModel: String
+  searchTextVersion: String
+  searchTextUpdatedAt: DateTime
+  hasTextVersion: [HasTextVersionEdge!]
+  chunks: [HasChunkEdge!]
+  generatedBy: [GeneratedByEdge!]
+} 
+
+
+union EvidenceSourceRefResult = EvidenceSourceRefDocumentResult | EvidenceSourceRefChunkResult
+
+type EvidenceSourceRefDocumentResult {
+  kind: EvidenceSourceKind! # Always "Document"
+  documentId: String!
+}
+
+type EvidenceSourceRefChunkResult {
+  kind: EvidenceSourceKind! # Always "Chunk"
+  chunkId: String!
+}
+
+type EvidenceTargetRefResolved {
+  nodeId: String!
+  label: String!
+  uniqueKey: String
+  uniqueKeyValue: String
+}
+
+type UpsertEvidenceEdgeResult {
+  ok: Boolean! # Always true for successful results
+  edgeType: EvidenceEdgeType!
+  relKey: String!
+  relationshipId: String
+  
+  source: EvidenceSourceRefResult!
+  target: EvidenceTargetRefResolved!
+  
+  created: Boolean!
+  updated: Boolean!
+}
+
+type UpsertEvidenceEdgeError {
+  index: Int!
+  edgeType: EvidenceEdgeType
+  message: String!
+  code: String
+}
+
+type UpsertEvidenceEdgesCounts {
+  received: Int!
+  attempted: Int!
+  created: Int!
+  updated: Int!
+  failed: Int!
+}
+
+type UpsertEvidenceEdgesResult {
+  ok: Boolean!
+  counts: UpsertEvidenceEdgesCounts!
+  results: [UpsertEvidenceEdgeResult!]!
+  errors: [UpsertEvidenceEdgeError!]!
+} 
+
+type UpsertEmbeddingResult {
+  targetType: EmbeddingTargetType!
+  targetId: ID!
+  status: EmbeddingJobStatus!
+  message: String 
+  jobId: String 
+} 
+
+type EmbeddingJobEvent {
+  targetType: EmbeddingTargetType!
+  targetId: ID!
+  status: EmbeddingJobStatus!
+  jobId: String
+  requestId: String
+  message: String
+  error: String
+  updatedAt: DateTime!
+} 
+
+
+type UpsertDocumentTextVersionBundleResult {
+  documentId: String!
+  documentTextVersionId: String!
+  segmentationId: String!
+  chunkMetas: [ChunkMeta!]!
+  nextChunkEdgesCreated: Boolean!
+}
+
+type ChunkMeta {
+  chunkId: String!
+  chunkKey: String!
+  index: Int!
+}

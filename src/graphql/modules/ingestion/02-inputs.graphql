@@ -1,0 +1,308 @@
+input UpsertDocumentInput {
+  documentKey: String!
+  type: String!
+  title: String
+  url: String
+  publishedAt: DateTime
+  retrievedAt: DateTime
+  validAt: DateTime!
+  expiredAt: DateTime
+  invalidAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  searchSurface: SearchSurfaceInput
+  generatedBy: DocumentGeneratedByInput
+  chunkBundle: InlineChunkBundleInput
+}
+
+input DocumentTextVersionInput {
+  textVersionHash: String!
+  source: String!
+  language: String
+  text: String!
+  searchSurface: SearchSurfaceInput
+  validAt: DateTime!
+  expiredAt: DateTime
+  invalidAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input SegmentationInput {
+  segmentationHash: String!
+  strategy: String!
+  chunkSize: Int!
+  overlap: Int!
+  validAt: DateTime!
+  expiredAt: DateTime
+  invalidAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input ChunkInput {
+  chunkKey: String!
+  index: Int!
+  text: String!
+  charStart: Int
+  charEnd: Int
+  startMs: Int
+  endMs: Int
+  embedding: [Float!]
+  embeddingModel: String
+  embeddingVersion: String
+  validAt: DateTime!
+  expiredAt: DateTime
+  invalidAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input UpsertDocumentTextVersionBundleInput {
+  documentId: String!
+  textVersion: DocumentTextVersionInput!
+  segmentation: SegmentationInput!
+  chunks: [ChunkInput!]!
+  hasTextVersionEdge: TemporalValidityInput
+  hasSegmentationEdge: TemporalValidityInput
+  segmentationHasChunkEdge: TemporalValidityInput
+  documentHasChunkEdge: TemporalValidityInput
+  nextChunkEdge: TemporalValidityInput
+  alsoCreateDocumentHasChunkEdges: Boolean = true
+  alsoCreateNextChunkEdges: Boolean = true
+} 
+
+
+input EvidenceProvenanceInput {
+  mongoRunId: String!
+  mongoPlanId: String
+  stageKey: String
+  subStageKey: String
+  extractorVersion: String
+  extractedAt: DateTime!
+}
+
+# ============================================================================
+# Evidence Source Reference Input (Discriminated Union)
+# ============================================================================
+
+input EvidenceSourceRefInput {
+  kind: EvidenceSourceKind!
+  # For kind="Document", provide documentId
+  documentId: String
+  # For kind="Chunk", provide chunkId
+  chunkId: String
+} 
+
+
+# ============================================================================
+# Evidence Target Reference Input
+# ============================================================================
+# Prefer nodeId; allow fallback resolution using label + uniqueKey + uniqueKeyValue
+
+input EvidenceTargetRefInput {
+  nodeId: String
+  
+  # Fallback fields (only used if nodeId is missing)
+  label: String
+  uniqueKey: String
+  uniqueKeyValue: String
+}
+
+# copied to ingestion inputs 
+
+# ============================================================================
+# Evidence Edge Property Inputs
+# ============================================================================
+
+input AboutEdgePropsInput {
+  # Temporal validity fields
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  
+  # Provenance fields
+  mongoRunId: String!
+  mongoPlanId: String
+  stageKey: String
+  subStageKey: String
+  extractorVersion: String
+  extractedAt: DateTime!
+  
+  # About-specific fields
+  aboutness: Float
+  aspect: String
+  stance: String
+  confidence: Float
+}
+
+input MentionsEdgePropsInput {
+  # Temporal validity fields
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  
+  # Provenance fields
+  mongoRunId: String!
+  mongoPlanId: String
+  stageKey: String
+  subStageKey: String
+  extractorVersion: String
+  extractedAt: DateTime!
+  
+  # Mentions-specific fields
+  confidence: Float
+  linkingMethod: String
+  surfaceForm: String
+  charStart: Int
+  charEnd: Int
+}
+
+input IsPrimarySourceEdgePropsInput {
+  # Temporal validity fields
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  
+  # Provenance fields
+  mongoRunId: String!
+  mongoPlanId: String
+  stageKey: String
+  subStageKey: String
+  extractorVersion: String
+  extractedAt: DateTime!
+  
+  # IS_PRIMARY_SOURCE-specific fields
+  confidence: Float
+  notes: String
+}
+
+# ============================================================================
+# Evidence Edge Input Types
+# ============================================================================
+# Note: GraphQL doesn't support union input types, so we use a flattened discriminated union pattern.
+# The resolver should validate that the correct fields are provided based on the "type" field.
+# All edge-specific property fields are flattened into EvidenceEdgeInput for simplicity.
+
+input EvidenceEdgeInput {
+  type: EvidenceEdgeType!
+  source: EvidenceSourceRefInput!
+  target: EvidenceTargetRefInput!
+  
+  # Temporal validity fields (common to all edge types)
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  
+  # Provenance fields (common to all edge types)
+  mongoRunId: String!
+  mongoPlanId: String
+  stageKey: String
+  subStageKey: String
+  extractorVersion: String
+  extractedAt: DateTime!
+  
+  # ABOUT edge specific fields (used when type="ABOUT")
+  aboutness: Float
+  aspect: String
+  stance: String
+  
+  # MENTIONS edge specific fields (used when type="MENTIONS")
+  linkingMethod: String
+  surfaceForm: String
+  charStart: Int
+  charEnd: Int
+  
+  # IS_PRIMARY_SOURCE edge specific fields (used when type="IS_PRIMARY_SOURCE")
+  notes: String
+  
+  # Confidence (used by ABOUT, MENTIONS, and IS_PRIMARY_SOURCE)
+  confidence: Float
+} 
+
+
+input UpsertEmbeddingInput {
+  targetType: EmbeddingTargetType!
+  targetId: ID! 
+
+  # Optional: let you override rules (rarely used)
+  force: Boolean = false 
+
+  requestId: String 
+}
+
+input UpsertEvidenceEdgesInput {
+  edges: [EvidenceEdgeInput!]!
+} 
+
+input UpsertResearchPlanRefInput {
+  mongoPlanId: String!
+  label: String
+  version: String
+  validAt: DateTime!
+  expiredAt: DateTime
+  invalidAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input UpsertResearchRunRefInput {
+  mongoRunId: String!
+  label: String
+  startedAt: DateTime
+  endedAt: DateTime
+  validAt: DateTime!
+  expiredAt: DateTime
+  invalidAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input LinkResearchRunUsesPlanInput {
+  mongoRunId: String!
+  mongoPlanId: String!
+  validAt: DateTime
+  expiredAt: DateTime
+  invalidAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input DocumentGeneratedByInput {
+  mongoRunId: String!
+  operation: String!
+  stageKey: String
+  subStageKey: String
+  extractorVersion: String
+  extractedAt: DateTime
+  validAt: DateTime
+  expiredAt: DateTime
+  invalidAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input InlineChunkBundleSyntheticInput {
+  source: String
+  strategy: String
+  chunkSize: Int
+  overlap: Int
+}
+
+input InlineChunkBundleInput {
+  textVersion: DocumentTextVersionInput
+  segmentation: SegmentationInput
+  chunks: [ChunkInput!]!
+  hasTextVersionEdge: TemporalValidityInput
+  hasSegmentationEdge: TemporalValidityInput
+  segmentationHasChunkEdge: TemporalValidityInput
+  documentHasChunkEdge: TemporalValidityInput
+  nextChunkEdge: TemporalValidityInput
+  alsoCreateDocumentHasChunkEdges: Boolean = true
+  alsoCreateNextChunkEdges: Boolean = true
+  synthetic: InlineChunkBundleSyntheticInput
+}
