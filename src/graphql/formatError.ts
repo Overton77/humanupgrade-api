@@ -4,6 +4,7 @@ import { logError } from "../lib/logger.js";
 
 export function buildFormatError() {
   return (formattedError: GraphQLFormattedError, rawError: unknown) => {
+    // Normalize
     const appErr = toAppError(rawError, formattedError.message);
 
     const requestId =
@@ -13,10 +14,11 @@ export function buildFormatError() {
     const code = appErr.extensions.code ?? ErrorCode.INTERNAL_SERVER_ERROR;
     const httpStatus = appErr.extensions.httpStatus ?? 500;
 
-    logError(rawError, {
+    // ✅ LOG THE APP ERROR (not the raw error)
+    // This ensures dbProvider / neo4j / mongo payloads are included.
+    logError(appErr, {
       graphqlError: true,
-      message: formattedError.message,
-      code: formattedError.extensions?.code as string | undefined,
+      graphQLMessage: formattedError.message,
       normalizedCode: code,
       httpStatus,
       path: formattedError.path ? formattedError.path.join(".") : undefined,
@@ -30,20 +32,38 @@ export function buildFormatError() {
       code === ErrorCode.EXTERNAL_SERVICE_ERROR ||
       code === ErrorCode.EMBEDDING_ERROR;
 
+    // In prod, never leak internal details
     const message =
       isProd && isInternal ? "An internal error occurred" : appErr.message;
+
+    /**
+     * Decide what to return to the client.
+     * - In prod, strip neo4j/mongo debug, strip originalError
+     * - In dev, include dbProvider + neo4j/mongo payload to accelerate debugging
+     */
+    const baseExtensions = {
+      ...formattedError.extensions,
+      ...appErr.extensions,
+      code,
+      httpStatus,
+      requestId,
+      originalError: undefined,
+    };
+
+    const safeExtensions = isProd
+      ? {
+          ...baseExtensions,
+          // Don’t leak DB payloads in prod
+          dbProvider: undefined,
+          neo4j: undefined,
+          mongo: undefined,
+        }
+      : baseExtensions;
 
     return {
       ...formattedError,
       message,
-      extensions: {
-        ...formattedError.extensions,
-        ...appErr.extensions,
-        code,
-        httpStatus,
-        requestId,
-        originalError: undefined,
-      },
+      extensions: safeExtensions,
     };
   };
 }

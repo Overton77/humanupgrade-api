@@ -1,0 +1,9 @@
+extend type Mutation { 
+ createOrganization(input: OrganizationInput!): Organization!
+  updateOrganization(input: UpdateOrganizationInput!): Organization! 
+} 
+
+extend type Query { 
+ organizations: [Organization!]! 
+ searchOrganizations(input: OrganizationSearchInput!): OrganizationSearchResult!
+}

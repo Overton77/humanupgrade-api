@@ -1,0 +1,9 @@
+type Person {
+  personId: ID!
+  canonicalName: String!
+  aliases: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}

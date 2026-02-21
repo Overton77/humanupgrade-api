@@ -1,0 +1,455 @@
+input CompoundFormInput {
+  compoundFormId: ID
+  canonicalName: String!
+  formType: String!
+  chemicalDifferences: String
+  stabilityProfile: String
+  solubilityProfile: String
+  bioavailabilityNotes: String
+  regulatoryStatusSummary: String
+} 
+
+
+input CompoundFormRelateInput {
+  create: CompoundFormInput
+  connect: CompoundFormConnectInput
+}
+
+input CompoundFormRelateUpdateInput {
+  create: CompoundFormInput
+  connect: CompoundFormConnectInput
+  update: CompoundFormUpdateInput
+}
+
+input CompoundFormConnectInput {
+  compoundFormId: ID!
+} 
+
+input LabTestInput {
+  labTestId: ID
+  name: String!
+  synonyms: [String!]
+  loincCodes: [String!]
+  cptCodes: [String!]
+  whatItMeasures: String
+  prepRequirements: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  measures: [MeasuresBiomarkerRelationshipInput!]
+  usesMethod: [UsesMethodRelationshipInput!]
+  requiresSpecimen: [RequiresSpecimenRelationshipInput!]
+  usesPlatform: [LabTestUsesPlatformRelationshipInput!]
+}  
+
+
+input LabTestRelateInput {
+  create: LabTestInput
+  connect: LabTestConnectInput
+}
+
+input LabTestRelateUpdateInput {
+  create: LabTestInput
+  connect: LabTestConnectInput
+  update: UpdateLabTestInput
+}
+
+input LabTestConnectInput {
+  labTestId: ID!
+} 
+
+input PanelDefinitionInput {
+  panelDefinitionId: ID
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  includesLabTest: [IncludesLabTestRelationshipInput!]
+  includesBiomarker: [IncludesBiomarkerRelationshipInput!]
+}
+
+input BiomarkerInput {
+  biomarkerId: ID
+  name: String!
+  synonyms: [String!]
+  description: String
+  clinicalDomains: [String!]
+  unitsCommon: [String!]
+  interpretationNotes: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input MeasurementMethodInput {
+  methodId: ID
+  canonicalName: String!
+  methodFamily: String!
+  analyticPrinciple: String
+  typicalCvPercentMin: Float
+  typicalCvPercentMax: Float
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input SpecimenInput {
+  specimenId: ID
+  canonicalName: String!
+  specimenType: String!
+  matrix: String
+  biologicalDomain: String!
+  collectionContextCategory: String!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}  
+
+input PanelDefinitionRelateInput {
+  create: PanelDefinitionInput
+  connect: PanelDefinitionConnectInput
+}
+
+input PanelDefinitionRelateUpdateInput {
+  create: PanelDefinitionInput
+  connect: PanelDefinitionConnectInput
+  update: UpdatePanelDefinitionInput
+}
+
+input PanelDefinitionConnectInput {
+  panelDefinitionId: ID!
+}
+
+input BiomarkerRelateInput {
+  create: BiomarkerInput
+  connect: BiomarkerConnectInput
+}
+
+input BiomarkerRelateUpdateInput {
+  create: BiomarkerInput
+  connect: BiomarkerConnectInput
+  update: UpdateBiomarkerInput
+}
+
+input BiomarkerConnectInput {
+  biomarkerId: ID!
+}
+
+input MeasurementMethodRelateInput {
+  create: MeasurementMethodInput
+  connect: MeasurementMethodConnectInput
+}
+
+input MeasurementMethodRelateUpdateInput {
+  create: MeasurementMethodInput
+  connect: MeasurementMethodConnectInput
+  update: MeasurementMethodUpdateInput
+}
+
+input MeasurementMethodConnectInput {
+  methodId: ID!
+}
+
+input SpecimenRelateInput {
+  create: SpecimenInput
+  connect: SpecimenConnectInput
+}
+
+input SpecimenRelateUpdateInput {
+  create: SpecimenInput
+  connect: SpecimenConnectInput
+  update: SpecimenUpdateInput
+}
+
+input SpecimenConnectInput {
+  specimenId: ID!
+}
+
+input CompoundFormUpdateInput {
+  compoundFormId: ID
+  canonicalName: String
+  formType: String
+  chemicalDifferences: String
+  stabilityProfile: String
+  solubilityProfile: String
+  bioavailabilityNotes: String
+  regulatoryStatusSummary: String
+}
+
+input UpdateLabTestInput {
+  labTestId: ID
+  name: String
+  synonyms: [String!]
+  loincCodes: [String!]
+  cptCodes: [String!]
+  whatItMeasures: String
+  prepRequirements: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  measures: [MeasuresBiomarkerRelationshipUpdateInput!]
+  usesMethod: [UsesMethodRelationshipUpdateInput!]
+  requiresSpecimen: [RequiresSpecimenRelationshipUpdateInput!]
+  usesPlatform: [LabTestUsesPlatformRelationshipUpdateInput!]
+} 
+
+input UpdatePanelDefinitionInput {
+  panelDefinitionId: ID
+  canonicalName: String
+  aliases: [String!]
+  description: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  includesLabTest: [IncludesLabTestRelationshipUpdateInput!]
+  includesBiomarker: [IncludesBiomarkerRelationshipUpdateInput!]
+} 
+
+input UpdateBiomarkerInput {
+  biomarkerId: ID
+  name: String
+  synonyms: [String!]
+  description: String
+  clinicalDomains: [String!]
+  unitsCommon: [String!]
+  interpretationNotes: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input MeasurementMethodUpdateInput {
+  methodId: ID
+  canonicalName: String
+  methodFamily: String
+  analyticPrinciple: String
+  typicalCvPercentMin: Float
+  typicalCvPercentMax: Float
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input SpecimenUpdateInput {
+  specimenId: ID
+  canonicalName: String
+  specimenType: String
+  matrix: String
+  biologicalDomain: String
+  collectionContextCategory: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+} 
+
+input MeasuresBiomarkerRelationshipInput {
+  biomarker: BiomarkerRelateInput!
+  role: BiomarkerRole
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input MeasuresBiomarkerRelationshipUpdateInput {
+  biomarker: BiomarkerRelateUpdateInput!
+  role: BiomarkerRole
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input UsesMethodRelationshipInput {
+  measurementMethod: MeasurementMethodRelateInput!
+  methodRole: MethodRole
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input UsesMethodRelationshipUpdateInput {
+  measurementMethod: MeasurementMethodRelateUpdateInput!
+  methodRole: MethodRole
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input RequiresSpecimenRelationshipInput {
+  specimen: SpecimenRelateInput!
+  specimenRole: SpecimenRole!
+  collectionSetting: CollectionSetting
+  collectionMethod: CollectionMethod
+  fastingRequired: Boolean
+  fastingMinHours: Int
+  fastingMaxHours: Int
+  requiresAppointment: Boolean
+  requiresColdChainDuringCollection: Boolean
+  collectionTimeWindow: CollectionTimeWindow
+  collectionNotes: String
+  processingMustCentrifuge: Boolean
+  processingCentrifugeWithinMinutes: Int
+  processingAliquotRequired: Boolean
+  processingAdditive: ProcessingAdditive
+  processingLightSensitive: Boolean
+  processingMixInversions: Int
+  processingMaxRoomTempMinutes: Int
+  processingNotes: String
+  stabilityAtRoomTempMaxHours: Int
+  stabilityRefrigeratedMaxHours: Int
+  stabilityFrozenMaxDays: Int
+  stabilityMinTempC: Float
+  stabilityMaxTempC: Float
+  stabilityRequiresColdChain: Boolean
+  stabilityNotes: String
+  populationTags: [String!]
+  sex: Sex
+  ageMinYears: Int
+  ageMaxYears: Int
+  measurementState: MeasurementState
+  timeOfDay: TimeOfDay
+  conditionTags: [String!]
+  medicationClassTags: [String!]
+  comorbidityTags: [String!]
+  appliesWhen: AppliesWhen
+  thresholdDirection: ThresholdDirection
+  thresholdValue: Float
+  thresholdUnit: String
+  evidenceContextTags: [String!]
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input RequiresSpecimenRelationshipUpdateInput {
+  specimen: SpecimenRelateUpdateInput!
+  specimenRole: SpecimenRole
+  collectionSetting: CollectionSetting
+  collectionMethod: CollectionMethod
+  fastingRequired: Boolean
+  fastingMinHours: Int
+  fastingMaxHours: Int
+  requiresAppointment: Boolean
+  requiresColdChainDuringCollection: Boolean
+  collectionTimeWindow: CollectionTimeWindow
+  collectionNotes: String
+  processingMustCentrifuge: Boolean
+  processingCentrifugeWithinMinutes: Int
+  processingAliquotRequired: Boolean
+  processingAdditive: ProcessingAdditive
+  processingLightSensitive: Boolean
+  processingMixInversions: Int
+  processingMaxRoomTempMinutes: Int
+  processingNotes: String
+  stabilityAtRoomTempMaxHours: Int
+  stabilityRefrigeratedMaxHours: Int
+  stabilityFrozenMaxDays: Int
+  stabilityMinTempC: Float
+  stabilityMaxTempC: Float
+  stabilityRequiresColdChain: Boolean
+  stabilityNotes: String
+  populationTags: [String!]
+  sex: Sex
+  ageMinYears: Int
+  ageMaxYears: Int
+  measurementState: MeasurementState
+  timeOfDay: TimeOfDay
+  conditionTags: [String!]
+  medicationClassTags: [String!]
+  comorbidityTags: [String!]
+  appliesWhen: AppliesWhen
+  thresholdDirection: ThresholdDirection
+  thresholdValue: Float
+  thresholdUnit: String
+  evidenceContextTags: [String!]
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input LabTestUsesPlatformRelationshipInput {
+  technologyPlatform: TechnologyPlatformRelateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input LabTestUsesPlatformRelationshipUpdateInput {
+  technologyPlatform: TechnologyPlatformRelateUpdateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+# ============================================================================
+# PanelDefinition Relationship Input Types
+# ============================================================================
+
+input IncludesLabTestRelationshipInput {
+  labTest: LabTestRelateInput!
+  required: Boolean
+  quantity: Int
+  notes: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input IncludesLabTestRelationshipUpdateInput {
+  labTest: LabTestRelateUpdateInput!
+  required: Boolean
+  quantity: Int
+  notes: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input IncludesBiomarkerRelationshipInput {
+  biomarker: BiomarkerRelateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input IncludesBiomarkerRelationshipUpdateInput {
+  biomarker: BiomarkerRelateUpdateInput!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}

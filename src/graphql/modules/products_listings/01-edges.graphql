@@ -1,0 +1,85 @@
+type DeliversLabTestEdge {
+  labTest: LabTest!
+  role: LabTestRole!
+  quantity: Int
+  componentName: String
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type ImplementsPanelEdge {
+  panelDefinition: PanelDefinition!
+  panelRole: PanelRole
+  versionLabel: String
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+} 
+
+
+type ContainsCompoundFormEdge {
+  compoundForm: CompoundForm!
+  dose: Float
+  doseUnit: String
+  role: CompoundFormRole
+  standardizedTo: String
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type FollowsPathwayEdge {
+  regulatoryPathway: RegulatoryPathway!
+  jurisdictionId: String
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type InCategoryEdge {
+  productCategory: ProductCategory!
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type ProductUsesPlatformEdge {
+  technologyPlatform: TechnologyPlatform!
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type HasRegulatoryStatusEdge {
+  regulatoryStatus: RegulatoryStatus!
+  status: String
+  effectiveDate: DateTime
+  statusDetails: String
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type ManufacturedByEdge {
+  organization: Organization!
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}

@@ -1,0 +1,302 @@
+---
+description: This rule is helpful for modeling neo4j knowledge graph in graphql  and zod for both the model types and the CRUD related to the models
+alwaysApply: false
+---
+
+# GraphQL & Zod Schema Modeling Pattern
+
+## Overview
+
+This project models Neo4j knowledge graph entities using a consistent pattern: **Edge Types** that combine relationship properties with related nodes. This enables type-safe GraphQL APIs with clear relationship semantics.
+
+## Pattern Structure 
+
+** NOTE that we will sometimes use one major Upsert pattern for a model and only use connect,create (create with upsert logic) for 
+relationship types **
+
+### 1. GraphQL Schema (schema.graphql)
+
+Define types and edge types in GraphQL schema:
+
+```graphql
+type Organization {
+  organizationId: ID!
+  name: String!
+  # Relationships as edge types
+  offersProduct: [OffersProductEdge!]
+  hasLocation: [HasLocationEdge!]
+}
+
+type OffersProductEdge {
+  product: Product!
+  # Relationship properties + temporal validity
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type HasLocationEdge {
+  location: PhysicalLocation!
+  locationRole: String!
+  isPrimary: Boolean
+  startDate: DateTime
+  endDate: DateTime
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+```
+
+**Key Points:**
+
+- Relationships are modeled as **edge types**, not direct node arrays
+- Edge types contain: **related node** + **relationship properties** + **temporal validity**
+- Expose high-quality relationships for LLM assistants and search
+- Relationship direction: primarily outgoing (e.g., `Organization.offersProduct`), rarely incoming
+
+### 2. Zod Model Schema (types/\*Model.ts)
+
+Create Zod schemas that match the **GraphQL output shape** (not raw Neo4j structure):
+
+```typescript
+// Reference: src/graphql/types/OrganizationModel.ts
+
+// Base node schema
+export const ProductSchema = z.object({
+  productId: z.string(),
+  name: z.string(),
+  productDomain: ProductDomainEnum,
+  // ... other properties
+});
+
+// Edge type schema (relationship + node)
+export const OffersProductEdgeSchema = TemporalValiditySchema.extend({
+  product: ProductSchema, // Related node
+  // Relationship properties included here
+});
+
+// Main model schema
+export const OrganizationSchema = z.object({
+  organizationId: z.string(),
+  name: z.string(),
+  // Relationships as arrays of edge types
+  offersProduct: z.array(OffersProductEdgeSchema).nullable(),
+  hasLocation: z.array(HasLocationEdgeSchema).nullable(),
+});
+
+// Infer TypeScript type
+export type Organization = z.infer<typeof OrganizationSchema>;
+```
+
+**Key Points:**
+
+- Model schemas represent the **GraphQL output shape**
+- Edge types extend `TemporalValiditySchema` (validAt, invalidAt, expiredAt, createdAt)
+- Use `z.array(EdgeSchema).nullable()` for relationship arrays
+- Always infer TypeScript types: `z.infer<typeof Schema>`
+
+### 2.5 Neo4j Property Constraints
+
+**CRITICAL: Maps/Objects as Neo4j Properties are NOT Allowed**
+
+Neo4j node and relationship properties must be **primitive types** or **arrays of primitives**. Objects/maps as property values are not supported.
+
+**❌ FORBIDDEN:**
+
+```typescript
+// DO NOT use maps/objects as properties
+export const BadSchema = z.object({
+  employeeCount: z
+    .object({
+      min: z.number().int().nullable(),
+      max: z.number().int().nullable(),
+    })
+    .nullable(), // ❌ NOT ALLOWED
+});
+```
+
+**✅ CORRECT Approaches:**
+
+**Option 1: Branch to Multiple Primitive Properties** (Recommended for ranges/pairs)
+
+```typescript
+// Use separate properties for min/max
+export const OrganizationSchema = z.object({
+  organizationId: z.string(),
+  name: z.string(),
+  employeeCountMin: z.number().int().nullable(), // ✅ Separate property
+  employeeCountMax: z.number().int().nullable(), // ✅ Separate property
+  revenueAnnualMin: z.number().nullable(), // ✅ Separate property
+  revenueAnnualMax: z.number().nullable(), // ✅ Separate property
+  valuationMin: z.number().nullable(), // ✅ Separate property
+  valuationMax: z.number().nullable(), // ✅ Separate property
+});
+```
+
+**Option 2: Use Arrays of Primitives** (For lists/sets)
+
+```typescript
+// Use arrays for collections
+export const OrganizationSchema = z.object({
+  organizationId: z.string(),
+  aliases: z.array(z.string()).nullable(), // ✅ Array of strings
+  primaryIndustryTags: z.array(z.string()).nullable(), // ✅ Array of strings
+  regionsServed: z.array(z.string()).nullable(), // ✅ Array of strings
+  claimIds: z.array(z.string()), // ✅ Array of strings
+});
+```
+
+**Allowed Property Types:**
+
+- Primitives: `string`, `number`, `boolean`, `null`
+- Arrays of primitives: `z.array(z.string())`, `z.array(z.number())`
+- Enums (treated as strings): `OrgTypeEnum`, `BusinessModelEnum`
+- Date strings: `Neo4jDateString`, `Neo4jDateTimeString`
+
+**Reference Examples:**
+
+- `src/graphql/types/OrganizationModel.ts` - Shows `employeeCountMin`/`employeeCountMax` pattern
+- `src/graphql/inputs/OrganizationInputs.ts` - Input schemas with separated properties
+
+### 3. Zod Input Schemas (inputs/\*Inputs.ts)
+
+Create input schemas with **nested create/connect/update** support:
+
+```typescript
+// Reference: src/graphql/inputs/OrganizationInputs.ts
+
+// Base node input (for creates)
+export const ProductInputSchema = z.object({
+  productId: z.string().optional(), // Auto-generated if not provided
+  name: z.string(),
+  productDomain: ProductDomainEnum,
+  // ... other properties (all optional for nullable fields)
+});
+
+// Update input (all fields optional)
+export const ProductUpdateInputSchema = ProductInputSchema.partial().extend({
+  productId: z.string().optional(),
+});
+
+// Relationship input with create/connect
+export const ProductRelateInputSchema = z
+  .object({
+    create: ProductInputSchema.optional(),
+    connect: z.object({ productId: z.string() }).optional(),
+  })
+  .refine((data) => (data.create ? 1 : 0) + (data.connect ? 1 : 0) === 1, {
+    message: "Exactly one of 'create' or 'connect' must be provided",
+  });
+
+// Relationship input with create/connect/update (for updates)
+export const ProductRelateUpdateInputSchema = z
+  .object({
+    create: ProductInputSchema.optional(),
+    connect: z.object({ productId: z.string() }).optional(),
+    update: ProductUpdateInputSchema.optional(),
+  })
+  .refine(
+    (data) =>
+      (data.create ? 1 : 0) + (data.connect ? 1 : 0) + (data.update ? 1 : 0) ===
+      1,
+    {
+      message:
+        "Exactly one of 'create', 'connect', or 'update' must be provided",
+    }
+  );
+
+// Relationship input schema (for creates)
+export const OffersProductRelationshipInputSchema =
+  TemporalValidityInputSchema.extend({
+    product: ProductRelateInputSchema, // create OR connect
+    // Relationship properties
+  });
+
+// Relationship update input schema (for updates)
+export const OffersProductRelationshipUpdateInputSchema =
+  TemporalValidityInputSchema.extend({
+    product: ProductRelateUpdateInputSchema, // create OR connect OR update
+    // Relationship properties (all optional)
+  });
+
+// Main input schema
+export const OrganizationInputSchema = z.object({
+  organizationId: z.string().optional(),
+  name: z.string(),
+  // Relationships
+  offersProduct: z.array(OffersProductRelationshipInputSchema).optional(),
+  hasLocation: z.array(HasLocationRelationshipInputSchema).optional(),
+});
+
+// Update input (all fields optional, uses update relationship schemas)
+export const UpdateOrganizationInputSchema = z.object({
+  organizationId: z.string().optional(),
+  name: z.string().optional(),
+  offersProduct: z.array(OffersProductRelationshipUpdateInputSchema).optional(),
+  // ... other fields optional
+});
+```
+
+**Key Points:**
+
+- **Create inputs**: Use `*RelateInputSchema` (create OR connect)
+- **Update inputs**: Use `*RelateUpdateInputSchema` (create OR connect OR update)
+- Use `.refine()` to ensure exactly one option is provided
+- Relationship inputs extend `TemporalValidityInputSchema` (all optional)
+- Update inputs: all fields optional, use update relationship schemas
+
+### 4. Temporal Validity Pattern
+
+All relationships support temporal validity:
+
+```typescript
+// Model schema (output)
+export const TemporalValiditySchema = z.object({
+  validAt: Neo4jDateTimeString,
+  invalidAt: Neo4jDateTimeString,
+  expiredAt: Neo4jDateTimeString,
+  createdAt: Neo4jDateTimeString,
+});
+
+// Input schema (all optional)
+export const TemporalValidityInputSchema = z.object({
+  validAt: Neo4jDateTimeString.optional(),
+  invalidAt: Neo4jDateTimeString.optional(),
+  expiredAt: Neo4jDateTimeString.optional(),
+  createdAt: Neo4jDateTimeString.optional(),
+});
+```
+
+**Date/DateTime Types:**
+
+- Use `Neo4jDateString` for DATE-only fields (YYYY-MM-DD)
+- Use `Neo4jDateTimeString` for DATETIME fields (ISO 8601)
+- Reference: `src/graphql/utils/dateTimeUtils.ts`
+
+## Implementation Checklist
+
+When adding a new entity:
+
+1. ✅ Define GraphQL types in `schema.graphql`
+2. ✅ Create base node Zod schemas in `types/*Model.ts`
+3. ✅ Create edge type Zod schemas (extend TemporalValiditySchema)
+4. ✅ Create input Zod schemas in `inputs/*Inputs.ts`
+   - Base input schema
+   - Update input schema (.partial())
+   - Relate input schema (create/connect)
+   - Relate update input schema (create/connect/update)
+   - Relationship input schemas
+   - Main input and update input schemas
+5. ✅ Infer TypeScript types from Zod schemas
+6. ✅ Implement service layer (see neo4j-create-update-patterns.mdc)
+7. ✅ Add DataLoaders (see dataloader-pattern.mdc)
+
+## Reference Examples
+
+- **Model Schema**: `src/graphql/types/OrganizationModel.ts`
+- **Input Schema**: `src/graphql/inputs/OrganizationInputs.ts`
+- **GraphQL Schema**: `src/graphql/schema.graphql`
+- **Ontology Reference**: `personal_docs/complete_refactor/api_recommendations/core_commerce_regulatory_manufacturing_analytics_ref.md`

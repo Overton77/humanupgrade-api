@@ -1,0 +1,751 @@
+# Biotech Ontology Implementation Plan
+
+## Overview
+
+This document outlines the plan for completing the Biotech ontology implementation in the Neo4j-backed GraphQL API. The goal is to achieve sufficient "surface area" coverage so that the research ingestion/agent system can use the API to store results from research missions.
+
+## Current State Understanding
+
+### Architecture Patterns
+
+1. **GraphQL Schema-First Approach**: Schema defined in `schema.graphql`, types and inputs generated from Zod schemas
+2. **Edge Type Pattern**: Relationships modeled as edge types combining:
+   - Related node properties
+   - Relationship properties
+   - Temporal validity fields (validAt, invalidAt, expiredAt, createdAt)
+3. **Service Layer Organization**: 
+   - Entity-specific services in `services/[Entity]/[entity]Service.ts`
+   - Neo4j statements organized in `services/[Entity]/statements/` directory
+   - Separate files for create and update statements
+4. **DataLoader Pattern**: Request-scoped loaders for efficient relationship batching
+   - Loaders defined in `graphql/loaders/entityLoaders.ts`
+   - Naming convention: `{modelName}{RelationshipFieldName}Edges`
+   - Returns arrays of edge types matching GraphQL schema
+
+### Current Implementation Status
+
+#### Organization Entity
+- ✅ Complete: Create, Update mutations with all relationships
+- ✅ Complete: All relationship DataLoaders
+- ✅ Relationships implemented: HAS_LOCATION, OWNS_OR_CONTROLS, LISTS, OFFERS_PRODUCT, SUPPLIES_COMPOUND_FORM, MANUFACTURES, MANUFACTURES_PRODUCT, CONTRACT_MANUFACTURER_FOR_*, PERFORMS_MANUFACTURING_PROCESS, DEVELOPS_PLATFORM, USES_PLATFORM
+
+#### Product Entity
+- ✅ Partial: Create and Update mutations exist
+- ⚠️ **INCOMPLETE**: Missing relationship mutations for:
+  - `inCategory` (IN_CATEGORY → ProductCategory)
+  - `usesPlatform` (USES_PLATFORM → TechnologyPlatform) 
+  - `hasRegulatoryStatus` (HAS_REGULATORY_STATUS → RegulatoryStatus)
+  - `manufacturedBy` (MANUFACTURED_BY → Organization)
+- ✅ Existing relationships: deliversLabTest, implementsPanel, containsCompoundForm, followsPathway
+- ⚠️ **INCOMPLETE**: Missing DataLoaders for the 4 relationships above
+
+## Implementation Plan
+
+### Phase 1: Complete Product Mutations (Priority 1)
+
+**Goal**: Finish Product relationship mutations to enable full Product CRUD operations.
+
+#### Tasks:
+1. **Add missing relationship mutations to Product service**
+   - Add `inCategory` relationship handling in `createProductWithOptionalRelations` and `updateProductWithOptionalRelations`
+   - Add `usesPlatform` relationship handling
+   - Add `hasRegulatoryStatus` relationship handling  
+   - Add `manufacturedBy` relationship handling
+   - Follow existing pattern: check array length, call statement if non-empty
+
+2. **Create/Update Neo4j statements**
+   - Add to `services/Product/statements/createProductStatements.ts`:
+     - `productInCategoryCypher`
+     - `productUsesPlatformCypher`
+     - `productHasRegulatoryStatusCypher`
+     - `productManufacturedByCypher`
+   - Add to `services/Product/statements/updateProductStatements.ts`:
+     - `updateProductInCategoryCypher` (create/connect/update)
+     - `updateProductUsesPlatformCypher` (create/connect/update)
+     - `updateProductHasRegulatoryStatusCypher` (create/connect/update)
+     - `updateProductManufacturedByCypher` (create/connect/update)
+   - Follow UNWIND + CALL pattern with CREATE/CONNECT/UPDATE branches
+
+3. **Add DataLoaders**
+   - Add to `graphql/loaders/entityLoaders.ts`:
+     - `productInCategoryEdges: DataLoader<string, InCategoryEdge[]>`
+     - `productUsesPlatformEdges: DataLoader<string, ProductUsesPlatformEdge[]>`
+     - `productHasRegulatoryStatusEdges: DataLoader<string, HasRegulatoryStatusEdge[]>`
+     - `productManufacturedByEdges: DataLoader<string, ManufacturedByEdge[]>`
+   - Implement UNWIND + OPTIONAL MATCH pattern
+   - Use `mapProductResultsToKeys` helper
+   - Convert DATE/DATETIME to strings
+
+4. **Add resolvers**
+   - Add resolvers in `graphql/resolvers/productResolvers.ts` (or create if doesn't exist)
+   - Use DataLoaders: `ctx.loaders.entities.Product.productInCategoryEdges.load(parent.productId)`
+
+5. **Verify Zod schemas**
+   - Confirm `ProductInputs.ts` has all relationship input schemas
+   - Confirm `ProductModel.ts` has all edge type schemas
+   - Verify create/connect/update patterns match Organization pattern
+
+### Phase 2: Core Commerce, Regulatory, and Consumer Products Entities (Priority 2)
+
+**Goal**: Implement mutations and queries for fundamental biotech entities and their relationships.
+
+> **⚠️ IMPORTANT DISCLAIMER**: The entity names listed below (Listing, LabTest, PanelDefinition, BioMarker etc.) are **confirmed** and should be implemented. However, the **relationships** listed for each entity are **tentative** and subject to change. The final set of relationships will be supplied by the user or linked to a specification file. Some relationships may be correct, but all relationships should be verified against the final ontology specification before implementation.
+
+#### Entity Groups
+
+---
+
+### **Group A: Core Commerce**
+
+#### 1. **Listing**
+
+- **Create/Update mutations**
+
+- **Relationships:**
+  - `LISTS_PRODUCT → Product`
+  - `AVAILABLE_IN → PhysicalLocation`
+  - `HAS_SNAPSHOT → ListingSnapshot`
+  - `IMPLEMENTS_PANEL → PanelDefinition` (optional)
+
+- **Incoming:**
+  - `LISTS ← Organization`
+
+- **DataLoaders** for all relationships
+
+---
+
+#### 2. **ListingSnapshot**
+
+- **Create/Update mutations**
+
+- **Incoming:**
+  - `HAS_SNAPSHOT ← Listing`
+
+- **DataLoaders**
+
+---
+
+#### 3. **PhysicalLocation**
+
+- **Create/Update mutations**
+
+- **Relationships:**
+  - `HOSTS_MANUFACTURING_PROCESS → ManufacturingProcess` (if reused as site)
+
+- **Incoming:**
+  - `HAS_LOCATION ← Organization`
+  - `AVAILABLE_IN ← Listing`
+
+- **DataLoaders**
+
+---
+
+### **Group B: Technology + Capability**
+
+#### 4. **TechnologyPlatform**
+
+- **Create/Update mutations**
+
+- **Relationships:**
+  - _(Incoming heavy node)_
+
+- **Incoming:**
+  - `IMPLEMENTS ← Product`
+  - `USES_PLATFORM ← Organization`
+  - `USES_PLATFORM ← Product`
+  - `USES_PLATFORM ← LabTest`
+  - `USES_PLATFORM ← ManufacturingStep`
+  - `RUNS_ON_PLATFORM ← MeasurementMethod`
+  - `IMPLEMENTS_PLATFORM ← Device`
+  - `DEVELOPS_PLATFORM ← Organization`
+
+- **DataLoaders**
+
+---
+
+#### 5. **ToolOrInstrument**
+
+- **Create/Update mutations**
+
+- **Incoming:**
+  - `IS_A ← Product`
+  - `USES ← Organization`
+  - `USES_EQUIPMENT ← ManufacturingStep`
+
+- **DataLoaders**
+
+---
+
+### **Group C: Manufacturing**
+
+#### 6. **ManufacturingProcess**
+
+- **Create/Update mutations**
+
+- **Relationships:**
+  - `HAS_STEP → ManufacturingStep`
+  - `INPUTS → Material`
+  - `OUTPUTS → Material`
+  - `PRODUCES → Material`
+
+- **Incoming:**
+  - `PERFORMS_MANUFACTURING_PROCESS ← Organization`
+  - `HOSTS_MANUFACTURING_PROCESS ← PhysicalLocation`
+  - `PRODUCED_VIA ← Material`
+  - `USED_IN ← Material`
+
+- **DataLoaders**
+
+---
+
+#### 7. **ManufacturingStep**
+
+- **Create/Update mutations**
+
+- **Relationships:**
+  - `USES_PLATFORM → TechnologyPlatform`
+  - `USES_EQUIPMENT → ToolOrInstrument`
+  - `HAS_INPUT → Material`
+  - `HAS_OUTPUT → Material`
+
+- **Incoming:**
+  - `HAS_STEP ← ManufacturingProcess`
+
+- **DataLoaders**
+
+---
+
+#### 8. **Material**
+
+- **Create/Update mutations**
+
+- **Relationships:**
+  - `PART_OF → Product`
+  - `USED_IN → ManufacturingProcess`
+  - `PRODUCED_VIA → ManufacturingProcess`
+
+- **Incoming:**
+  - `INPUTS ← ManufacturingProcess`
+  - `OUTPUTS ← ManufacturingProcess`
+  - `PRODUCES ← ManufacturingProcess`
+  - `HAS_INPUT ← ManufacturingStep`
+  - `HAS_OUTPUT ← ManufacturingStep`
+
+- **DataLoaders**
+
+---
+
+### **Group D: Regulatory**
+
+#### 9. **RegulatoryPathway**
+
+- **Create/Update mutations**
+
+- **Relationships:**
+  - `HAS_REGULATORY_STEP → RegulatoryStep`
+  - `IN_JURISDICTION → Jurisdiction`
+
+- **Incoming:**
+  - `FOLLOWS_PATHWAY ← Product`
+  - `OVERSEES ← RegulatoryAgency` (optional)
+
+- **DataLoaders**
+
+---
+
+#### 10. **RegulatoryStep**
+
+- **Create/Update mutations**
+
+- **Incoming:**
+  - `HAS_REGULATORY_STEP ← RegulatoryPathway`
+
+- **DataLoaders**
+
+---
+
+#### 11. **RegulatoryStatus**
+
+- **Create/Update mutations**
+
+- **Relationships:**
+  - `IN_JURISDICTION → Jurisdiction`
+  - `ISSUED_BY → RegulatoryAgency` (optional)
+
+- **Incoming:**
+  - `HAS_REGULATORY_STATUS ← Product`
+
+- **DataLoaders**
+
+---
+
+#### 12. **Jurisdiction**
+
+- **Create/Update mutations**
+
+- **Incoming:**
+  - `IN_JURISDICTION ← RegulatoryPathway`
+  - `IN_JURISDICTION ← RegulatoryStatus`
+
+- **DataLoaders**
+
+---
+
+#### 13. **RegulatoryAgency** (optional but recommended)
+
+- **Create/Update mutations**
+
+- **Relationships:**
+  - `OVERSEES → RegulatoryPathway` (optional)
+
+- **Incoming:**
+  - `ISSUED_BY ← RegulatoryStatus`
+
+- **DataLoaders**
+
+---
+
+### **Group E: Analytics / Lab / Panels / Biomarkers**
+
+#### 14. **LabTest**
+
+- **Create/Update mutations**
+
+- **Relationships:**
+  - `MEASURES → Biomarker`
+  - `USES_METHOD → MeasurementMethod`
+  - `REQUIRES_SPECIMEN → Specimen`
+  - `USES_PLATFORM → TechnologyPlatform` (optional)
+
+- **Incoming:**
+  - `DELIVERS_LABTEST ← Product`
+  - `INCLUDES_LABTEST ← PanelDefinition`
+
+- **DataLoaders**
+
+---
+
+#### 15. **PanelDefinition**
+
+- **Create/Update mutations**
+
+- **Relationships:**
+  - `INCLUDES_LABTEST → LabTest`
+  - `INCLUDES_BIOMARKER → Biomarker` (optional)
+
+- **Incoming:**
+  - `IMPLEMENTS_PANEL ← Product`
+  - `IMPLEMENTS_PANEL ← Listing`
+
+- **DataLoaders**
+
+---
+
+#### 16. **Biomarker**
+
+- **Create/Update mutations**
+
+- **Incoming:**
+  - `MEASURES ← LabTest`
+  - `INCLUDES_BIOMARKER ← PanelDefinition`
+
+- **DataLoaders**
+
+---
+
+#### 17. **MeasurementMethod**
+
+- **Create/Update mutations**
+
+- **Relationships:**
+  - `RUNS_ON_PLATFORM → TechnologyPlatform`
+
+- **Incoming:**
+  - `USES_METHOD ← LabTest`
+
+- **DataLoaders**
+
+---
+
+#### 18. **Specimen**
+
+- **Create/Update mutations**
+
+- **Incoming:**
+  - `REQUIRES_SPECIMEN ← LabTest`
+
+- **DataLoaders**
+
+---
+
+### **Group F: Devices + Modalities + Functional Metrics**
+
+#### 19. **Device**
+
+- **Create/Update mutations**
+
+- **Relationships:**
+  - `OF_TYPE → DeviceType`
+  - `USES_MODALITY → Modality`
+  - `HAS_SENSOR → Sensor`
+  - `IMPLEMENTS_PLATFORM → TechnologyPlatform` (optional)
+  - `MEASURES_METRIC → FunctionalMetric` (optional shortcut)
+
+- **Incoming:**
+  - `IS_A_DEVICE ← Product` (if separate)
+
+- **DataLoaders**
+
+---
+
+#### 20. **DeviceType**
+
+- **Incoming:**
+  - `OF_TYPE ← Device`
+
+- **DataLoaders**
+
+---
+
+#### 21. **Modality**
+
+- **Relationships:**
+  - `INSTANCE_OF → ModalityType`
+  - `HAS_PARAMETER → ModalityParameter`
+
+- **Incoming:**
+  - `USES_MODALITY ← Device`
+
+- **DataLoaders**
+
+---
+
+#### 22. **ModalityType**
+
+- **Incoming:**
+  - `INSTANCE_OF ← Modality`
+
+- **DataLoaders**
+
+---
+
+#### 23. **ModalityParameter**
+
+- **Incoming:**
+  - `HAS_PARAMETER ← Modality`
+
+- **DataLoaders**
+
+---
+
+#### 24. **Sensor**
+
+- **Relationships:**
+  - `MEASURES_METRIC → FunctionalMetric`
+
+- **Incoming:**
+  - `HAS_SENSOR ← Device`
+
+- **DataLoaders**
+
+---
+
+#### 25. **FunctionalMetric**
+
+- **Incoming:**
+  - `MEASURES_METRIC ← Sensor`
+  - `MEASURES_METRIC ← Device` (optional shortcut)
+
+- **DataLoaders**
+
+
+**Implementation Pattern for Each Entity:**
+1. Create Zod model schema in `graphql/types/[Entity]Model.ts`
+2. Create Zod input schemas in `graphql/inputs/[Entity]Inputs.ts` (with create/connect/update patterns)
+3. Create service in `services/[Entity]/[entity]Service.ts`
+4. Create statements in `services/[Entity]/statements/`:
+   - `create[Entity]Statements.ts`
+   - `update[Entity]Statements.ts`
+   - `findExisting[Entity]Cypher.ts` (if needed for identity resolution)
+5. Add DataLoaders to `graphql/loaders/entityLoaders.ts`
+6. Add resolvers in `graphql/resolvers/[entity]Resolvers.ts`
+7. Add mutations to `graphql/resolvers/Mutation.ts`
+8. Add queries to `graphql/resolvers/Query.ts` (if needed)
+
+### Phase 3: Trials, Case Studies, and Evidence Entities (Priority 3)
+
+**Goal**: Implement entities for research, trials, and evidence management.
+
+> **⚠️ IMPORTANT DISCLAIMER**: The entity names listed below (Study, StudyOutcome, Dataset, Population) are **confirmed** and should be implemented. However, the **relationships** listed for each entity are **tentative** and subject to change. The final set of relationships will be supplied by the user or linked to a specification file. Some relationships may be correct, but all relationships should be verified against the final ontology specification before implementation.
+
+#### Entities:
+1. **Study** (CaseStudy)
+   - Create/Update mutations
+   - Relationships: (TBD based on schema - likely HAS_OUTCOME → StudyOutcome, USES_DATASET → Dataset, HAS_POPULATION → Population)
+   - DataLoaders for all relationships
+
+2. **StudyOutcome**
+   - Create/Update mutations
+   - Relationships: (TBD based on schema)
+   - Incoming: HAS_OUTCOME ← Study
+   - DataLoaders for all relationships
+
+3. **Dataset**
+   - Create/Update mutations
+   - Relationships: (TBD based on schema)
+   - Incoming: USES_DATASET ← Study
+   - DataLoaders for all relationships
+
+4. **Population**
+   - Create/Update mutations
+   - Relationships: (TBD based on schema)
+   - Incoming: HAS_POPULATION ← Study
+   - DataLoaders for all relationships
+
+### Phase 4: People, Media, Actors Entities (Priority 4)
+
+**Goal**: Implement entities for people, roles, actors, events, and media.
+
+> **⚠️ IMPORTANT DISCLAIMER**: The entity names listed below (Person, Role, PseudonymousActor, AnonymousActor, Event, Community, Platform, Channel, Series, Episode) are **confirmed** and should be implemented. However, the **relationships** listed for each entity are **tentative** and subject to change. The final set of relationships will be supplied by the user or linked to a specification file. Some relationships may be correct, but all relationships should be verified against the final ontology specification before implementation.
+
+#### Entities:
+1. **Person**
+   - Create/Update mutations
+   - Relationships: HAS_ROLE → Role, HOLDS_ROLE_AT → Organization, AFFILIATED_WITH → Organization, RECOMMENDS → Protocol/Compound/FoodItem/FoodProduct/Organization, SPEAKS_AT → Event, ATTENDS → Conference, LINKED_TO → PseudonymousActor, HAS_PARTICIPANT_TOKEN → CohortParticipant
+   - DataLoaders for all relationships
+
+2. **Role**
+   - Create/Update mutations
+   - Relationships: (TBD based on schema)
+   - Incoming: HAS_ROLE ← Person
+   - DataLoaders for all relationships
+
+3. **PseudonymousActor**
+   - Create/Update mutations
+   - Relationships: ON_PLATFORM → Platform, AUTHORED → ExperienceReport
+   - Incoming: LINKED_TO ← Person, UTTERED_BY ← ClaimOccurrence
+   - DataLoaders for all relationships
+
+4. **AnonymousActor**
+   - Create/Update mutations
+   - Relationships: AUTHORED → ExperienceReport
+   - Incoming: UTTERED_BY ← ClaimOccurrence
+   - DataLoaders for all relationships
+
+5. **Event** -- Competing NAME ! Event for story (actual news) or Event for event (actual event (eg a conference))
+   - Create/Update mutations
+   - Relationships: (TBD based on schema)
+   - Incoming: HAS_EVENT ← Conference, HOSTS_EVENT ← Community, SPEAKS_AT ← Person
+   - DataLoaders for all relationships
+
+6. **Community**
+   - Create/Update mutations
+   - Relationships: HOSTS_EVENT → Event
+   - DataLoaders for all relationships
+
+7. **Platform**
+   - Create/Update mutations
+   - Relationships: HOSTS_CHANNEL → Channel
+   - Incoming: ON_PLATFORM ← PseudonymousActor, ON_PLATFORM ← Episode
+   - DataLoaders for all relationships
+
+8. **Channel**
+   - Create/Update mutations
+   - Relationships: HAS_SERIES → Series, HAS_EPISODE → Episode
+   - Incoming: HOSTS_CHANNEL ← Platform, IN_CHANNEL ← Episode
+   - DataLoaders for all relationships
+
+9. **Series**
+   - Create/Update mutations
+   - Relationships: INCLUDES_EPISODE → Episode
+   - Incoming: HAS_SERIES ← Channel
+   - DataLoaders for all relationships
+
+10. **Episode**
+    - Create/Update mutations
+    - Relationships: (TBD based on schema)
+    - Incoming: HAS_EPISODE ← Channel, INCLUDES_EPISODE ← Series, IN_CHANNEL ← Channel, ON_PLATFORM ← Platform
+    - DataLoaders for all relationships
+
+## Implementation Checklist Template
+
+For each entity, follow this checklist:
+
+### Schema & Types
+- [ ] Verify GraphQL type exists in `schema.graphql`
+- [ ] Verify edge types exist for all relationships
+- [ ] Create/verify Zod model schema in `graphql/types/[Entity]Model.ts`
+- [ ] Create/verify Zod input schemas in `graphql/inputs/[Entity]Inputs.ts`
+  - [ ] Base input schema
+  - [ ] Update input schema (.partial())
+  - [ ] Relate input schema (create/connect)
+  - [ ] Relate update input schema (create/connect/update)
+  - [ ] Relationship input schemas
+  - [ ] Main input and update input schemas
+
+### Service Layer
+- [ ] Create service directory: `services/[Entity]/`
+- [ ] Create `[entity]Service.ts` with:
+  - [ ] `create[Entity]WithOptionalRelations` function
+  - [ ] `update[Entity]WithOptionalRelations` function
+  - [ ] `findAll[Entity]s` function (if needed)
+- [ ] Create `statements/` directory
+- [ ] Create `statements/create[Entity]Statements.ts`:
+  - [ ] `build[Entity]UpsertCypher` function
+  - [ ] Relationship Cypher statements (UNWIND + CALL pattern)
+  - [ ] `return[Entity]sCypher`
+- [ ] Create `statements/update[Entity]Statements.ts`:
+  - [ ] `build[Entity]UpdateCypher` function
+  - [ ] Update relationship Cypher statements (UNWIND + CALL with CREATE/CONNECT/UPDATE)
+  - [ ] `returnUpdated[Entity]Cypher`
+- [ ] Create `statements/findExisting[Entity]Cypher.ts` (if identity resolution needed)
+- [ ] Create `utils/resolve[Entity]Identity.ts` (if identity resolution needed)
+
+### DataLoaders
+- [ ] Add loader interface to `EntityLoaders` in `graphql/loaders/entityLoaders.ts`
+- [ ] Implement loader in `createEntityLoaders()`:
+  - [ ] Use UNWIND pattern for batching
+  - [ ] Use OPTIONAL MATCH for relationships
+  - [ ] Return edge shape: `{ relatedNode: properties(node), relationshipProps, temporalValidity }`
+  - [ ] Convert DATE/DATETIME to strings
+  - [ ] Use appropriate map helper (`mapOrganizationResultsToKeys` or `mapProductResultsToKeys`)
+
+### Resolvers
+- [ ] Create/update `graphql/resolvers/[entity]Resolvers.ts`:
+  - [ ] Add resolvers for each relationship field
+  - [ ] Use DataLoaders: `ctx.loaders.entities.[Entity].[entity]RelationshipFieldEdges.load(parent.[entity]Id)`
+- [ ] Add mutations to `graphql/resolvers/Mutation.ts`:
+  - [ ] `create[Entity]` mutation
+  - [ ] `update[Entity]` mutation
+- [ ] Add queries to `graphql/resolvers/Query.ts` (if needed):
+  - [ ] `[entity]` query (by ID)
+  - [ ] `all[Entity]s` query (if needed)
+
+## Key Patterns to Follow
+
+### Neo4j Statement Pattern (Create)
+```cypher
+MERGE (e:[Entity] {[entity]Id: $[entity]Id})
+ON CREATE SET e.createdAt = datetime()
+SET e += { /* properties with null-safe CASE */ }
+WITH e
+UNWIND coalesce($relationshipArray, []) AS rel
+CALL {
+  WITH e, rel
+  WHERE rel.relatedNode.create IS NOT NULL
+  MERGE (n:RelatedNode {nodeId: coalesce(rel.relatedNode.create.nodeId, randomUUID())})
+  ON CREATE SET n.createdAt = datetime()
+  SET n += { /* properties */ }
+  MERGE (e)-[r:RELATIONSHIP_TYPE]->(n)
+  ON CREATE SET r.createdAt = datetime()
+  SET r += { /* relationship properties */ }
+  RETURN 1 AS _
+  UNION
+  WITH e, rel
+  WHERE rel.relatedNode.connect IS NOT NULL
+  OPTIONAL MATCH (n:RelatedNode {nodeId: rel.relatedNode.connect.nodeId})
+  WITH e, rel, n
+  WHERE n IS NOT NULL
+  MERGE (e)-[r:RELATIONSHIP_TYPE]->(n)
+  ON CREATE SET r.createdAt = datetime()
+  SET r += { /* relationship properties */ }
+  RETURN 1 AS _
+}
+WITH DISTINCT e
+RETURN e
+```
+
+### Neo4j Statement Pattern (Update)
+```cypher
+MERGE (e:[Entity] {[entity]Id: $[entity]Id})
+SET e += { /* properties with null-safe CASE */ }
+WITH e
+UNWIND coalesce($relationshipArray, []) AS rel
+CALL {
+  /* CREATE branch (same as above) */
+  UNION
+  /* CONNECT branch (same as above) */
+  UNION
+  /* UPDATE branch */
+  WITH e, rel
+  WHERE rel.relatedNode.update IS NOT NULL
+  OPTIONAL MATCH (n:RelatedNode {nodeId: rel.relatedNode.update.nodeId})
+  WITH e, rel, n
+  WHERE n IS NOT NULL
+  SET n += { /* update properties */ }
+  MERGE (e)-[r:RELATIONSHIP_TYPE]->(n)
+  ON CREATE SET r.createdAt = datetime()
+  SET r += { /* relationship properties */ }
+  RETURN 1 AS _
+}
+WITH DISTINCT e
+RETURN e
+```
+
+### DataLoader Pattern
+```typescript
+[entity]RelationshipEdges: new DataLoader<string, RelationshipEdge[]>(
+  async ([entity]Ids) => {
+    const rows = await executeRead(async (tx) => {
+      const res = await tx.run(
+        `
+        UNWIND $[entity]Ids AS [entity]Id
+        OPTIONAL MATCH (e:[Entity] {[entity]Id: [entity]Id})
+          OPTIONAL MATCH (e)-[r:RELATIONSHIP_TYPE]->(n:RelatedNode)
+        WITH [entity]Id,
+          collect(
+            CASE WHEN n IS NULL THEN NULL ELSE {
+              relatedNode: properties(n),
+              relationshipProp: r.relationshipProp,
+              claimIds: coalesce(r.claimIds, []),
+              validAt: toString(r.validAt),
+              invalidAt: toString(r.invalidAt),
+              expiredAt: toString(r.expiredAt),
+              createdAt: toString(r.createdAt)
+            } END
+          ) AS edges
+        RETURN [entity]Id, [e IN edges WHERE e IS NOT NULL] AS edges
+        `,
+        { [entity]Ids }
+      );
+      return res.records.map((r) => ({
+        [entity]Id: r.get("[entity]Id"),
+        edges: r.get("edges"),
+      }));
+    });
+    return mapResultsToKeys([entity]Ids, rows);
+  },
+  { cacheKeyFn: (k) => k }
+)
+```
+
+## Notes
+
+- **Temporal Validity**: All relationships include validAt, invalidAt, expiredAt, createdAt fields
+- **Claim IDs**: Most relationships include claimIds array for provenance
+- **Identity Resolution**: Some entities may need identity resolution logic (like Organization and Product)
+- **Search**: Fine-grained search with vector, hybrid, filters, and cursor-based pagination is already set up - will need to be extended for new entities
+- **Union Types**: Some relationships may require Union types (e.g., CONTRACT_MANUFACTURER_FOR can target Product, CompoundForm, or Organization)
+- **Incoming Relationships**: Some entities have incoming relationships that should be exposed as reverse fields in GraphQL resolvers
+
+## Success Criteria
+
+- [ ] All Product relationships have create/connect/update mutations
+- [ ] All Product relationships have DataLoaders
+- [ ] All Phase 2 entities have complete CRUD operations
+- [ ] All Phase 2 entities have DataLoaders for all relationships
+- [ ] All Phase 3 entities have complete CRUD operations
+- [ ] All Phase 3 entities have DataLoaders for all relationships
+- [ ] All Phase 4 entities have complete CRUD operations
+- [ ] All Phase 4 entities have DataLoaders for all relationships
+- [ ] Research ingestion/agent system can successfully store results using the API
+
+## Next Steps
+
+1. Start with Phase 1: Complete Product mutations
+2. Review schema.graphql to confirm all entity types and relationships
+3. Prioritize entities based on research ingestion needs
+4. Implement entities following the checklist template
+5. Test each entity's mutations and queries
+6. Verify DataLoaders work correctly
+7. Extend search functionality for new entities as needed

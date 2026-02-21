@@ -1,0 +1,105 @@
+type StudyEvaluatesEdge {
+  targetKind: EvaluatesTargetKind!
+  product: Product
+  compoundForm: CompoundForm
+  compoundId: ID
+  foodId: ID
+  foodVariantId: ID
+  role: StudyEvaluatesRole!
+  strength: Float
+  extractorVersion: String
+  extractedAt: DateTime
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+} 
+
+
+
+type StudySponsoredByEdge {
+  organization: Organization!
+  role: StudySponsorRole
+  strength: Float
+  extractorVersion: String
+  extractedAt: DateTime
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type StudyRunByEdge {
+  organization: Organization!
+  role: StudyRunByRole
+  strength: Float
+  extractorVersion: String
+  extractedAt: DateTime
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type StudyInvestigatedByEdge {
+  person: Person!
+  role: StudyInvestigatorRole
+  affiliation: String
+  strength: Float
+  extractorVersion: String
+  extractedAt: DateTime
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type StudyStudiesPopulationEdge {
+  population: Population!
+  role: StudyPopulationRole
+  strength: Float
+  extractorVersion: String
+  extractedAt: DateTime
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type StudyHasDatasetEdge {
+  dataset: Dataset!
+  role: StudyDatasetRole
+  accessNotes: String
+  strength: Float
+  extractorVersion: String
+  extractedAt: DateTime
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type StudyInvestigatesConditionEdge {
+  condition: Condition!
+  role: StudyInvestigatesRole
+  strength: Float
+  extractorVersion: String
+  extractedAt: DateTime
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type StudyHasOutcomeEdge {
+  outcome: StudyOutcome!
+  priority: StudyOutcomePriority!
+  role: StudyOutcomeRole
+  strength: Float
+  extractorVersion: String
+  extractedAt: DateTime
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}

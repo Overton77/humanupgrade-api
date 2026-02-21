@@ -1,0 +1,102 @@
+---
+globs: "**/graphql/**/*.graphql,**/graphql/**/*.ts,**/services/**/*.ts"
+description: "Codebase organization guide for biotech knowledge graph GraphQL API"
+---
+
+# Codebase Organization
+
+## Overview
+
+This is a **Biotech Knowledge Graph & Document Ingestion GraphQL API** built on Neo4j. The system models biotech ontology (labs, panels, biomarkers, products, organizations, studies) and handles document/evidence ingestion. **Note:** This modularized GraphQL layer is specifically for the biotech ontology and knowledge graph—separate from User Profile/AI Assistant functionality.
+
+## GraphQL Schema Architecture (Modular)
+
+The GraphQL schema is **modularized** in `src/graphql/modules/` and automatically concatenated into `schema.graphql` by [build-schema.ts](mdc:api/scripts/build-schema.ts).
+
+### Module Structure
+
+Each domain module follows a consistent file naming pattern:
+- **`00-types.graphql`** - Type definitions (entities, output types)
+- **`01-edges.graphql`** - Relationship edge types with properties
+- **`02-inputs.graphql`** - Input types for mutations (create/update/connect patterns)
+- **`03-operations.graphql`** - Query/Mutation/Subscription extensions
+
+### Current Modules
+
+#### Core Infrastructure
+- **`_shared/`** - Common foundations (scalars, enums, directives, interfaces, common types/inputs)
+- **`roots/`** - Schema definition and base Query/Mutation/Subscription types
+
+#### Domain Modules (Biotech Ontology)
+- **`labs/`** - Lab tests, panel definitions, biomarkers, measurement methods, specimens
+- **`products_listings/`** - Products, listings, pricing, commerce relationships
+- **`organization_commerce/`** - Organizations, locations, business relationships
+- **`people/`** - People, roles, affiliations
+- **`studies/`** - Research studies, case studies, evidence
+- **`ingestion/`** - Document ingestion, evidence linking, embedding operations
+- **`search/`** - Search operations and result types
+
+#### Planned Modules (In Progress)
+- `media/`, `protocols/`, `food/`, `devices/`, `modalities/`, AI research assistant queries
+
+### Schema Build Process
+
+[build-schema.ts](mdc:api/scripts/build-schema.ts) discovers all `.graphql` files under `modules/`, orders them deterministically:
+1. `_shared/` (00)
+2. `roots/` (01)
+3. All other modules alphabetically (10-*)
+4. Within each module, files sorted by numeric prefix (00-, 01-, 02-, 03-)
+
+The script validates the combined schema and writes `schema.graphql` (auto-generated, do not edit directly).
+
+## Services Layer
+
+Business logic lives in `src/services/`, organized by domain entity or function.
+
+### Entity Services
+
+Each entity has its own folder with:
+- **`[entity]Service.ts`** - Main service with CRUD operations and relationship management
+- **`statements/`** - Cypher query builders (create, update, find existing, identity resolution)
+- **`types.ts`** - TypeScript types matching GraphQL types
+- **`utils/`** - Helper functions (e.g., identity resolution)
+
+**Current entity services:**
+- `Organization/`, `Product/`, `LabTest/`, `PanelDefinition/`, `Biomarker/`, `Study/`
+
+### Functional Services
+
+- **`Search/`** - Search functionality organized by entity (Organization, Product) with modes, cursors, field normalization
+- **`UnstructuredIngestion/`** - Document and evidence ingestion:
+  - `DocumentWrite/` - Document writing (case studies, articles, summaries)
+  - `EvidenceWrite/` - Evidence writing and linking to knowledge graph nodes
+- **`Provenance/`** - Research plan and run reference management, linking
+
+### Workers
+
+- **`workers/`** - Background job processors (e.g., `embeddingWorker.ts` for Redis stream consumption)
+
+## GraphQL Resolvers
+
+Resolvers in `src/graphql/resolvers/` are thin wrappers that delegate to services:
+- **`Query.ts`**, **`Mutation.ts`**, **`Subscription.ts`** - Root operations
+- Entity-specific resolvers for field resolution
+- Resolvers import from `services/` and use GraphQL context for DataLoaders
+
+## Key Patterns
+
+- **Schema-First GraphQL** - Schema defined in modules, types/inputs generated from Zod schemas
+- **Service Layer** - Business logic in services with inline Cypher queries, separated from GraphQL layer
+- **DataLoader Pattern** - Request-scoped loaders in GraphQL context for efficient relationship batching
+- **Zod Validation** - End-to-end type safety with Zod schemas matching GraphQL types
+- **Neo4j Knowledge Graph** - Primary data store for biotech entities, relationships, and evidence
+- **Redis Streams** - Background job processing for embeddings and async tasks
+
+## File Organization Reference
+
+- **GraphQL Schema Modules**: `src/graphql/modules/[module]/[00-03]-*.graphql`
+- **Generated Schema**: `src/graphql/schema.graphql` (auto-generated, do not edit)
+- **Schema Build Script**: `scripts/build-schema.ts`
+- **Services**: `src/services/[Entity]/[entity]Service.ts`
+- **Resolvers**: `src/graphql/resolvers/[Query|Mutation|Subscription].ts`
+- **Entry Point**: `src/server.ts`

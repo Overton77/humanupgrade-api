@@ -14,9 +14,11 @@ export class RedisAsyncIterator<T> implements AsyncIterableIterator<T> {
   private resolveNext: ((value: IteratorResult<T>) => void) | null = null;
   private isClosed = false;
   private channels: string[];
+  private patterns: string[];
 
-  constructor(channels: string[]) {
+  constructor(channels: string[] = [], patterns: string[] = []) {
     this.channels = channels;
+    this.patterns = patterns;
     this.sub = createClient({ url: this.redisUrl });
 
     this.sub.on("error", (err) => {
@@ -30,8 +32,23 @@ export class RedisAsyncIterator<T> implements AsyncIterableIterator<T> {
   private async init() {
     await this.sub.connect();
 
+    // Subscribe to specific channels
     for (const ch of this.channels) {
       await this.sub.subscribe(ch, (message) => {
+        let parsed: any = message;
+        try {
+          parsed = JSON.parse(message);
+        } catch {
+          // keep raw string
+        }
+
+        this.push(parsed);
+      });
+    }
+
+    // Subscribe to pattern channels (for wildcard subscriptions)
+    for (const pattern of this.patterns) {
+      await this.sub.pSubscribe(pattern, (message, channel) => {
         let parsed: any = message;
         try {
           parsed = JSON.parse(message);
@@ -90,6 +107,9 @@ export class RedisAsyncIterator<T> implements AsyncIterableIterator<T> {
     try {
       for (const ch of this.channels) {
         await this.sub.unsubscribe(ch);
+      }
+      for (const pattern of this.patterns) {
+        await this.sub.pUnsubscribe(pattern);
       }
       if (this.sub.isOpen) await this.sub.quit();
     } catch {

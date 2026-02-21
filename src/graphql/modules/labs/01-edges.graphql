@@ -1,0 +1,99 @@
+type MeasuresBiomarkerEdge {
+  biomarker: Biomarker!
+  role: BiomarkerRole
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type UsesMethodEdge {
+  measurementMethod: MeasurementMethod!
+  methodRole: MethodRole
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type RequiresSpecimenEdge {
+  specimen: Specimen!
+  specimenRole: SpecimenRole!
+  collectionSetting: CollectionSetting
+  collectionMethod: CollectionMethod
+  fastingRequired: Boolean
+  fastingMinHours: Int
+  fastingMaxHours: Int
+  requiresAppointment: Boolean
+  requiresColdChainDuringCollection: Boolean
+  collectionTimeWindow: CollectionTimeWindow
+  collectionNotes: String
+  processingMustCentrifuge: Boolean
+  processingCentrifugeWithinMinutes: Int
+  processingAliquotRequired: Boolean
+  processingAdditive: ProcessingAdditive
+  processingLightSensitive: Boolean
+  processingMixInversions: Int
+  processingMaxRoomTempMinutes: Int
+  processingNotes: String
+  stabilityAtRoomTempMaxHours: Int
+  stabilityRefrigeratedMaxHours: Int
+  stabilityFrozenMaxDays: Int
+  stabilityMinTempC: Float
+  stabilityMaxTempC: Float
+  stabilityRequiresColdChain: Boolean
+  stabilityNotes: String
+  populationTags: [String!]
+  sex: Sex
+  ageMinYears: Int
+  ageMaxYears: Int
+  measurementState: MeasurementState
+  timeOfDay: TimeOfDay
+  conditionTags: [String!]
+  medicationClassTags: [String!]
+  comorbidityTags: [String!]
+  appliesWhen: AppliesWhen
+  thresholdDirection: ThresholdDirection
+  thresholdValue: Float
+  thresholdUnit: String
+  evidenceContextTags: [String!]
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type LabTestUsesPlatformEdge {
+  technologyPlatform: TechnologyPlatform!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+# PanelDefinition Relationship Edge Types
+
+type IncludesLabTestEdge {
+  labTest: LabTest!
+  required: Boolean
+  quantity: Int
+  notes: String
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type IncludesBiomarkerEdge {
+  biomarker: Biomarker!
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}

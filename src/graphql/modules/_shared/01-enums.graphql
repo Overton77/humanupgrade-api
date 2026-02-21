@@ -1,0 +1,564 @@
+enum OrgType {
+  COMPANY
+  NONPROFIT
+  RESEARCH_GROUP
+  COMMUNITY
+  MEDIA_OUTLET
+  CLINIC
+  FOUNDATION
+  REGULATOR
+  JOURNAL
+  LAB_NETWORK
+  DISTRIBUTOR
+  MANUFACTURER
+  SUPPLIER
+  PLATFORM
+  OTHER
+}
+
+enum BusinessModel {
+  B2C
+  B2B
+  B2B2C
+  HYBRID
+  UNKNOWN
+}
+
+enum LocationType {
+  HEADQUARTERS
+  REGISTERED_ADDRESS
+  OFFICE
+  LAB_FACILITY
+  CLINIC_SITE
+  MANUFACTURING_SITE
+  WAREHOUSE
+  RETAIL_SITE
+  DATA_CENTER
+  RESEARCH_SITE
+  COLLECTION_SITE
+  CONFERENCE_VENUE
+  OTHER
+}
+
+enum ListingDomain {
+  DIAGNOSTICS
+  SUPPLEMENT
+  DEVICE
+  TELEHEALTH
+  SOFTWARE
+  SERVICE
+  OTHER
+}
+
+enum PriceType {
+  LIST
+  PROMO
+  MEMBER_ONLY
+  INSURANCE_ESTIMATE
+  UNKNOWN
+}
+
+enum CollectionMode {
+  AT_HOME_KIT
+  IN_PERSON_DRAW
+  MOBILE_PHLEBOTOMY
+  IN_CLINIC
+  SHIPPING
+  TELEHEALTH
+  VIRTUAL
+  OTHER
+}
+
+enum ProductDomain {
+  DIAGNOSTICS
+  SUPPLEMENT
+  DEVICE
+  TELEHEALTH
+  SOFTWARE
+  SERVICE
+  OTHER
+}
+
+enum ListRole {
+  OPERATOR
+  PROVIDER
+  SELLER
+  DISTRIBUTOR
+  MARKETER
+  FULFILLMENT_PARTNER
+  BILLING_ENTITY
+  OTHER
+}
+
+enum Channel {
+  ONLINE
+  IN_PERSON
+  PHONE
+  PARTNER
+  MARKETPLACE
+  OTHER
+}
+
+enum ProcessType {
+  chemical_synthesis
+  fermentation
+  extraction
+  semi_synthesis
+  formulation
+  assembly
+  packaging
+  qc_release
+  other
+}
+
+enum ScalabilityLevel {
+  lab
+  pilot
+  commercial
+  unknown
+}
+
+enum PlatformType {
+  THERAPEUTIC_PLATFORM
+  DIAGNOSTIC_PLATFORM
+  MANUFACTURING_PLATFORM
+  MODALITY_PLATFORM
+  ANALYTICS_PLATFORM
+  OTHER
+}
+
+enum RelationshipRole {
+  PRIMARY_DEVELOPER
+  CO_DEVELOPER
+  MAINTAINER
+  STEWARD
+  UNKNOWN
+}
+
+enum UsageContext {
+  R_AND_D
+  PRODUCTION
+  QC
+  CLINICAL
+  ANALYTICS
+  OTHER
+  UNKNOWN
+}
+
+enum Source {
+  CURATED
+  IMPORTED
+  DERIVED
+}
+
+enum ManufacturingRole {
+  primary
+  subcontractor
+  cdmo
+  cmo
+  api_supplier
+  other
+}
+
+enum LabTestRole {
+  primary
+  component
+  reflex
+  add_on
+  eligibility_gate
+}
+
+enum PanelRole {
+  primary
+  variant
+  legacy
+}
+
+enum CompoundFormRole {
+  active
+  excipient
+  carrier
+  other
+}
+
+enum BiomarkerRole {
+  primary
+  derived
+  ratio
+  composite
+  other
+}
+
+enum MethodRole {
+  primary
+  confirmatory
+  reflex
+  backup
+}
+
+enum SpecimenRole {
+  required
+  acceptableAlternative
+  preferred
+}
+
+enum CollectionSetting {
+  AT_HOME
+  CLINIC
+  LAB
+  MOBILE_PHLEBOTOMY
+  HOSPITAL
+  UNKNOWN
+}
+
+enum CollectionMethod {
+  VENIPUNCTURE
+  FINGERSTICK
+  SALIVA_TUBE
+  STOOL_KIT
+  URINE_CUP
+  SWAB
+  OTHER
+  UNKNOWN
+}
+
+enum CollectionTimeWindow {
+  ANYTIME
+  MORNING_ONLY
+  TIMED_DRAW
+  CYCLE_PHASED
+  OTHER
+  UNKNOWN
+}
+
+enum ProcessingAdditive {
+  NONE
+  EDTA
+  HEPARIN
+  CITRATE
+  SST
+  OTHER
+  UNKNOWN
+}
+
+enum Sex {
+  ANY
+  FEMALE
+  MALE
+  INTERSEX
+  UNKNOWN
+}
+
+enum MeasurementState {
+  FASTING
+  NON_FASTING
+  POSTPRANDIAL
+  RESTING
+  EXERCISE
+  SLEEP
+  ACUTE_ILLNESS
+  RECOVERY
+  UNKNOWN
+}
+
+enum TimeOfDay {
+  MORNING
+  AFTERNOON
+  EVENING
+  NIGHT
+  UNKNOWN
+}
+
+enum AppliesWhen {
+  BASELINE
+  CHANGE_FROM_BASELINE
+  THRESHOLD_EXCEEDED
+  TREND
+  UNKNOWN
+}
+
+enum ThresholdDirection {
+  ABOVE
+  BELOW
+  BOTH
+  UNKNOWN
+}
+
+# ============================================================================
+# Study / CaseStudy Enums
+# ============================================================================
+
+enum StudyKind {
+  CASE_STUDY
+  CASE_REPORT
+  CASE_SERIES
+  COHORT
+  CROSS_SECTIONAL
+  RCT
+  OBSERVATIONAL
+  SYSTEMATIC_REVIEW
+  META_ANALYSIS
+  OTHER
+}
+
+enum DesignKind {
+  CASE_REPORT
+  CASE_SERIES
+  RETROSPECTIVE_COHORT
+  PROSPECTIVE_COHORT
+  CROSS_SECTIONAL
+  PARALLEL_GROUP_RCT
+  CROSSOVER_RCT
+  FACTORIAL_RCT
+  SINGLE_ARM_TRIAL
+  DOSE_ESCALATION
+  N_OF_1
+  SYSTEMATIC_REVIEW
+  META_ANALYSIS
+  NARRATIVE_REVIEW
+  OTHER
+}
+
+enum StudyStatus {
+  PLANNED
+  RECRUITING
+  ACTIVE
+  COMPLETED
+  SUSPENDED
+  TERMINATED
+  WITHDRAWN
+  UNKNOWN
+}
+
+enum BlindedKind {
+  OPEN_LABEL
+  SINGLE_BLIND
+  DOUBLE_BLIND
+  TRIPLE_BLIND
+  UNKNOWN
+}
+
+enum ComparatorType {
+  PLACEBO
+  ACTIVE_CONTROL
+  USUAL_CARE
+  WAITLIST
+  NO_TREATMENT
+  DOSE_RESPONSE
+  HISTORICAL
+  OTHER
+}
+
+enum PopulationKind {
+  HUMAN
+  ANIMAL
+  IN_VITRO
+  IN_SILICO
+  MIXED
+  OTHER
+}
+
+enum DatasetKind {
+  RAW
+  CLEANED
+  ANALYTIC
+  SUMMARY
+  BIOBANK
+  REGISTRY
+  CLAIMS
+  EHR
+  OTHER
+}
+
+enum DatasetAccessLevel {
+  PUBLIC
+  RESTRICTED
+  PRIVATE
+  UPON_REQUEST
+  UNKNOWN
+}
+
+enum OutcomeCategory {
+  EFFICACY
+  SAFETY
+  BIOMARKER
+  QUALITY_OF_LIFE
+  PHARMACOKINETIC
+  PHARMACODYNAMIC
+  ECONOMIC
+  OTHER
+}
+
+enum PolarityHint {
+  HIGHER_IS_BETTER
+  LOWER_IS_BETTER
+  NEUTRAL
+  CONTEXT_DEPENDENT
+  UNKNOWN
+}
+
+enum OutcomeDomain {
+  CARDIOVASCULAR
+  METABOLIC
+  COGNITIVE
+  MUSCULOSKELETAL
+  IMMUNOLOGICAL
+  HORMONAL
+  GASTROINTESTINAL
+  RENAL
+  HEPATIC
+  ONCOLOGICAL
+  PSYCHOLOGICAL
+  ANTHROPOMETRIC
+  OTHER
+}
+
+enum OutcomeMeasurementType {
+  CONTINUOUS
+  BINARY
+  ORDINAL
+  COUNT
+  TIME_TO_EVENT
+  COMPOSITE
+  OTHER
+}
+
+enum EvaluatesTargetKind {
+  PRODUCT
+  COMPOUND
+  COMPOUND_FORM
+  FOOD
+  FOOD_VARIANT
+}
+
+enum StudyEvaluatesRole {
+  INTERVENTION
+  COMPARATOR
+  CO_INTERVENTION
+  EXPOSURE
+}
+
+enum StudySponsorRole {
+  PRIMARY
+  COLLABORATOR
+  FUNDER
+  OTHER
+}
+
+enum StudyRunByRole {
+  CRO
+  SITE
+  LAB
+  PLATFORM
+  OTHER
+}
+
+enum StudyInvestigatorRole {
+  PI
+  COI
+  AUTHOR
+  SUBINVESTIGATOR
+  OTHER
+}
+
+enum StudyPopulationRole {
+  TARGET
+  ENROLLED
+  SAFETY
+  ITT
+  PER_PROTOCOL
+  OTHER
+}
+
+enum StudyDatasetRole {
+  RAW
+  CLEANED
+  ANALYTIC
+  SUMMARY
+  OTHER
+}
+
+enum StudyInvestigatesRole {
+  PRIMARY
+  SECONDARY
+  COMORBID
+  EXCLUSION
+  OTHER
+}
+
+enum StudyOutcomePriority {
+  PRIMARY
+  SECONDARY
+  EXPLORATORY
+}
+
+enum StudyOutcomeRole {
+  ENDPOINT
+  SAFETY_MONITORING
+  BIOMARKER_PANEL
+  OTHER
+} 
+
+enum EvidenceEdgeType {
+  ABOUT
+  MENTIONS
+  IS_PRIMARY_SOURCE
+}  
+
+enum EvidenceSourceKind {
+  Document
+  Chunk
+}  
+
+enum SearchMode {
+  FIELD_ONLY
+  FULLTEXT_ONLY
+  VECTOR_ONLY
+  HYBRID
+} 
+
+enum SearchReasonKind {
+  FULLTEXT_MATCH
+  VECTOR_MATCH
+  EXACT_MATCH
+  FILTER_APPLIED
+  BOOST_APPLIED
+}  
+
+enum OrganizationSortField {
+  NAME
+  CREATED_AT
+  EMPLOYEE_COUNT_MIN
+  EMPLOYEE_COUNT_MAX
+}
+
+enum SortDirection {
+  ASC
+  DESC
+} 
+
+enum ProductSortField {
+  NAME
+  CREATED_AT
+  PRICE_AMOUNT
+} 
+
+enum AutocompleteEntityType {
+  ORGANIZATION
+  PRODUCT
+} 
+
+enum EmbeddingTargetType {
+  ORGANIZATION
+  PRODUCT  
+  # Add All Other Types that have embeddings on their searchText or other fields 
+} 
+
+enum EmbeddingJobStatus {
+  QUEUED
+  RUNNING
+  COMPLETE
+  SKIPPED
+  FAILED
+}
+ 

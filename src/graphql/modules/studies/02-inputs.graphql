@@ -1,0 +1,239 @@
+input UpsertStudyInput {
+  id: ID
+  registrySource: String
+  registryId: String
+  doi: String
+  internalStudyCode: String
+  canonicalTitle: String
+  studyKind: StudyKind!
+  shortTitle: String
+  aliases: [String!]
+  designKind: DesignKind
+  status: StudyStatus
+  phase: String
+  sampleSize: Int
+  randomized: Boolean
+  blinded: BlindedKind
+  comparatorType: ComparatorType
+  keywords: [String!]
+  locations: [String!]
+  validAt: DateTime!
+  expiredAt: DateTime
+  invalidAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EdgeAuditInput {
+  validAt: DateTime!
+  expiredAt: DateTime
+  invalidAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+  strength: Float
+  extractorVersion: String
+  extractedAt: DateTime
+} 
+
+
+input PopulationConnectInput {
+  populationId: ID!
+}
+
+input PopulationInput {
+  populationId: ID
+  name: String
+  populationKind: PopulationKind!
+  species: String
+  strain: String
+  cellLine: String
+  diseaseState: String
+  ageMin: Int
+  ageMax: Int
+  ageUnit: String
+  sex: Sex
+  n: Int
+  inclusionCriteria: [String!]
+  exclusionCriteria: [String!]
+  validAt: DateTime!
+  expiredAt: DateTime
+  invalidAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PopulationRelateInput {
+  create: PopulationInput
+  connect: PopulationConnectInput
+}
+
+input DatasetConnectInput {
+  datasetId: ID!
+}
+
+input DatasetInput {
+  datasetId: ID
+  name: String!
+  description: String
+  datasetKind: DatasetKind!
+  format: String
+  license: String
+  accessLevel: DatasetAccessLevel
+  sourceSystem: String
+  uri: String
+  checksum: String
+  version: String
+  publishedAt: DateTime
+  validAt: DateTime!
+  expiredAt: DateTime
+  invalidAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input DatasetRelateInput {
+  create: DatasetInput
+  connect: DatasetConnectInput
+}
+
+input StudyOutcomeConnectInput {
+  studyOutcomeId: ID!
+}
+
+input StudyOutcomeInput {
+  studyOutcomeId: ID
+  canonicalName: String!
+  displayName: String
+  aliases: [String!]
+  description: String
+  outcomeCategory: OutcomeCategory!
+  polarityHint: PolarityHint
+  domain: OutcomeDomain
+  measurementType: OutcomeMeasurementType
+  unit: String
+  biologicalMatrix: String
+  analyte: String
+  timeHorizon: String
+  standardSystem: String
+  standardCode: String
+  standardLabel: String
+  validAt: DateTime!
+  expiredAt: DateTime
+  invalidAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input StudyOutcomeRelateInput {
+  create: StudyOutcomeInput
+  connect: StudyOutcomeConnectInput
+}
+
+input ConditionConnectInput {
+  conditionId: ID!
+}
+
+input ConditionInput {
+  conditionId: ID
+  name: String!
+  aliases: [String!]
+  description: String
+  icdCodes: [String!]
+  snomedCodes: [String!]
+  meshTerms: [String!]
+  validAt: DateTime
+  expiredAt: DateTime
+  invalidAt: DateTime
+  createdAt: DateTime
+}
+
+input ConditionRelateInput {
+  create: ConditionInput
+  connect: ConditionConnectInput
+}
+
+"""
+Discriminated union input for Study EVALUATES target.
+Set `kind` and provide exactly one connect-ID or create-payload matching that kind.
+"""
+input EvaluatesTargetRefInput {
+  kind: EvaluatesTargetKind!
+  # Connect IDs — provide exactly one matching `kind`
+  productId: ID
+  compoundId: ID
+  compoundFormId: ID
+  foodId: ID
+  foodVariantId: ID
+  # Create payloads — provide at most one matching `kind`
+  createProduct: ProductRelateInput
+  createCompoundForm: CompoundFormRelateInput
+}
+
+input StudyEvaluatesRelationshipInput {
+  target: EvaluatesTargetRefInput!
+  role: StudyEvaluatesRole!
+  audit: EdgeAuditInput!
+}
+
+input StudySponsoredByRelationshipInput {
+  organization: OrganizationRelateInput!
+  role: StudySponsorRole
+  audit: EdgeAuditInput!
+}
+
+input StudyRunByRelationshipInput {
+  organization: OrganizationRelateInput!
+  role: StudyRunByRole
+  audit: EdgeAuditInput!
+}
+
+input StudyInvestigatedByRelationshipInput {
+  person: PersonRelateInput!
+  role: StudyInvestigatorRole
+  affiliation: String
+  audit: EdgeAuditInput!
+}
+
+input StudyStudiesPopulationRelationshipInput {
+  population: PopulationRelateInput!
+  role: StudyPopulationRole
+  audit: EdgeAuditInput!
+}
+
+input StudyHasDatasetRelationshipInput {
+  dataset: DatasetRelateInput!
+  role: StudyDatasetRole
+  accessNotes: String
+  audit: EdgeAuditInput!
+}
+
+input StudyInvestigatesConditionRelationshipInput {
+  condition: ConditionRelateInput!
+  role: StudyInvestigatesRole
+  audit: EdgeAuditInput!
+}
+
+input StudyHasOutcomeRelationshipInput {
+  outcome: StudyOutcomeRelateInput!
+  priority: StudyOutcomePriority!
+  role: StudyOutcomeRole
+  audit: EdgeAuditInput!
+}
+
+"""
+Bundle upsert for Study (CaseStudy).
+Resolver key order: id -> (registrySource + registryId) -> doi -> internalStudyCode.
+All edge arrays are create-or-connect only (no update on edges).
+"""
+input UpsertCaseStudyInput {
+  study: UpsertStudyInput!
+  evaluates: [StudyEvaluatesRelationshipInput!]
+  sponsoredBy: [StudySponsoredByRelationshipInput!]
+  runBy: [StudyRunByRelationshipInput!]
+  investigatedBy: [StudyInvestigatedByRelationshipInput!]
+  studiesPopulations: [StudyStudiesPopulationRelationshipInput!]
+  hasDatasets: [StudyHasDatasetRelationshipInput!]
+  investigatesConditions: [StudyInvestigatesConditionRelationshipInput!]
+  hasOutcomes: [StudyHasOutcomeRelationshipInput!]
+}
+

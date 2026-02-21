@@ -2,116 +2,118 @@
 
 ## Project Overview
 
-The **Human Upgrade API** is a MongoDB-powered GraphQL API for the Human Upgrade App, inspired by Dave Asprey's _The Human Upgrade_ podcast and the biotech/consumer biotech industry. It serves as the central intelligence hub for a multi-service ecosystem managing biotech entities: products, businesses, research, protocols, and user profiles.
+The **Human Upgrade API** is a production GraphQL API powering the Human Upgrade App—a biotech information platform. The API manages a comprehensive biotech knowledge graph and will support user profiles and app features.
+
+**Architecture:**
+
+- **Neo4j** - Knowledge graph for biotech entities, relationships, evidence, and content
+- **PostgreSQL (Prisma)** - User profiles, preferences, notes, protocols, conversations (to be implemented after KG)
+- **GraphQL** - Type-safe API layer with schema-first development
 
 ## Tech Stack
 
-- **Apollo Server** - GraphQL server with WebSocket support
-- **GraphQL** - API layer with type-safe queries and mutations
-- **TypeScript** - Type-safe development
-- **Mongoose** - MongoDB ODM with relationship management
-- **Zod** - Runtime validation for all inputs
-- **Express** - Admin-facing REST endpoints
+- Apollo Server (GraphQL with WebSocket subscriptions)
+- TypeScript + Zod (end-to-end type safety and validation)
+- Neo4j (Aura) for knowledge graph
+- PostgreSQL + Prisma for user data (future)
+- Redis (Pub/Sub for subscriptions)
+- S3 (large content storage)
 
-## Architecture
+## Implementation Patterns
 
-The API follows a **layered service architecture** with clear separation of concerns:
+### 1. GraphQL & Zod Schema Modeling
 
-```
-Resolvers (Transport/Orchestration) → Services (Business Logic) →
-Input Validators (Zod Schemas) → Input Types (TypeScript Interfaces) →
-DB Models (Mongoose Schemas)
-```
+See: `.cursor/rules/graphql-zod-schema-modeling.mdc`
 
-Each layer has distinct responsibilities. See `.cursor/rules/architecture-layers.mdc` for detailed patterns.
+Key principles:
 
-## Purpose
+- **Edge Types**: Relationships modeled as edge types containing related node + relationship properties
+- **Model Schemas**: Zod schemas match GraphQL output shape (not raw Neo4j structure)
+- **Input Schemas**: Support nested `create`/`connect`/`update` for relationships
+- **Type Inference**: TypeScript types inferred from Zod schemas
 
-The API serves three main purposes:
+**Reference Files:**
 
-1. **Ingestion** - Receiving entities from manual research and automated research agents (LangGraph-based Python system)
-2. **User-Facing Operations** - Profile management, entity search, saving entities, recommendations, trends
-3. **Administrative** - Admin REST endpoints for seeding and maintenance
+- `src/graphql/types/OrganizationModel.ts` - Model schemas and edge types
+- `src/graphql/inputs/OrganizationInputs.ts` - Input schemas with create/connect/update
+- `src/graphql/schema.graphql` - GraphQL schema definition
 
-## Core Entities
+### 2. Neo4j Create/Update Patterns
 
-- **Business** - Companies in the biotech space
-- **Product** - Health optimization products
-- **Person** - Industry leaders, researchers, podcast guests
-- **Compound** - Bioactive ingredients
-- **Protocol** - Health optimization frameworks
-- **CaseStudy** - Clinical research and trials
-- **Episode** - Podcast episodes with transcripts and summaries
-- **Article** - Research articles and content
-- **User** - Application users with authentication
-- **UserProfile** - User preferences, goals, and settings
-- **UserSaved** - User-saved entities (union type of all entities)
+See: `.cursor/rules/neo4j-create-update-patterns.mdc`
 
-## Current State
+Key principles:
 
-### ✅ Complete (80%)
+- **MERGE by canonical ID**: Primary merge strategy, fallback to stable fields
+- **UNWIND + CALL clauses**: Handle relationship arrays with sub-queries
+- **Create/Connect/Update**: Support nested relationship operations
+- **Temporal Validity**: All relationships support `validAt`, `invalidAt`, `expiredAt`
 
-- **Project Structure** - Consolidated and organized
-- **Cursor Rules** - Comprehensive rules in `.cursor/rules/` for patterns and guidance
-- **CRUD Operations** - Main entities (Business, Product, Person, Compound, Protocol, CaseStudy, Episode)
-- **User Management** - UserSaved and UserProfile creation/management
-- **GraphQL API** - Running at `localhost:4000/graphql`
-- **Authentication** - JWT-based auth with role-based access control
-- **Data Loaders** - N+1 prevention for GraphQL queries
-- **Relationship Sync** - Bidirectional relationship management (canonical/mirror pattern)
-- **Input Validation** - Zod schemas for all inputs
-- **Error Handling** - Centralized AppError system
-- **Transactions** - Multi-model atomic operations
+**Reference Files:**
 
-### 🚧 Incomplete
+- `src/services/Organization/organizationService.ts` - Complete create implementation
 
-- **User Protocols** - User-created protocol functionality (to be implemented)
-- **Notes** - User notes on entities (to be implemented)
-- **Recommendations Engine** - Entity recommendation system (to be implemented)
-- **Trending Engine** - Trend analysis and display (to be implemented)
-- **Entity Enhancements** - Business, Product, CaseStudy need additional fields/features
-- **Vector Search Integration** - Full Qdrant integration for vector search (currently limited by free-tier MongoDB Atlas index constraints)
+### 3. DataLoader Pattern
 
-## Key Patterns & Rules
+See: `.cursor/rules/dataloader-pattern.mdc`
 
-Refer to `.cursor/rules/` for detailed guidance:
+Key principles:
 
-- **`architecture-layers.mdc`** - Layer separation and responsibilities
-- **`model-relationships.mdc`** - Bidirectional relationship sync patterns
-- **`service-patterns.mdc`** - Service layer patterns, BaseService, validation, transactions
-- **`error-handling.mdc`** - Centralized error handling with AppError
-- **`graphql-validation.mdc`** - Input types, Zod schemas, validation flow
-- **`transactions.mdc`** - MongoDB transaction patterns
-- **`dataloader-patterns.mdc`** - N+1 prevention in GraphQL resolvers
+- **Request-scoped**: Created per request in GraphQL context
+- **Named by Model**: `Model.relationshipFieldEdges` naming convention
+- **Returns Edge Types**: Matches GraphQL edge type shape (node + relationship props)
+
+**Reference Files:**
+
+- `src/graphql/loaders/entityLoaders.ts` - DataLoader implementations
+- `src/graphql/context.ts` - Context creation with loaders
+- `src/graphql/resolvers/organizationResolvers.ts` - Resolver usage
 
 ## Directory Structure
 
 ```
-src/
-├── config/          # Environment configuration
-├── db/              # MongoDB connection
-├── graphql/         # GraphQL schema, inputs, resolvers, loaders
-├── lib/             # Core utilities (errors, logger, validation, transactions)
-├── models/          # Mongoose schemas with relationship sync
-├── services/        # Business logic layer
-├── routes/          # Admin REST endpoints
-└── server.ts        # Apollo Server setup
+api/src/
+├── graphql/
+│   ├── schema.graphql           # GraphQL schema
+│   ├── types/                   # Zod model schemas (output shape)
+│   ├── inputs/                  # Zod input schemas (create/update)
+│   ├── resolvers/               # GraphQL resolvers
+│   ├── loaders/                 # DataLoader implementations (queries inline)
+│   ├── context.ts               # GraphQL context with loaders
+│   └── enums/                   # Enum definitions
+├── services/                    # Business logic layer
+│   └── [entity]/                # Service per entity
+│       ├── [entity]Service.ts   # Business logic + queries (inline)
+│       └── [entity]Queries.ts   # (Optional) Extract queries if file >500 lines
+├── db/
+│   └── neo4j/                   # Neo4j driver and query utilities
+└── lib/                         # Utilities (errors, logger, validation)
 ```
+
+**Query Organization:**
+
+- **Services**: Keep Cypher queries inline in service files. Extract to `[Entity]Queries.ts` only if the service file exceeds ~500-600 lines.
+- **DataLoaders**: Keep queries inline in `loaders/entityLoaders.ts` (tightly coupled to loader implementation).
+
+## Data Sources
+
+- **Knowledge Graph Ontology**: `personal_docs/complete_refactor/knowledge_graph_dump.md`
+- **User Schema Reference**: `personal_docs/complete_refactor/user_profiles_and_app_features_prisma.md`
+- **API Recommendations**: `personal_docs/complete_refactor/api_recommendations/`
+
+## Development Workflow
+
+1. **Define GraphQL Types** - Add to `schema.graphql`
+2. **Create Zod Model Schema** - Matches GraphQL output shape in `types/`
+3. **Create Zod Input Schemas** - With create/connect/update support in `inputs/`
+4. **Implement Service Layer** - Neo4j CRUD operations in `services/`
+5. **Wire Up Resolvers** - Connect GraphQL to services
+6. **Add DataLoaders** - For relationship fields in `loaders/`
 
 ## Important Notes
 
-- **Package Manager**: Use `pnpm` for all package operations
+- **Package Management**: Use `pnpm` for all operations
+- **Validation**: All inputs validated with Zod schemas via `validateInput()` helper
 - **Testing**: Create official test files for new code (professional approach)
-- **Transactions**: Use for multi-model operations; see `transactions.mdc` for when to use
-- **Authorization**: Admin required for CRUD on official entities; User/Protocol have special rules
-- **Data Loaders**: Always use `ctx.loaders` in type resolvers, never query models directly
-- **Validation**: All inputs must be validated with Zod schemas via `validateInput()`
-
-## Development
-
-- GraphQL Playground: `http://localhost:4000/graphql`
-- Admin REST endpoints: See `src/routes/`
-- Environment config: `src/config/env.ts`
-- MongoDB connection: `src/db/connection.ts`
-
-When implementing new features, follow the layered architecture and refer to the appropriate rule files for patterns and best practices.
+- **Neo4j Dates**: Use `Neo4jDateString` (YYYY-MM-DD) and `Neo4jDateTimeString` (ISO datetime)
+- **User Features**: PostgreSQL/Prisma implementation comes AFTER knowledge graph model services

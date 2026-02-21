@@ -1,0 +1,315 @@
+---
+description: This rule should be applied to anything involving creating the service implementations for the Models, including create, update , delete and connect
+alwaysApply: false
+---
+
+# Neo4j Create/Update Patterns
+
+## Overview
+
+This project uses **UNWIND + CALL clauses** with sub-queries to handle complex relationship creation/updates in Neo4j transactions. This pattern supports nested `create`/`connect`/`update` operations while maintaining transaction safety.
+
+## Pattern Structure
+
+### 1. Main Node MERGE
+
+Start with MERGE on the main node by canonical ID:
+
+```cypher
+MERGE (o:Organization {organizationId: $organizationId})
+ON CREATE SET o.createdAt = datetime()
+
+SET o += {
+  name: CASE WHEN $name IS NULL THEN o.name ELSE $name END,
+  // ... all properties with null-safe updates
+}
+
+WITH o
+```
+
+**Key Points:**
+
+- MERGE by canonical ID first (e.g., `organizationId`)
+- Use `ON CREATE SET createdAt = datetime()` for new nodes
+- Use null-safe CASE expressions for updates (preserve existing values if param is NULL)
+- End with `WITH o` to continue to relationship processing
+
+### 2. Relationship Processing: UNWIND + CALL
+
+Use UNWIND to iterate relationship arrays, then CALL clauses for create/connect branches:
+
+```cypher
+UNWIND coalesce($hasLocation, []) AS rel
+CALL {
+  WITH o, rel
+
+  // ---- CREATE branch ----
+  WITH o, rel
+  WHERE rel.location.create IS NOT NULL
+
+  MERGE (p:PhysicalLocation {
+    locationId: coalesce(rel.location.create.locationId, randomUUID())
+  })
+  ON CREATE SET p.createdAt = datetime()
+
+  SET p += {
+    canonicalName: CASE WHEN rel.location.create.canonicalName IS NULL
+      THEN p.canonicalName ELSE rel.location.create.canonicalName END,
+    // ... all properties with null-safe updates
+  }
+
+  MERGE (o)-[l:HAS_LOCATION]->(p)
+  ON CREATE SET l.createdAt = datetime()
+
+  SET l += {
+    locationRole: CASE WHEN rel.locationRole IS NULL
+      THEN l.locationRole ELSE rel.locationRole END,
+    // ... relationship properties
+  }
+
+  RETURN 1 AS _
+
+  UNION
+
+  // ---- CONNECT branch ----
+  WITH o, rel
+  WHERE rel.location.connect IS NOT NULL
+
+  OPTIONAL MATCH (p:PhysicalLocation {locationId: rel.location.connect.locationId})
+  WITH o, rel, p
+  WHERE p IS NOT NULL
+
+  MERGE (o)-[l:HAS_LOCATION]->(p)
+  ON CREATE SET l.createdAt = datetime()
+
+  SET l += {
+    locationRole: CASE WHEN rel.locationRole IS NULL
+      THEN l.locationRole ELSE rel.locationRole END,
+    // ... relationship properties
+  }
+
+  RETURN 1 AS _
+}
+WITH DISTINCT o
+```
+
+**Key Points:**
+
+- Use `UNWIND coalesce($array, [])` to handle optional relationship arrays
+- Use `CALL { ... }` sub-query for create/connect branches
+- Use `UNION` to combine CREATE and CONNECT branches
+- Each branch must RETURN the same shape (e.g., `RETURN 1 AS _`)
+- Use `WHERE rel.location.create IS NOT NULL` / `WHERE rel.location.connect IS NOT NULL` to filter branches
+- For CONNECT: Use `OPTIONAL MATCH` + `WHERE p IS NOT NULL` to validate existence
+- End with `WITH DISTINCT o` to respect Neo4j's importing WITH rule
+
+### 3. Update Pattern (Connect/Create/Update)
+
+For update operations, add an UPDATE branch:
+
+```cypher
+CALL {
+  WITH o, rel
+
+  // CREATE branch (same as above)
+  ...
+
+  UNION
+
+  // CONNECT branch (same as above)
+  ...
+
+  UNION
+
+  // ---- UPDATE branch ----
+  WITH o, rel
+  WHERE rel.location.update IS NOT NULL
+
+  OPTIONAL MATCH (p:PhysicalLocation {locationId: rel.location.update.locationId})
+  WITH o, rel, p
+  WHERE p IS NOT NULL
+
+  SET p += {
+    canonicalName: CASE WHEN rel.location.update.canonicalName IS NULL
+      THEN p.canonicalName ELSE rel.location.update.canonicalName END,
+    // ... all properties
+  }
+
+  MERGE (o)-[l:HAS_LOCATION]->(p)
+  ON CREATE SET l.createdAt = datetime()
+
+  SET l += {
+    locationRole: CASE WHEN rel.locationRole IS NULL
+      THEN l.locationRole ELSE rel.locationRole END,
+    // ... relationship properties
+  }
+
+  RETURN 1 AS _
+}
+```
+
+**Key Points:**
+
+- Add UPDATE branch with `UNION` after CREATE/CONNECT
+- Use `OPTIONAL MATCH` + `WHERE p IS NOT NULL` to validate node exists
+- Update node properties, then merge relationship
+- Relationship properties can also be updated in the same operation
+
+### 4. Self-Referential Relationships
+
+For self-referential relationships (e.g., `Organization.ownsOrControls`), use the same pattern:
+
+```cypher
+UNWIND coalesce($ownsOrControls, []) AS ocRel
+CALL {
+  WITH o, ocRel
+  WHERE ocRel.organization.create IS NOT NULL
+
+  MERGE (other:Organization {
+    organizationId: coalesce(ocRel.organization.create.organizationId, randomUUID())
+  })
+  ON CREATE SET other.createdAt = datetime()
+
+  SET other += {
+    name: CASE WHEN ocRel.organization.create.name IS NULL
+      THEN other.name ELSE ocRel.organization.create.name END,
+    // ... all Organization properties
+  }
+
+  MERGE (o)-[r:OWNS_OR_CONTROLS]->(other)
+  ON CREATE SET r.createdAt = datetime()
+
+  SET r += {
+    relationshipType: CASE WHEN ocRel.relationshipType IS NULL
+      THEN r.relationshipType ELSE ocRel.relationshipType END,
+    // ... relationship properties
+  }
+
+  RETURN 1 AS _
+}
+WITH DISTINCT o
+```
+
+**Key Points:**
+
+- Same pattern as other relationships
+- MERGE the related node by its canonical ID
+- Then MERGE the relationship
+
+### 5. Complete Transaction Pattern
+
+Full example structure:
+
+```cypher
+MERGE (o:Organization {organizationId: $organizationId})
+ON CREATE SET o.createdAt = datetime()
+
+SET o += { /* node properties */ }
+
+WITH o
+
+// Relationship 1
+UNWIND coalesce($hasLocation, []) AS rel
+CALL { /* CREATE/CONNECT branches */ }
+WITH DISTINCT o
+
+// Relationship 2
+UNWIND coalesce($offersProduct, []) AS prodRel
+CALL { /* CREATE/CONNECT branches */ }
+WITH DISTINCT o
+
+// ... more relationships
+
+RETURN o
+```
+
+**Key Points:**
+
+- Each relationship section uses `WITH DISTINCT o` between sections
+- Final `RETURN o` to return the main node
+- All within a single transaction (via `executeWrite`)
+
+## Service Implementation
+
+Reference: `src/services/Organization/organizationService.ts`
+
+```typescript
+export async function createOrganizationWithOptionalRelations(
+  input: OrganizationInput
+): Promise<Organization> {
+  const validated = validateInput(
+    OrganizationInputSchema,
+    input,
+    "OrganizationInput"
+  );
+
+  const params = {
+    organizationId: validated.organizationId,
+    name: validated.name,
+    // ... all properties
+    hasLocation: validated.hasLocation ?? null,
+    offersProduct: validated.offersProduct ?? null,
+    // ... relationship arrays
+  };
+
+  try {
+    const organization = await executeWrite(async (tx) => {
+      const result = await tx.run(
+        `/* Cypher query with UNWIND + CALL pattern */`,
+        params
+      );
+
+      const record = firstRecordOrNull(result);
+      if (!record) throw new Error("Failed to create Organization");
+
+      const node = record.get("o");
+      return node?.properties ?? node;
+    });
+
+    return organization as Organization;
+  } catch (err) {
+    logger.error(`createOrganizationWithOptionalRelations failed: ${err}`);
+    throw Errors.internalError("Failed to create organization");
+  }
+}
+```
+
+**Key Points:**
+
+- Validate input with Zod schema
+- Pass relationship arrays as params (null if undefined)
+- Use `executeWrite` for transactions
+- Use `firstRecordOrNull` helper to extract result
+- Return node properties
+
+## Neo4j Rules Compliance
+
+**Critical Neo4j Rule:**
+
+> In a CALL subquery, you cannot import variables from the outer query unless they are explicitly listed in the WITH clause before CALL.
+
+**Solution:**
+
+- Always use `WITH o, rel` (or relevant variables) before `CALL { ... }`
+- Inside CALL, start with `WITH o, rel` to import variables
+- Use `WITH DISTINCT o` after CALL to respect importing WITH rule
+
+## Implementation Checklist
+
+When implementing create/update:
+
+1. ✅ MERGE main node by canonical ID
+2. ✅ SET node properties with null-safe CASE expressions
+3. ✅ Use `WITH o` after node MERGE
+4. ✅ For each relationship array:
+   - `UNWIND coalesce($array, []) AS relName`
+   - `CALL { ... }` with CREATE/CONNECT/UPDATE branches
+   - Use `WITH DISTINCT o` after CALL
+5. ✅ Final `RETURN o`
+6. ✅ Wrap in `executeWrite` transaction
+7. ✅ Handle errors appropriately
+
+## Reference Examples
+
+- **Complete Implementation**: `src/services/Organization/organizationService.ts`
+- **Neo4j Query Utils**: `src/db/neo4j/query.ts`

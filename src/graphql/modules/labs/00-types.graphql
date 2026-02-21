@@ -1,0 +1,83 @@
+type LabTest {
+  labTestId: ID!
+  name: String!
+  synonyms: [String!]
+  loincCodes: [String!]
+  cptCodes: [String!]
+  whatItMeasures: String
+  prepRequirements: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+  # Relationships
+  measures: [MeasuresBiomarkerEdge!]
+  usesMethod: [UsesMethodEdge!]
+  requiresSpecimen: [RequiresSpecimenEdge!]
+  usesPlatform: [LabTestUsesPlatformEdge!]
+} 
+
+type PanelDefinition {
+  panelDefinitionId: ID!
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+  # Relationships
+  includesLabTest: [IncludesLabTestEdge!]
+  includesBiomarker: [IncludesBiomarkerEdge!]
+}
+
+type Biomarker {
+  biomarkerId: ID!
+  name: String!
+  synonyms: [String!]
+  description: String
+  clinicalDomains: [String!]
+  unitsCommon: [String!]
+  interpretationNotes: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type MeasurementMethod {
+  methodId: ID!
+  canonicalName: String!
+  methodFamily: String!
+  analyticPrinciple: String
+  typicalCvPercentMin: Float
+  typicalCvPercentMax: Float
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type Specimen {
+  specimenId: ID!
+  canonicalName: String!
+  specimenType: String!
+  matrix: String
+  biologicalDomain: String!
+  collectionContextCategory: String!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+} 
+
+type CompoundForm {
+  compoundFormId: ID!
+  canonicalName: String!
+  formType: String!
+  chemicalDifferences: String
+  stabilityProfile: String
+  solubilityProfile: String
+  bioavailabilityNotes: String
+  regulatoryStatusSummary: String
+}

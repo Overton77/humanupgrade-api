@@ -1,0 +1,93 @@
+input OrganizationFilterInput {
+  orgTypeIn: [OrgType!]
+  businessModelIn: [BusinessModel!]
+
+  regionsServedAny: [String!]
+  primaryIndustryTagsAny: [String!]
+
+  publicTicker: String
+
+  employeeCountMinGte: Int
+  employeeCountMaxLte: Int
+
+  """
+  Optional: if you materialize isActive on the node.
+  If you don't store it yet, ignore this field in resolvers (or treat null as no-op).
+  """
+  isActive: Boolean
+}
+
+
+input OrganizationSortInput {
+  field: OrganizationSortField!
+  direction: SortDirection! = DESC
+}
+
+input OrganizationSearchInput {
+  """
+  Query text. If omitted/empty, FIELD_ONLY mode is usually used.
+  """
+  q: String
+
+  mode: SearchMode = HYBRID
+
+  filter: OrganizationFilterInput
+
+  """
+  Sort is only guaranteed to be respected when mode=FIELD_ONLY or q is empty.
+  Ranked modes (FULLTEXT/VECTOR/HYBRID) primarily sort by score.
+  """
+  sort: OrganizationSortInput
+
+  page: PageInput = { first: 20 }
+
+  """
+  When true, return score reasons (why it matched).
+  Off by default to keep responses small/fast.
+  """
+  explain: Boolean = false
+} 
+
+
+input ProductFilterInput {
+  productDomainIn: [ProductDomain!]
+  riskClassIn: [String!]
+
+  currency: String
+  priceAmountGte: Float
+  priceAmountLte: Float
+
+  # Identifier exact matches
+  brandName: String
+  modelNumber: String
+  ndcCode: String
+  upc: String
+  gtin: String
+
+  isActive: Boolean
+}
+
+
+input ProductSortInput {
+  field: ProductSortField!
+  direction: SortDirection! = DESC
+}
+
+input ProductSearchInput {
+  q: String
+  mode: SearchMode = HYBRID
+
+  filter: ProductFilterInput
+  sort: ProductSortInput
+
+  page: PageInput = { first: 20 }
+  explain: Boolean = false
+} 
+
+input SearchSurfaceInput {
+  searchText: String
+  searchTextEmbedding: [Float!]
+  searchTextModel: String
+  searchTextVersion: String
+  searchTextUpdatedAt: DateTime
+} 

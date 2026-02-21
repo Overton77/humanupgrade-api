@@ -1,0 +1,18 @@
+input PersonConnectInput {
+  personId: ID!
+}
+
+input PersonInput {
+  personId: ID
+  canonicalName: String!
+  aliases: [String!]
+  validAt: DateTime
+  expiredAt: DateTime
+  invalidAt: DateTime
+  createdAt: DateTime
+}
+
+input PersonRelateInput {
+  create: PersonInput
+  connect: PersonConnectInput
+}

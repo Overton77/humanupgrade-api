@@ -1,0 +1,12 @@
+input PageInput {
+  first: Int! = 20
+  after: String
+}
+
+"""
+Standard page info for cursor pagination.
+"""
+type PageInfo {
+  hasNextPage: Boolean!
+  endCursor: String
+}
