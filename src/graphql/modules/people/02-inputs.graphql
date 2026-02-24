@@ -2,17 +2,120 @@ input PersonConnectInput {
   personId: ID!
 }
 
+# ============================================================================
+# Person ↔ Media Edge Inputs
+# ============================================================================
+
+input PersonHasRoleOnChannelEdgeInput {
+  channel: ChannelRelateUpsertInput!
+  role: ChannelRole
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  typicalAppearance: TypicalAppearance
+  confidence: Float
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input PersonAppearsInEpisodeEdgeInput {
+  episode: EpisodeRelateUpsertInput!
+  appearanceRole: AppearanceRole
+  billingOrder: Int
+  confidence: Float
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
 input PersonInput {
   personId: ID
   canonicalName: String!
+  givenName: String
+  familyName: String
+  middleName: String
+  suffix: String
+  honorific: String
   aliases: [String!]
+  bio: String
+  primaryLanguage: String
+  primaryDomain: String
+  specialties: [String!]
+  expertiseTags: [String!]
+  affiliationSummary: String
+  degrees: [String!]
+  credentialIds: [String!]
+  orcid: String
+  npi: String
+  licenseIds: [String!]
+  websiteUrl: String
+  email: String
+  socialProfiles: [String!]
+  linkedinUrl: String
+  twitterUrl: String
+  githubUrl: String
+  scholarUrl: String
+  headshotUrl: String
+  publicFigure: Boolean
+  notabilityNotes: String
   validAt: DateTime
-  expiredAt: DateTime
   invalidAt: DateTime
+  expiredAt: DateTime
   createdAt: DateTime
+  searchText: String
+  hasRoleOnChannel: [PersonHasRoleOnChannelEdgeInput!]
+  appearsInEpisode: [PersonAppearsInEpisodeEdgeInput!]
+}
+
+input PersonUpdateInput {
+  personId: ID
+  canonicalName: String
+  givenName: String
+  familyName: String
+  middleName: String
+  suffix: String
+  honorific: String
+  aliases: [String!]
+  bio: String
+  primaryLanguage: String
+  primaryDomain: String
+  specialties: [String!]
+  expertiseTags: [String!]
+  affiliationSummary: String
+  degrees: [String!]
+  credentialIds: [String!]
+  orcid: String
+  npi: String
+  licenseIds: [String!]
+  websiteUrl: String
+  email: String
+  socialProfiles: [String!]
+  linkedinUrl: String
+  twitterUrl: String
+  githubUrl: String
+  scholarUrl: String
+  headshotUrl: String
+  publicFigure: Boolean
+  notabilityNotes: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  searchText: String
+  hasRoleOnChannel: [PersonHasRoleOnChannelEdgeInput!]
+  appearsInEpisode: [PersonAppearsInEpisodeEdgeInput!]
 }
 
 input PersonRelateInput {
   create: PersonInput
   connect: PersonConnectInput
+}
+
+input PersonRelateUpdateInput {
+  create: PersonInput
+  connect: PersonConnectInput
+  update: PersonUpdateInput
 }

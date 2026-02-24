@@ -1,0 +1,7 @@
+extend type Mutation {
+  upsertPlatform(input: UpsertPlatformInput!): Platform!
+  upsertChannel(input: UpsertChannelInput!): Channel!
+  upsertSeries(input: UpsertSeriesInput!): Series!
+  upsertEpisode(input: UpsertEpisodeInput!): Episode!
+  upsertEpisodeSegments(input: UpsertEpisodeSegmentsInput!): Episode!
+}

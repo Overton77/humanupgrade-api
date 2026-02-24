@@ -1,0 +1,119 @@
+# ============================================================================
+# Platform Graph
+# ============================================================================
+
+type PlatformHostsChannelEdge {
+  channel: Channel!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type ChannelOnPlatformEdge {
+  platform: Platform!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+# ============================================================================
+# Channel ↔ Series ↔ Episode
+# ============================================================================
+
+type ChannelHasSeriesEdge {
+  series: Series!
+  orderIndex: Int
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type SeriesInChannelEdge {
+  channel: Channel!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type ChannelHasEpisodeEdge {
+  episode: Episode!
+  publishedAt: DateTime
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type SeriesIncludesEpisodeEdge {
+  episode: Episode!
+  orderIndex: Int
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type EpisodeInChannelEdge {
+  channel: Channel!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type EpisodeInSeriesEdge {
+  series: Series!
+  orderIndex: Int
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type EpisodeOnPlatformEdge {
+  platform: Platform!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+# ============================================================================
+# Episode Segments
+# ============================================================================
+
+type EpisodeHasSegmentEdge {
+  segment: EpisodeSegment!
+  orderIndex: Int
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type EpisodeSegmentInEpisodeEdge {
+  episode: Episode!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+# ============================================================================
+# Transcripts (Episode -> Document)
+# ============================================================================
+
+type EpisodeHasTranscriptEdge {
+  document: Document!
+  role: TranscriptRole
+  rank: Int
+  updatedAt: DateTime
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}

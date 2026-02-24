@@ -69,7 +69,7 @@ input ListingConnectInput {
 input ListsRelationshipInput {
   listing: ListingRelateInput!
   listRole: ListRole!
-  channel: Channel
+  channel: DistributionChannel
   regionsOverrides: [String!]
   collectionModesOverrides: [String!]
   availabilityNotes: String
@@ -134,7 +134,7 @@ input ProductUpdateInput {
 input ListsRelationshipUpdateInput {
   listing: ListingRelateUpdateInput!
   listRole: ListRole
-  channel: Channel
+  channel: DistributionChannel
   regionsOverrides: [String!]
   collectionModesOverrides: [String!]
   availabilityNotes: String

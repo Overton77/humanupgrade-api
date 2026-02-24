@@ -52,7 +52,7 @@ async function startServer() {
     cors<cors.CorsRequest>({
       origin: env.webOrigin,
       credentials: true,
-    })
+    }),
   );
 
   app.use(cookieParser());
@@ -82,7 +82,7 @@ async function startServer() {
         });
       },
     },
-    wsServer
+    wsServer,
   );
 
   // Create Apollo Server with error formatting
@@ -134,23 +134,23 @@ async function startServer() {
             ip: ctx.ip,
             method: req.method,
             path: req.path,
-          }
+          },
         );
 
         return ctx;
       },
-    })
+    }),
   );
 
   httpServer.listen(env.port, () => {
     logger.info(
-      `🚀 GraphQL server ready at http://localhost:${env.port}/graphql`
+      `🚀 GraphQL server ready at http://localhost:${env.port}/graphql`,
     );
     logger.info(
-      `🔌 WebSocket subscriptions ready at ws://localhost:${env.port}/graphql`
+      `🔌 WebSocket subscriptions ready at ws://localhost:${env.port}/graphql`,
     );
     logger.info(
-      `🎮 Apollo Sandbox available at http://localhost:${env.port}/graphql`
+      `🎮 Apollo Sandbox available at http://localhost:${env.port}/graphql`,
     );
   });
 }

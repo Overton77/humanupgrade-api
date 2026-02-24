@@ -50,6 +50,12 @@ type Organization {
   performsManufacturingProcess: [PerformsManufacturingProcessEdge!]
   developsPlatform: [DevelopsPlatformEdge!]
   usesPlatform: [UsesPlatformEdge!]
+  # Organization -> Person relationships
+  employs: [EmploysEdge!]
+  foundedBy: [FoundedByEdge!]
+  hasBoardMember: [HasBoardMemberEdge!]
+  hasScientificAdvisor: [HasScientificAdvisorEdge!]
+  hasExecutiveRole: [HasExecutiveRoleEdge!]
 } 
 
 

@@ -87,6 +87,11 @@ export async function updateOrganizationWithOptionalRelations(
     performsManufacturingProcess: validated.performsManufacturingProcess ?? [],
     developsPlatform: validated.developsPlatform ?? [],
     usesPlatform: validated.usesPlatform ?? [],
+    employs: validated.employs ?? [],
+    foundedBy: validated.foundedBy ?? [],
+    hasBoardMember: validated.hasBoardMember ?? [],
+    hasScientificAdvisor: validated.hasScientificAdvisor ?? [],
+    hasExecutiveRole: validated.hasExecutiveRole ?? [],
   }; 
 
   const {key, value} = resolveOrgIdentifier(params);   
@@ -258,6 +263,36 @@ export async function updateOrganizationWithOptionalRelations(
           nextParams
         );
       }
+      if (params.employs.length) {
+        await tx.run(
+          updateOrganizationStatements.updateOrganizationEmploysCypher,
+          nextParams
+        );
+      }
+      if (params.foundedBy.length) {
+        await tx.run(
+          updateOrganizationStatements.updateOrganizationFoundedByCypher,
+          nextParams
+        );
+      }
+      if (params.hasBoardMember.length) {
+        await tx.run(
+          updateOrganizationStatements.updateOrganizationHasBoardMemberCypher,
+          nextParams
+        );
+      }
+      if (params.hasScientificAdvisor.length) {
+        await tx.run(
+          updateOrganizationStatements.updateOrganizationHasScientificAdvisorCypher,
+          nextParams
+        );
+      }
+      if (params.hasExecutiveRole.length) {
+        await tx.run(
+          updateOrganizationStatements.updateOrganizationHasExecutiveRoleCypher,
+          nextParams
+        );
+      }
 
       // ------------------------------------------------------------
       // 14) Return updated org
@@ -349,6 +384,11 @@ export async function createOrganizationWithOptionalRelations(
     performsManufacturingProcess: validated.performsManufacturingProcess ?? [],
     developsPlatform: validated.developsPlatform ?? [],
     usesPlatform: validated.usesPlatform ?? [],
+    employs: validated.employs ?? [],
+    foundedBy: validated.foundedBy ?? [],
+    hasBoardMember: validated.hasBoardMember ?? [],
+    hasScientificAdvisor: validated.hasScientificAdvisor ?? [],
+    hasExecutiveRole: validated.hasExecutiveRole ?? [],
   };
 
   const {
@@ -366,6 +406,11 @@ export async function createOrganizationWithOptionalRelations(
     organizationPerformsManufacturingProcessCypher,
     organizationDevelopsPlatformCypher,
     organizationUsesPlatformCypher,
+    organizationEmploysCypher,
+    organizationFoundedByCypher,
+    organizationHasBoardMemberCypher,
+    organizationHasScientificAdvisorCypher,
+    organizationHasExecutiveRoleCypher,
     returnOrganizationsCypher,
   } = createOrganizationStatements; 
 
@@ -438,6 +483,21 @@ export async function createOrganizationWithOptionalRelations(
       }
       if (params.usesPlatform.length) {
         await tx.run(organizationUsesPlatformCypher, nextParams);
+      }
+      if (params.employs.length) {
+        await tx.run(organizationEmploysCypher, nextParams);
+      }
+      if (params.foundedBy.length) {
+        await tx.run(organizationFoundedByCypher, nextParams);
+      }
+      if (params.hasBoardMember.length) {
+        await tx.run(organizationHasBoardMemberCypher, nextParams);
+      }
+      if (params.hasScientificAdvisor.length) {
+        await tx.run(organizationHasScientificAdvisorCypher, nextParams);
+      }
+      if (params.hasExecutiveRole.length) {
+        await tx.run(organizationHasExecutiveRoleCypher, nextParams);
       }
 
       // 3) Return org at end

@@ -1,0 +1,28 @@
+# ============================================================================
+# Person ↔ Media Edges
+# ============================================================================
+
+type PersonHasRoleOnChannelEdge {
+  channel: Channel!
+  role: ChannelRole!
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  typicalAppearance: TypicalAppearance
+  confidence: Float
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type PersonAppearsInEpisodeEdge {
+  episode: Episode!
+  appearanceRole: AppearanceRole!
+  billingOrder: Int
+  confidence: Float
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}

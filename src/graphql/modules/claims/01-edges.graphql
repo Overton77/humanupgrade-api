@@ -1,0 +1,31 @@
+# ============================================================================
+# ClaimOccurrence Edges
+# ============================================================================
+
+type ClaimOccurrenceOccursInEdge {
+  episode: Episode!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type ClaimOccurrenceOccursInSegmentEdge {
+  segment: EpisodeSegment!
+  startTimeSec: Int
+  endTimeSec: Int
+  confidence: Float
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type ClaimOccurrenceUtteredByEdge {
+  person: Person!
+  confidence: Float
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}

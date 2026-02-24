@@ -3,7 +3,7 @@ import {
   OrgTypeEnum,
   BusinessModelEnum,
   ListRoleEnum,
-  ChannelEnum,
+  DistributionChannelEnum,
   RelationshipRoleEnum,
   UsageContextEnum,
   SourceEnum,
@@ -26,6 +26,9 @@ import { ManufacturingProcessRelateInputSchema } from "./ManufacturingProcessInp
 import { ManufacturingProcessRelateUpdateInputSchema } from "./ManufacturingProcessInputs.js";
 import { TechnologyPlatformRelateInputSchema } from "./TechnologyPlatformInputs.js";
 import { TechnologyPlatformRelateUpdateInputSchema } from "./TechnologyPlatformInputs.js";
+import { PersonRelateInputSchema } from "./PersonInputs.js";
+import { PersonRelateUpdateInputSchema } from "./PersonInputs.js"; 
+// TODO: Add Media inputs to Organization for Series and Episode I think PUBLISHES_SERIES AND SPONSORS_EPISODE 
 
 // PhysicalLocationUpdateInput
 
@@ -125,7 +128,7 @@ export type OwnsOrControlsRelationshipInput = z.infer<
 export const ListsRelationshipInputSchema = TemporalValidityInputSchema.extend({
   listing: ListingRelateInputSchema,
   listRole: ListRoleEnum,
-  channel: ChannelEnum.nullable().optional(),
+  channel: DistributionChannelEnum.nullable().optional(),
   regionsOverrides: z.array(z.string()).nullable().optional(),
   collectionModesOverrides: z.array(z.string()).nullable().optional(),
   availabilityNotes: z.string().nullable().optional(),
@@ -136,7 +139,7 @@ export const ListsRelationshipUpdateInputSchema =
   TemporalValidityInputSchema.extend({
     listing: ListingRelateUpdateInputSchema,
     listRole: ListRoleEnum.optional(),
-    channel: ChannelEnum.nullable().optional(),
+    channel: DistributionChannelEnum.nullable().optional(),
     regionsOverrides: z.array(z.string()).nullable().optional(),
     collectionModesOverrides: z.array(z.string()).nullable().optional(),
     availabilityNotes: z.string().nullable().optional(),
@@ -336,6 +339,143 @@ export type UsesPlatformRelationshipInput = z.infer<
 >;
 
 // ============================================================================
+// Organization -> Person Relationship Input Schemas
+// ============================================================================
+
+// EmploysRelationshipInput (Create/Connect) - employees, contractors, team members
+export const EmploysRelationshipInputSchema =
+  TemporalValidityInputSchema.extend({
+    person: PersonRelateInputSchema,
+    roleTitle: z.string().nullable().optional(),
+    department: z.string().nullable().optional(),
+    roleFunction: z.string().nullable().optional(),
+    seniority: z.string().nullable().optional(),
+    employmentType: z.string().nullable().optional(),
+    startDate: Neo4jDateTimeString.optional(),
+    endDate: Neo4jDateTimeString.optional(),
+    isCurrent: z.boolean().nullable().optional(),
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export const EmploysRelationshipUpdateInputSchema =
+  TemporalValidityInputSchema.extend({
+    person: PersonRelateUpdateInputSchema,
+    roleTitle: z.string().nullable().optional(),
+    department: z.string().nullable().optional(),
+    roleFunction: z.string().nullable().optional(),
+    seniority: z.string().nullable().optional(),
+    employmentType: z.string().nullable().optional(),
+    startDate: Neo4jDateTimeString.optional(),
+    endDate: Neo4jDateTimeString.optional(),
+    isCurrent: z.boolean().nullable().optional(),
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export type EmploysRelationshipInput = z.infer<
+  typeof EmploysRelationshipInputSchema
+>;
+
+// FoundedByRelationshipInput (Create/Connect) - founders, co-founders, scientific founders
+export const FoundedByRelationshipInputSchema =
+  TemporalValidityInputSchema.extend({
+    person: PersonRelateInputSchema,
+    founderRole: z.string().nullable().optional(),
+    foundingDate: Neo4jDateTimeString.optional(),
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export const FoundedByRelationshipUpdateInputSchema =
+  TemporalValidityInputSchema.extend({
+    person: PersonRelateUpdateInputSchema,
+    founderRole: z.string().nullable().optional(),
+    foundingDate: Neo4jDateTimeString.optional(),
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export type FoundedByRelationshipInput = z.infer<
+  typeof FoundedByRelationshipInputSchema
+>;
+
+// HasBoardMemberRelationshipInput (Create/Connect) - board members, trustees, observers
+export const HasBoardMemberRelationshipInputSchema =
+  TemporalValidityInputSchema.extend({
+    person: PersonRelateInputSchema,
+    boardRole: z.string().nullable().optional(),
+    committee: z.string().nullable().optional(),
+    startDate: Neo4jDateTimeString.optional(),
+    endDate: Neo4jDateTimeString.optional(),
+    isCurrent: z.boolean().nullable().optional(),
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export const HasBoardMemberRelationshipUpdateInputSchema =
+  TemporalValidityInputSchema.extend({
+    person: PersonRelateUpdateInputSchema,
+    boardRole: z.string().nullable().optional(),
+    committee: z.string().nullable().optional(),
+    startDate: Neo4jDateTimeString.optional(),
+    endDate: Neo4jDateTimeString.optional(),
+    isCurrent: z.boolean().nullable().optional(),
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export type HasBoardMemberRelationshipInput = z.infer<
+  typeof HasBoardMemberRelationshipInputSchema
+>;
+
+// HasScientificAdvisorRelationshipInput (Create/Connect) - SAB, KOL, clinical advisors
+export const HasScientificAdvisorRelationshipInputSchema =
+  TemporalValidityInputSchema.extend({
+    person: PersonRelateInputSchema,
+    advisorType: z.string().nullable().optional(),
+    focusAreas: z.array(z.string()).nullable().optional(),
+    startDate: Neo4jDateTimeString.optional(),
+    endDate: Neo4jDateTimeString.optional(),
+    isCurrent: z.boolean().nullable().optional(),
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export const HasScientificAdvisorRelationshipUpdateInputSchema =
+  TemporalValidityInputSchema.extend({
+    person: PersonRelateUpdateInputSchema,
+    advisorType: z.string().nullable().optional(),
+    focusAreas: z.array(z.string()).nullable().optional(),
+    startDate: Neo4jDateTimeString.optional(),
+    endDate: Neo4jDateTimeString.optional(),
+    isCurrent: z.boolean().nullable().optional(),
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export type HasScientificAdvisorRelationshipInput = z.infer<
+  typeof HasScientificAdvisorRelationshipInputSchema
+>;
+
+// HasExecutiveRoleRelationshipInput (Create/Connect) - exec roles (CEO, CSO, CMO)
+export const HasExecutiveRoleRelationshipInputSchema =
+  TemporalValidityInputSchema.extend({
+    person: PersonRelateInputSchema,
+    executiveRole: z.string().nullable().optional(),
+    startDate: Neo4jDateTimeString.optional(),
+    endDate: Neo4jDateTimeString.optional(),
+    isCurrent: z.boolean().nullable().optional(),
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export const HasExecutiveRoleRelationshipUpdateInputSchema =
+  TemporalValidityInputSchema.extend({
+    person: PersonRelateUpdateInputSchema,
+    executiveRole: z.string().nullable().optional(),
+    startDate: Neo4jDateTimeString.optional(),
+    endDate: Neo4jDateTimeString.optional(),
+    isCurrent: z.boolean().nullable().optional(),
+    claimIds: z.array(z.string()).optional(),
+  });
+
+export type HasExecutiveRoleRelationshipInput = z.infer<
+  typeof HasExecutiveRoleRelationshipInputSchema
+>;
+
+// ============================================================================
 // Organization Input Schema
 // ============================================================================
 
@@ -410,6 +550,14 @@ export const OrganizationInputSchema: z.ZodType<any> = z.object({
     .optional(),
   developsPlatform: z.array(DevelopsPlatformRelationshipInputSchema).optional(),
   usesPlatform: z.array(UsesPlatformRelationshipInputSchema).optional(),
+  // Organization -> Person relationships
+  employs: z.array(EmploysRelationshipInputSchema).optional(),
+  foundedBy: z.array(FoundedByRelationshipInputSchema).optional(),
+  hasBoardMember: z.array(HasBoardMemberRelationshipInputSchema).optional(),
+  hasScientificAdvisor: z
+    .array(HasScientificAdvisorRelationshipInputSchema)
+    .optional(),
+  hasExecutiveRole: z.array(HasExecutiveRoleRelationshipInputSchema).optional(),
 });
 
 export type OrganizationInput = z.infer<typeof OrganizationInputSchema>;
@@ -493,6 +641,18 @@ export const UpdateOrganizationInputSchema: z.ZodType<any> = z.object({
     .array(DevelopsPlatformRelationshipUpdateInputSchema)
     .optional(),
   usesPlatform: z.array(UsesPlatformRelationshipUpdateInputSchema).optional(),
+  // Organization -> Person relationships (update versions)
+  employs: z.array(EmploysRelationshipUpdateInputSchema).optional(),
+  foundedBy: z.array(FoundedByRelationshipUpdateInputSchema).optional(),
+  hasBoardMember: z
+    .array(HasBoardMemberRelationshipUpdateInputSchema)
+    .optional(),
+  hasScientificAdvisor: z
+    .array(HasScientificAdvisorRelationshipUpdateInputSchema)
+    .optional(),
+  hasExecutiveRole: z
+    .array(HasExecutiveRoleRelationshipUpdateInputSchema)
+    .optional(),
 });
 
 export type UpdateOrganizationInput = z.infer<

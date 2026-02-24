@@ -90,7 +90,7 @@ enum ListRole {
   OTHER
 }
 
-enum Channel {
+enum DistributionChannel {
   ONLINE
   IN_PERSON
   PHONE
@@ -560,5 +560,128 @@ enum EmbeddingJobStatus {
   COMPLETE
   SKIPPED
   FAILED
+}
+
+# ============================================================================
+# Media (Platform, Channel, Series, Episode, ClaimOccurrence) Enums
+# ============================================================================
+
+enum MediaPlatformType {
+  video
+  podcast
+  blog
+  social
+  newsletter
+  aggregator
+  other
+}
+
+enum MediaSeriesType {
+  podcast_series
+  youtube_playlist
+  lecture_series
+  course_series
+  other
+}
+
+enum ClaimOccurrenceSourceType {
+  transcript
+  captions
+  description
+  show_notes
+  webpage
+  manual
+  other
+}
+
+enum ClaimOccurrenceExtractionMethod {
+  llm
+  rules
+  human
+  hybrid
+  other
+}
+
+enum TranscriptRole {
+  full_transcript
+  captions
+  partial
+  auto_generated
+  human_verified
+  other
+}
+
+enum AppearanceRole {
+  host
+  co_host
+  guest
+  panelist
+  interviewer
+  interviewee
+  narrator
+  expert
+  caller
+  other
+}
+
+enum ChannelRole {
+  host
+  co_host
+  creator
+  producer
+  editor
+  contributor
+  narrator
+  guest_host
+  other
+}
+
+enum TypicalAppearance {
+  on_camera
+  voice
+  behind_scenes
+}
+
+enum SponsorshipChannelType {
+  exclusive
+  primary
+  segment_sponsor
+  affiliate
+  paid_placement
+  owned_media
+  unknown
+}
+
+enum SponsorshipEpisodeType {
+  title_sponsor
+  midroll
+  preroll
+  segment_sponsor
+  affiliate
+  paid_placement
+  unknown
+}
+
+enum AdReadBy {
+  host
+  guest
+  announcer
+  unknown
+}
+
+enum SponsorshipSourceType {
+  dataset
+  description_text
+  transcript
+  manual
+  other
+}
+
+enum SeriesPublishRole {
+  publisher
+  distributor
+  network
+  production_company
+  other
 }
  

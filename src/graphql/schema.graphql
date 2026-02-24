@@ -103,7 +103,7 @@ enum ListRole {
   OTHER
 }
 
-enum Channel {
+enum DistributionChannel {
   ONLINE
   IN_PERSON
   PHONE
@@ -574,6 +574,129 @@ enum EmbeddingJobStatus {
   SKIPPED
   FAILED
 }
+
+# ============================================================================
+# Media (Platform, Channel, Series, Episode, ClaimOccurrence) Enums
+# ============================================================================
+
+enum MediaPlatformType {
+  video
+  podcast
+  blog
+  social
+  newsletter
+  aggregator
+  other
+}
+
+enum MediaSeriesType {
+  podcast_series
+  youtube_playlist
+  lecture_series
+  course_series
+  other
+}
+
+enum ClaimOccurrenceSourceType {
+  transcript
+  captions
+  description
+  show_notes
+  webpage
+  manual
+  other
+}
+
+enum ClaimOccurrenceExtractionMethod {
+  llm
+  rules
+  human
+  hybrid
+  other
+}
+
+enum TranscriptRole {
+  full_transcript
+  captions
+  partial
+  auto_generated
+  human_verified
+  other
+}
+
+enum AppearanceRole {
+  host
+  co_host
+  guest
+  panelist
+  interviewer
+  interviewee
+  narrator
+  expert
+  caller
+  other
+}
+
+enum ChannelRole {
+  host
+  co_host
+  creator
+  producer
+  editor
+  contributor
+  narrator
+  guest_host
+  other
+}
+
+enum TypicalAppearance {
+  on_camera
+  voice
+  behind_scenes
+}
+
+enum SponsorshipChannelType {
+  exclusive
+  primary
+  segment_sponsor
+  affiliate
+  paid_placement
+  owned_media
+  unknown
+}
+
+enum SponsorshipEpisodeType {
+  title_sponsor
+  midroll
+  preroll
+  segment_sponsor
+  affiliate
+  paid_placement
+  unknown
+}
+
+enum AdReadBy {
+  host
+  guest
+  announcer
+  unknown
+}
+
+enum SponsorshipSourceType {
+  dataset
+  description_text
+  transcript
+  manual
+  other
+}
+
+enum SeriesPublishRole {
+  publisher
+  distributor
+  network
+  production_company
+  other
+}
 # ===== END: _shared/01-enums.graphql =====
 
 # ===== BEGIN: _shared/02-directives.graphql =====
@@ -625,6 +748,79 @@ type Query
 type Mutation
 type Subscription
 # ===== END: roots/01-roots.graphql =====
+
+# ===== BEGIN: claims/00-types.graphql =====
+# ============================================================================
+# ClaimOccurrence (instance of a claim in episode/segment)
+# ============================================================================
+
+type ClaimOccurrence {
+  claimOccurrenceId: ID!
+  canonicalText: String!
+  normalizedText: String
+  occurrenceKey: String
+  confidence: Float
+  startTimeSec: Int
+  endTimeSec: Int
+  startChar: Int
+  endChar: Int
+  language: String
+  sourceType: ClaimOccurrenceSourceType
+  extractionMethod: ClaimOccurrenceExtractionMethod
+  searchText: String
+  embedding: [Float!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+  occursIn: [ClaimOccurrenceOccursInEdge!]
+  occursInSegment: [ClaimOccurrenceOccursInSegmentEdge!]
+  utteredBy: [ClaimOccurrenceUtteredByEdge!]
+}
+# ===== END: claims/00-types.graphql =====
+
+# ===== BEGIN: claims/01-edges.graphql =====
+# ============================================================================
+# ClaimOccurrence Edges
+# ============================================================================
+
+type ClaimOccurrenceOccursInEdge {
+  episode: Episode!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type ClaimOccurrenceOccursInSegmentEdge {
+  segment: EpisodeSegment!
+  startTimeSec: Int
+  endTimeSec: Int
+  confidence: Float
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type ClaimOccurrenceUtteredByEdge {
+  person: Person!
+  confidence: Float
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+# ===== END: claims/01-edges.graphql =====
+
+# ===== BEGIN: claims/02-inputs.graphql =====
+
+# ===== END: claims/02-inputs.graphql =====
+
+# ===== BEGIN: claims/03-operations.graphql =====
+
+# ===== END: claims/03-operations.graphql =====
 
 # ===== BEGIN: ingestion/00-types.graphql =====
 type ResearchPlanRef {
@@ -1914,6 +2110,625 @@ extend type Mutation {
 }
 # ===== END: labs/03-operations.graphql =====
 
+# ===== BEGIN: media/00-types.graphql =====
+# ============================================================================
+# Platform (Media distribution: YouTube, Spotify, etc.)
+# ============================================================================
+
+type Platform {
+  platformId: ID!
+  canonicalName: String!
+  aliases: [String!]
+  platformType: MediaPlatformType!
+  description: String
+  websiteUrl: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+  hostsChannel: [PlatformHostsChannelEdge!]
+}
+
+# ============================================================================
+# Channel (publisher identity on a platform — e.g. YouTube channel, podcast feed)
+# ============================================================================
+
+type Channel {
+  channelId: ID!
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  channelHandle: String
+  platformChannelId: String
+  webPageUrl: String
+  rssUrl: String
+  imageUrl: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+  onPlatform: [ChannelOnPlatformEdge!]
+  hasSeries: [ChannelHasSeriesEdge!]
+  hasEpisode: [ChannelHasEpisodeEdge!]
+}
+
+# ============================================================================
+# Series (show / playlist / feed grouping under a channel)
+# ============================================================================
+
+type Series {
+  seriesId: ID!
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  seriesType: MediaSeriesType!
+  webPageUrl: String
+  imageUrl: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+  inChannel: [SeriesInChannelEdge!]
+  includesEpisode: [SeriesIncludesEpisodeEdge!]
+}
+
+# ============================================================================
+# Episode (single published media item)
+# ============================================================================
+
+type Episode {
+  episodeId: ID!
+  canonicalName: String!
+  description: String
+  publishedAt: DateTime
+  durationSec: Int
+  language: String
+  s3TranscriptUrl: String
+  transcriptUrl: String
+  webPageUrl: String
+  webPageSummary: String
+  searchText: String
+  embedding: [Float!]
+  youtubeUrl: String
+  youtubeWatchUrl: String
+  youtubeEmbedUrl: String
+  socialUrlsJson: String
+  timestampsJson: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+  hasSegment: [EpisodeHasSegmentEdge!]
+  inChannel: [EpisodeInChannelEdge!]
+  inSeries: [EpisodeInSeriesEdge!]
+  onPlatform: [EpisodeOnPlatformEdge!]
+  hasTranscript: [EpisodeHasTranscriptEdge!]
+}
+
+# ============================================================================
+# EpisodeSegment (timestamp-anchored segment within an episode)
+# ============================================================================
+
+type EpisodeSegment {
+  episodeSegmentId: ID!
+  canonicalName: String!
+  description: String
+  orderIndex: Int
+  startTimeSec: Int
+  endTimeSec: Int
+  timeRangeJson: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+  inEpisode: [EpisodeSegmentInEpisodeEdge!]
+}
+# ===== END: media/00-types.graphql =====
+
+# ===== BEGIN: media/01-edges.graphql =====
+# ============================================================================
+# Platform Graph
+# ============================================================================
+
+type PlatformHostsChannelEdge {
+  channel: Channel!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type ChannelOnPlatformEdge {
+  platform: Platform!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+# ============================================================================
+# Channel ↔ Series ↔ Episode
+# ============================================================================
+
+type ChannelHasSeriesEdge {
+  series: Series!
+  orderIndex: Int
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type SeriesInChannelEdge {
+  channel: Channel!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type ChannelHasEpisodeEdge {
+  episode: Episode!
+  publishedAt: DateTime
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type SeriesIncludesEpisodeEdge {
+  episode: Episode!
+  orderIndex: Int
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type EpisodeInChannelEdge {
+  channel: Channel!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type EpisodeInSeriesEdge {
+  series: Series!
+  orderIndex: Int
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type EpisodeOnPlatformEdge {
+  platform: Platform!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+# ============================================================================
+# Episode Segments
+# ============================================================================
+
+type EpisodeHasSegmentEdge {
+  segment: EpisodeSegment!
+  orderIndex: Int
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+type EpisodeSegmentInEpisodeEdge {
+  episode: Episode!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+# ============================================================================
+# Transcripts (Episode -> Document)
+# ============================================================================
+
+type EpisodeHasTranscriptEdge {
+  document: Document!
+  role: TranscriptRole
+  rank: Int
+  updatedAt: DateTime
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+# ===== END: media/01-edges.graphql =====
+
+# ===== BEGIN: media/02-inputs.graphql =====
+# ============================================================================
+# Platform Inputs
+# ============================================================================
+
+input PlatformInput {
+  platformId: String
+  canonicalName: String!
+  aliases: [String!]
+  platformType: MediaPlatformType!
+  description: String
+  websiteUrl: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+}
+
+input PlatformConnectInput {
+  platformId: ID!
+}
+
+input PlatformConnectByKeyInput {
+  canonicalName: String!
+}
+
+input PlatformRelateUpsertInput {
+  connect: PlatformConnectInput
+  connectByKey: PlatformConnectByKeyInput
+  upsert: PlatformInput
+}
+
+# ============================================================================
+# Series Inputs
+# ============================================================================
+
+input SeriesInput {
+  seriesId: String
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  seriesType: MediaSeriesType!
+  webPageUrl: String
+  imageUrl: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+}
+
+input SeriesConnectInput {
+  seriesId: ID!
+}
+
+input SeriesConnectByKeyInput {
+  channelId: String!
+  canonicalName: String!
+}
+
+input SeriesRelateUpsertInput {
+  connect: SeriesConnectInput
+  connectByKey: SeriesConnectByKeyInput
+  upsert: SeriesInput
+}
+
+# ============================================================================
+# EpisodeSegment Inputs
+# ============================================================================
+
+input EpisodeSegmentInput {
+  episodeSegmentId: String
+  canonicalName: String!
+  description: String
+  orderIndex: Int
+  startTimeSec: Int
+  endTimeSec: Int
+  timeRangeJson: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+}
+
+input EpisodeSegmentConnectInput {
+  episodeSegmentId: ID!
+}
+
+input EpisodeSegmentConnectByKeyInput {
+  episodeId: String!
+  orderIndex: Int!
+}
+
+input EpisodeSegmentRelateUpsertInput {
+  connect: EpisodeSegmentConnectInput
+  connectByKey: EpisodeSegmentConnectByKeyInput
+  upsert: EpisodeSegmentInput
+}
+
+# ============================================================================
+# Channel Inputs
+# ============================================================================
+
+input ChannelInput {
+  channelId: String
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  channelHandle: String
+  platformChannelId: String
+  webPageUrl: String
+  rssUrl: String
+  imageUrl: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  onPlatform: [PlatformHostsChannelEdgeInput!]
+  hasSeries: [ChannelHasSeriesEdgeInput!]
+  hasEpisode: [ChannelHasEpisodeEdgeInput!]
+}
+
+input ChannelConnectInput {
+  channelId: ID!
+}
+
+input ChannelConnectByKeyInput {
+  platformId: String!
+  platformChannelId: String
+  channelHandle: String
+}
+
+input ChannelRelateUpsertInput {
+  connect: ChannelConnectInput
+  connectByKey: ChannelConnectByKeyInput
+  upsert: ChannelInput
+}
+
+# ============================================================================
+# Channel Edge Inputs
+# ============================================================================
+
+input PlatformHostsChannelEdgeInput {
+  channel: ChannelRelateUpsertInput!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input PlatformOnChannelEdgeInput {
+  platform: PlatformRelateUpsertInput!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ChannelHasSeriesEdgeInput {
+  series: SeriesRelateUpsertInput!
+  orderIndex: Int
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ChannelHasEpisodeEdgeInput {
+  episode: EpisodeRelateUpsertInput!
+  publishedAt: DateTime
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+# ============================================================================
+# Episode Inputs
+# ============================================================================
+
+input EpisodeInput {
+  episodeId: String
+  canonicalName: String!
+  description: String
+  publishedAt: DateTime
+  durationSec: Int
+  language: String
+  s3TranscriptUrl: String
+  transcriptUrl: String
+  webPageUrl: String
+  webPageSummary: String
+  searchText: String
+  embedding: String
+  youtubeUrl: String
+  youtubeWatchUrl: String
+  youtubeEmbedUrl: String
+  socialUrlsJson: String
+  timestampsJson: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  inChannel: [EpisodeInChannelEdgeInput!]
+  inSeries: [EpisodeInSeriesEdgeInput!]
+  onPlatform: [EpisodeOnPlatformEdgeInput!]
+  hasSegment: [EpisodeHasSegmentEdgeInput!]
+}
+
+input EpisodeConnectInput {
+  episodeId: ID!
+}
+
+input EpisodeConnectByKeyInput {
+  webPageUrl: String!
+}
+
+input EpisodeRelateUpsertInput {
+  connect: EpisodeConnectInput
+  connectByKey: EpisodeConnectByKeyInput
+  upsert: EpisodeInput
+}
+
+# ============================================================================
+# Episode Edge Inputs
+# ============================================================================
+
+input EpisodeInChannelEdgeInput {
+  channel: ChannelRelateUpsertInput!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input EpisodeInSeriesEdgeInput {
+  series: SeriesRelateUpsertInput!
+  orderIndex: Int
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input EpisodeOnPlatformEdgeInput {
+  platform: PlatformRelateUpsertInput!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input EpisodeHasSegmentEdgeInput {
+  segment: EpisodeSegmentRelateUpsertInput!
+  orderIndex: Int
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+# ============================================================================
+# Series Edge Inputs
+# ============================================================================
+
+input SeriesInChannelEdgeInput {
+  channel: ChannelRelateUpsertInput!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input SeriesIncludesEpisodeEdgeInput {
+  episode: EpisodeRelateUpsertInput!
+  orderIndex: Int
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+# ============================================================================
+# Upsert Inputs
+# ============================================================================
+
+input UpsertPlatformInput {
+  platformId: String
+  canonicalName: String!
+  aliases: [String!]
+  platformType: MediaPlatformType!
+  description: String
+  websiteUrl: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  hostsChannel: [PlatformHostsChannelEdgeInput!]
+}
+
+input UpsertChannelInput {
+  channelId: String
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  channelHandle: String
+  platformChannelId: String
+  webPageUrl: String
+  rssUrl: String
+  imageUrl: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  onPlatform: [PlatformOnChannelEdgeInput!]
+  hasSeries: [ChannelHasSeriesEdgeInput!]
+  hasEpisode: [ChannelHasEpisodeEdgeInput!]
+}
+
+input UpsertSeriesInput {
+  seriesId: String
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  seriesType: MediaSeriesType!
+  webPageUrl: String
+  imageUrl: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  inChannel: [SeriesInChannelEdgeInput!]
+  includesEpisode: [SeriesIncludesEpisodeEdgeInput!]
+}
+
+input UpsertEpisodeInput {
+  episodeId: String
+  canonicalName: String!
+  description: String
+  publishedAt: DateTime
+  durationSec: Int
+  language: String
+  s3TranscriptUrl: String
+  transcriptUrl: String
+  webPageUrl: String
+  webPageSummary: String
+  searchText: String
+  embedding: String
+  youtubeUrl: String
+  youtubeWatchUrl: String
+  youtubeEmbedUrl: String
+  socialUrlsJson: String
+  timestampsJson: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  inChannel: [EpisodeInChannelEdgeInput!]
+  inSeries: [EpisodeInSeriesEdgeInput!]
+  onPlatform: [EpisodeOnPlatformEdgeInput!]
+  hasSegment: [EpisodeHasSegmentEdgeInput!]
+}
+
+input UpsertEpisodeSegmentsInput {
+  episode: EpisodeRelateUpsertInput!
+  segments: [EpisodeSegmentWithOrderInput!]!
+}
+
+input EpisodeSegmentWithOrderInput {
+  segment: EpisodeSegmentRelateUpsertInput!
+  orderIndex: Int
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+# ===== END: media/02-inputs.graphql =====
+
+# ===== BEGIN: media/03-operations.graphql =====
+extend type Mutation {
+  upsertPlatform(input: UpsertPlatformInput!): Platform!
+  upsertChannel(input: UpsertChannelInput!): Channel!
+  upsertSeries(input: UpsertSeriesInput!): Series!
+  upsertEpisode(input: UpsertEpisodeInput!): Episode!
+  upsertEpisodeSegments(input: UpsertEpisodeSegmentsInput!): Episode!
+}
+# ===== END: media/03-operations.graphql =====
+
 # ===== BEGIN: organization_commerce/00-types.graphql =====
 type Organization {
   organizationId: ID!
@@ -1967,6 +2782,12 @@ type Organization {
   performsManufacturingProcess: [PerformsManufacturingProcessEdge!]
   developsPlatform: [DevelopsPlatformEdge!]
   usesPlatform: [UsesPlatformEdge!]
+  # Organization -> Person relationships
+  employs: [EmploysEdge!]
+  foundedBy: [FoundedByEdge!]
+  hasBoardMember: [HasBoardMemberEdge!]
+  hasScientificAdvisor: [HasScientificAdvisorEdge!]
+  hasExecutiveRole: [HasExecutiveRoleEdge!]
 } 
 
 
@@ -2051,7 +2872,7 @@ type OwnsOrControlsEdge {
 type ListsEdge {
   listing: Listing!
   listRole: ListRole!
-  channel: Channel
+  channel: DistributionChannel
   regionsOverrides: [String!]
   collectionModesOverrides: [String!]
   availabilityNotes: String
@@ -2157,6 +2978,77 @@ type UsesPlatformEdge {
   expiredAt: DateTime
   createdAt: DateTime!
 }
+
+# Organization -> Person edge types
+
+type EmploysEdge {
+  person: Person!
+  roleTitle: String
+  department: String
+  roleFunction: String
+  seniority: String
+  employmentType: String
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type FoundedByEdge {
+  person: Person!
+  founderRole: String
+  foundingDate: DateTime
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type HasBoardMemberEdge {
+  person: Person!
+  boardRole: String
+  committee: String
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type HasScientificAdvisorEdge {
+  person: Person!
+  advisorType: String
+  focusAreas: [String!]
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type HasExecutiveRoleEdge {
+  person: Person!
+  executiveRole: String
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
 # ===== END: organization_commerce/01-edges.graphql =====
 
 # ===== BEGIN: organization_commerce/02-inputs.graphql =====
@@ -2207,6 +3099,11 @@ input OrganizationInput {
   performsManufacturingProcess: [PerformsManufacturingProcessRelationshipInput!]
   developsPlatform: [DevelopsPlatformRelationshipInput!]
   usesPlatform: [UsesPlatformRelationshipInput!]
+  employs: [EmploysRelationshipInput!]
+  foundedBy: [FoundedByRelationshipInput!]
+  hasBoardMember: [HasBoardMemberRelationshipInput!]
+  hasScientificAdvisor: [HasScientificAdvisorRelationshipInput!]
+  hasExecutiveRole: [HasExecutiveRoleRelationshipInput!]
 }
 
 input UpdateOrganizationInput {
@@ -2255,6 +3152,11 @@ input UpdateOrganizationInput {
   performsManufacturingProcess: [PerformsManufacturingProcessRelationshipUpdateInput!]
   developsPlatform: [DevelopsPlatformRelationshipUpdateInput!]
   usesPlatform: [UsesPlatformRelationshipUpdateInput!]
+  employs: [EmploysRelationshipUpdateInput!]
+  foundedBy: [FoundedByRelationshipUpdateInput!]
+  hasBoardMember: [HasBoardMemberRelationshipUpdateInput!]
+  hasScientificAdvisor: [HasScientificAdvisorRelationshipUpdateInput!]
+  hasExecutiveRole: [HasExecutiveRoleRelationshipUpdateInput!]
 }  
 
 
@@ -2662,6 +3564,146 @@ input UsesPlatformRelationshipUpdateInput {
   expiredAt: DateTime
   createdAt: DateTime
 }
+
+# Organization -> Person edge inputs (EMPLOYS, FOUNDED_BY, HAS_SCIENTIFIC_ADVISOR, HAS_BOARD_MEMBER, HAS_EXECUTIVE_ROLE)
+
+input EmploysRelationshipInput {
+  person: PersonRelateInput!
+  roleTitle: String
+  department: String
+  roleFunction: String
+  seniority: String
+  employmentType: String
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input EmploysRelationshipUpdateInput {
+  person: PersonRelateUpdateInput!
+  roleTitle: String
+  department: String
+  roleFunction: String
+  seniority: String
+  employmentType: String
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input FoundedByRelationshipInput {
+  person: PersonRelateInput!
+  founderRole: String
+  foundingDate: DateTime
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input FoundedByRelationshipUpdateInput {
+  person: PersonRelateUpdateInput!
+  founderRole: String
+  foundingDate: DateTime
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input HasBoardMemberRelationshipInput {
+  person: PersonRelateInput!
+  boardRole: String
+  committee: String
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input HasBoardMemberRelationshipUpdateInput {
+  person: PersonRelateUpdateInput!
+  boardRole: String
+  committee: String
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input HasScientificAdvisorRelationshipInput {
+  person: PersonRelateInput!
+  advisorType: String
+  focusAreas: [String!]
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input HasScientificAdvisorRelationshipUpdateInput {
+  person: PersonRelateUpdateInput!
+  advisorType: String
+  focusAreas: [String!]
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input HasExecutiveRoleRelationshipInput {
+  person: PersonRelateInput!
+  executiveRole: String
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input HasExecutiveRoleRelationshipUpdateInput {
+  person: PersonRelateUpdateInput!
+  executiveRole: String
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
 # ===== END: organization_commerce/02-inputs.graphql =====
 
 # ===== BEGIN: organization_commerce/03-operations.graphql =====
@@ -2680,16 +3722,74 @@ extend type Query {
 type Person {
   personId: ID!
   canonicalName: String!
+  givenName: String
+  familyName: String
+  middleName: String
+  suffix: String
+  honorific: String
   aliases: [String!]
+  bio: String
+  primaryLanguage: String
+  primaryDomain: String
+  specialties: [String!]
+  expertiseTags: [String!]
+  affiliationSummary: String
+  degrees: [String!]
+  credentialIds: [String!]
+  orcid: String
+  npi: String
+  licenseIds: [String!]
+  websiteUrl: String
+  email: String
+  socialProfiles: [String!]
+  linkedinUrl: String
+  twitterUrl: String
+  githubUrl: String
+  scholarUrl: String
+  headshotUrl: String
+  publicFigure: Boolean
+  notabilityNotes: String
+  createdAt: DateTime!
+  updatedAt: DateTime
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  searchText: String
+  embedding: [Float!]
+  hasRoleOnChannel: [PersonHasRoleOnChannelEdge!]
+  appearsInEpisode: [PersonAppearsInEpisodeEdge!]
+}
+# ===== END: people/00-types.graphql =====
+
+# ===== BEGIN: people/01-edges.graphql =====
+# ============================================================================
+# Person ↔ Media Edges
+# ============================================================================
+
+type PersonHasRoleOnChannelEdge {
+  channel: Channel!
+  role: ChannelRole!
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  typicalAppearance: TypicalAppearance
+  confidence: Float
   validAt: DateTime
   invalidAt: DateTime
   expiredAt: DateTime
   createdAt: DateTime
 }
-# ===== END: people/00-types.graphql =====
 
-# ===== BEGIN: people/01-edges.graphql =====
-
+type PersonAppearsInEpisodeEdge {
+  episode: Episode!
+  appearanceRole: AppearanceRole!
+  billingOrder: Int
+  confidence: Float
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
 # ===== END: people/01-edges.graphql =====
 
 # ===== BEGIN: people/02-inputs.graphql =====
@@ -2697,19 +3797,122 @@ input PersonConnectInput {
   personId: ID!
 }
 
+# ============================================================================
+# Person ↔ Media Edge Inputs
+# ============================================================================
+
+input PersonHasRoleOnChannelEdgeInput {
+  channel: ChannelRelateUpsertInput!
+  role: ChannelRole
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  typicalAppearance: TypicalAppearance
+  confidence: Float
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input PersonAppearsInEpisodeEdgeInput {
+  episode: EpisodeRelateUpsertInput!
+  appearanceRole: AppearanceRole
+  billingOrder: Int
+  confidence: Float
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
 input PersonInput {
   personId: ID
   canonicalName: String!
+  givenName: String
+  familyName: String
+  middleName: String
+  suffix: String
+  honorific: String
   aliases: [String!]
+  bio: String
+  primaryLanguage: String
+  primaryDomain: String
+  specialties: [String!]
+  expertiseTags: [String!]
+  affiliationSummary: String
+  degrees: [String!]
+  credentialIds: [String!]
+  orcid: String
+  npi: String
+  licenseIds: [String!]
+  websiteUrl: String
+  email: String
+  socialProfiles: [String!]
+  linkedinUrl: String
+  twitterUrl: String
+  githubUrl: String
+  scholarUrl: String
+  headshotUrl: String
+  publicFigure: Boolean
+  notabilityNotes: String
   validAt: DateTime
-  expiredAt: DateTime
   invalidAt: DateTime
+  expiredAt: DateTime
   createdAt: DateTime
+  searchText: String
+  hasRoleOnChannel: [PersonHasRoleOnChannelEdgeInput!]
+  appearsInEpisode: [PersonAppearsInEpisodeEdgeInput!]
+}
+
+input PersonUpdateInput {
+  personId: ID
+  canonicalName: String
+  givenName: String
+  familyName: String
+  middleName: String
+  suffix: String
+  honorific: String
+  aliases: [String!]
+  bio: String
+  primaryLanguage: String
+  primaryDomain: String
+  specialties: [String!]
+  expertiseTags: [String!]
+  affiliationSummary: String
+  degrees: [String!]
+  credentialIds: [String!]
+  orcid: String
+  npi: String
+  licenseIds: [String!]
+  websiteUrl: String
+  email: String
+  socialProfiles: [String!]
+  linkedinUrl: String
+  twitterUrl: String
+  githubUrl: String
+  scholarUrl: String
+  headshotUrl: String
+  publicFigure: Boolean
+  notabilityNotes: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  searchText: String
+  hasRoleOnChannel: [PersonHasRoleOnChannelEdgeInput!]
+  appearsInEpisode: [PersonAppearsInEpisodeEdgeInput!]
 }
 
 input PersonRelateInput {
   create: PersonInput
   connect: PersonConnectInput
+}
+
+input PersonRelateUpdateInput {
+  create: PersonInput
+  connect: PersonConnectInput
+  update: PersonUpdateInput
 }
 # ===== END: people/02-inputs.graphql =====
 
@@ -2970,7 +4173,7 @@ input ListingConnectInput {
 input ListsRelationshipInput {
   listing: ListingRelateInput!
   listRole: ListRole!
-  channel: Channel
+  channel: DistributionChannel
   regionsOverrides: [String!]
   collectionModesOverrides: [String!]
   availabilityNotes: String
@@ -3035,7 +4238,7 @@ input ProductUpdateInput {
 input ListsRelationshipUpdateInput {
   listing: ListingRelateUpdateInput!
   listRole: ListRole
-  channel: Channel
+  channel: DistributionChannel
   regionsOverrides: [String!]
   collectionModesOverrides: [String!]
   availabilityNotes: String

@@ -3,11 +3,16 @@ import {
   OrgTypeEnum,
   BusinessModelEnum,
   ListRoleEnum,
-  ChannelEnum,
+  DistributionChannelEnum,
   RelationshipRoleEnum,
   UsageContextEnum,
   SourceEnum,
   ManufacturingRoleEnum,
+  SponsorshipChannelTypeEnum,
+  SponsorshipEpisodeTypeEnum,
+  AdReadByEnum,
+  SponsorshipSourceTypeEnum,
+  SeriesPublishRoleEnum,
 } from "../enums/index.js";
 import {
   Neo4jDateString,
@@ -21,6 +26,10 @@ import { CompoundFormSchema } from "./CompoundFormModel.js";
 import { ManufacturingProcessSchema } from "./ManufacturingProcessModel.js";
 import { TechnologyPlatformSchema } from "./TechnologyPlatformModel.js";
 import { ResearchRunRefSchema } from "./ResearchRunRefModel.js";
+import { PersonSchema } from "./PersonModel.js";
+import { ChannelSchema } from "./ChannelModel.js";
+import { EpisodeSchema } from "./EpisodeModel.js";
+import { SeriesSchema } from "./SeriesModel.js";
 
 // TODO: Change Input Types to manufacturesCompoundForm - manufactures is far too vague
 
@@ -58,7 +67,7 @@ export type OwnsOrControlsEdge = z.infer<typeof OwnsOrControlsEdgeSchema>;
 export const ListsEdgeSchema = TemporalValiditySchema.extend({
   listing: ListingSchema,
   listRole: ListRoleEnum,
-  channel: ChannelEnum.nullable(),
+  channel: DistributionChannelEnum.nullable(),
   regionsOverrides: z.array(z.string()).nullable(),
   collectionModesOverrides: z.array(z.string()).nullable(),
   availabilityNotes: z.string().nullable(),
@@ -175,6 +184,78 @@ export const UsesPlatformEdgeSchema = TemporalValiditySchema.extend({
 
 export type UsesPlatformEdge = z.infer<typeof UsesPlatformEdgeSchema>;
 
+// ============================================================================
+// Organization -> Person Edge Types
+// ============================================================================
+
+// EmploysEdge (Organization -> Person) - employees, contractors, team members
+export const EmploysEdgeSchema = TemporalValiditySchema.extend({
+  person: PersonSchema,
+  roleTitle: z.string().nullable(),
+  department: z.string().nullable(),
+  roleFunction: z.string().nullable(),
+  seniority: z.string().nullable(),
+  employmentType: z.string().nullable(),
+  startDate: Neo4jDateTimeString,
+  endDate: Neo4jDateTimeString,
+  isCurrent: z.boolean().nullable(),
+  claimIds: z.array(z.string()),
+});
+
+export type EmploysEdge = z.infer<typeof EmploysEdgeSchema>;
+
+// FoundedByEdge (Organization -> Person) - founders, co-founders, scientific founders
+export const FoundedByEdgeSchema = TemporalValiditySchema.extend({
+  person: PersonSchema,
+  founderRole: z.string().nullable(),
+  foundingDate: Neo4jDateTimeString,
+  claimIds: z.array(z.string()),
+});
+
+export type FoundedByEdge = z.infer<typeof FoundedByEdgeSchema>;
+
+// HasBoardMemberEdge (Organization -> Person) - board members, trustees, observers
+export const HasBoardMemberEdgeSchema = TemporalValiditySchema.extend({
+  person: PersonSchema,
+  boardRole: z.string().nullable(),
+  committee: z.string().nullable(),
+  startDate: Neo4jDateTimeString,
+  endDate: Neo4jDateTimeString,
+  isCurrent: z.boolean().nullable(),
+  claimIds: z.array(z.string()),
+});
+
+export type HasBoardMemberEdge = z.infer<typeof HasBoardMemberEdgeSchema>;
+
+// HasScientificAdvisorEdge (Organization -> Person) - SAB, KOL, clinical advisors
+export const HasScientificAdvisorEdgeSchema = TemporalValiditySchema.extend({
+  person: PersonSchema,
+  advisorType: z.string().nullable(),
+  focusAreas: z.array(z.string()).nullable(),
+  startDate: Neo4jDateTimeString,
+  endDate: Neo4jDateTimeString,
+  isCurrent: z.boolean().nullable(),
+  claimIds: z.array(z.string()),
+});
+
+export type HasScientificAdvisorEdge = z.infer<
+  typeof HasScientificAdvisorEdgeSchema
+>;
+
+// HasExecutiveRoleEdge (Organization -> Person) - exec roles (CEO, CSO, CMO)
+export const HasExecutiveRoleEdgeSchema = TemporalValiditySchema.extend({
+  person: PersonSchema,
+  executiveRole: z.string().nullable(),
+  startDate: Neo4jDateTimeString,
+  endDate: Neo4jDateTimeString,
+  isCurrent: z.boolean().nullable(),
+  claimIds: z.array(z.string()),
+});
+
+export type HasExecutiveRoleEdge = z.infer<
+  typeof HasExecutiveRoleEdgeSchema
+>;
+
 // GeneratedByEdge (Organization -> ResearchRunRef)
 export const GeneratedByEdgeSchema = TemporalValiditySchema.extend({
   researchRunRef: ResearchRunRefSchema,
@@ -186,6 +267,49 @@ export const GeneratedByEdgeSchema = TemporalValiditySchema.extend({
 });
 
 export type GeneratedByEdge = z.infer<typeof GeneratedByEdgeSchema>;
+
+// ============================================================================
+// Organization -> Media Edge Types
+// ============================================================================
+
+// SponsorsChannelEdge (Organization -[:SPONSORS_CHANNEL]-> Channel)
+export const SponsorsChannelEdgeSchema = TemporalValiditySchema.extend({
+  channel: z.lazy(() => ChannelSchema),
+  sponsorshipType: SponsorshipChannelTypeEnum,
+  startDate: Neo4jDateString.nullable(),
+  endDate: Neo4jDateString.nullable(),
+  isCurrent: z.boolean().nullable(),
+  disclosureConfidence: z.number().nullable(),
+  sourceType: SponsorshipSourceTypeEnum.nullable(),
+});
+
+export type SponsorsChannelEdge = z.infer<typeof SponsorsChannelEdgeSchema>;
+
+// SponsorsEpisodeEdge (Organization -[:SPONSORS_EPISODE]-> Episode)
+export const SponsorsEpisodeEdgeSchema = TemporalValiditySchema.extend({
+  episode: z.lazy(() => EpisodeSchema),
+  sponsorshipType: SponsorshipEpisodeTypeEnum,
+  sponsorMentionsCount: z.number().int().nullable(),
+  adReadBy: AdReadByEnum.nullable(),
+  startTimeSec: z.number().int().nullable(),
+  endTimeSec: z.number().int().nullable(),
+  disclosureConfidence: z.number().nullable(),
+  sourceType: SponsorshipSourceTypeEnum.nullable(),
+});
+
+export type SponsorsEpisodeEdge = z.infer<typeof SponsorsEpisodeEdgeSchema>;
+
+// PublishesSeriesEdge (Organization -[:PUBLISHES_SERIES]-> Series)
+export const PublishesSeriesEdgeSchema = TemporalValiditySchema.extend({
+  series: z.lazy(() => SeriesSchema),
+  role: SeriesPublishRoleEnum,
+  startDate: Neo4jDateString.nullable(),
+  endDate: Neo4jDateString.nullable(),
+  isCurrent: z.boolean().nullable(),
+  confidence: z.number().nullable(),
+});
+
+export type PublishesSeriesEdge = z.infer<typeof PublishesSeriesEdgeSchema>;
 
 // ============================================================================
 // Organization Schema
@@ -258,7 +382,17 @@ export const OrganizationSchema: z.ZodType<any> = z.object({
     .nullable(),
   developsPlatform: z.array(DevelopsPlatformEdgeSchema).nullable(),
   usesPlatform: z.array(UsesPlatformEdgeSchema).nullable(),
+  // Organization -> Person relationships
+  employs: z.array(EmploysEdgeSchema).nullable(),
+  foundedBy: z.array(FoundedByEdgeSchema).nullable(),
+  hasBoardMember: z.array(HasBoardMemberEdgeSchema).nullable(),
+  hasScientificAdvisor: z.array(HasScientificAdvisorEdgeSchema).nullable(),
+  hasExecutiveRole: z.array(HasExecutiveRoleEdgeSchema).nullable(),
   generatedBy: z.array(GeneratedByEdgeSchema).nullable(),
+  // Media relationships
+  sponsorsChannel: z.array(SponsorsChannelEdgeSchema).nullable(),
+  sponsorsEpisode: z.array(SponsorsEpisodeEdgeSchema).nullable(),
+  publishesSeries: z.array(PublishesSeriesEdgeSchema).nullable(),
 });
 
 export type Organization = z.infer<typeof OrganizationSchema>;

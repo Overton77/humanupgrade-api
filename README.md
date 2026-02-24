@@ -1,6 +1,6 @@
 # Biotech Knowledge Graph API
 
-A Neo4j-powered GraphQL API modeling the biotech industry for both web application use and LLM-powered research ingestion systems. This API serves as the unified boundary for biotech knowledge graph operations, document ingestion, and future user-facing AI assistant capabilities.
+A Neo4j-powered GraphQL API modeling the biotech industry for both web application use and LLM-powered research ingestion systems. This API serves as the unified boundary for biotech knowledge graph operations, document ingestion, and future user-facing AI assistant capabilities. The system enables powerful **Graph RAG (Retrieval Augmented Generation)** by linking research documents and their chunks to biotech entities through evidence relationships.
 
 ## Overview
 
@@ -59,19 +59,130 @@ The GraphQL schema is modularized in `src/graphql/modules/` and automatically co
 ### ✅ Implemented Features
 
 - **Main Ontology Mutations** - Create, update, and connect operations for core biotech entities
-- **Document Ingestion** - Structured document processing and evidence linking
+- **Document Ingestion Pipeline** - Complete unstructured ingestion: Document → DocumentTextVersion → Segmentation → Chunks
+- **Evidence Linking** - Connect documents/chunks to entities via ABOUT, MENTIONS, IS_PRIMARY_SOURCE relationships
+- **Graph RAG Infrastructure** - Document-to-entity graph enabling context-aware retrieval and reasoning
 - **Embedding Workers** - Background workers for generating vector embeddings using Redis streams
+- **Real-Time Subscriptions** - GraphQL subscriptions via Redis pub/sub for embedding jobs, document ingestion, and evidence linking
 - **Modular GraphQL Schema** - Domain-driven schema organization with automatic concatenation
 - **DataLoaders** - Request-scoped batching for efficient relationship queries
-- **Search Infrastructure** - Vector search capabilities with Qdrant integration
+- **Search Infrastructure** - Vector search via Neo4j vector indexes and AWS Knowledge Bases
 - **Temporal Validity** - Lifecycle management with `validAt`, `invalidAt`, `expiredAt` fields
 
 ### 🔄 In Progress
 
 - Additional domain modules (media, protocols, food, devices, modalities)
 - User profile and AI assistant API endpoints
-- Real-time subscriptions via GraphQL subscriptions
 - Advanced recommendation and trending algorithms
+- Enhanced Graph RAG query capabilities
+
+## Document Ingestion & Graph RAG Pipeline
+
+The API provides a powerful **UnstructuredIngestion** system that transforms raw documents into a structured knowledge graph, enabling sophisticated **Graph RAG (Retrieval Augmented Generation)** for biotech research.
+
+### Ingestion Flow
+
+The research system ingests documents through a hierarchical pipeline:
+
+1. **Document** - Root entity with metadata (title, URL, published date, type)
+2. **DocumentTextVersion** - Text content with source tracking (raw, LLM summary, API export, etc.)
+3. **Segmentation** - Document splitting strategy (chunk size, overlap, strategy)
+4. **Chunks** - Processed text segments ready for embedding and entity linking
+
+### Evidence Linking
+
+Documents and Chunks can link to any biotech entity via three relationship types:
+
+- **`ABOUT`** - Document/Chunk is about an entity (with aboutness, aspect, stance, confidence)
+- **`MENTIONS`** - Entity is mentioned in text (with surface form, character positions, linking method)
+- **`IS_PRIMARY_SOURCE`** - Document is the primary source for entity claims (with confidence, notes)
+
+This creates a rich graph where research documents, their chunks, and biotech entities are interconnected, enabling context-aware retrieval.
+
+### Embedding Workers
+
+Asynchronous embedding generation via Redis streams:
+
+- **Queue-Based Processing** - Jobs enqueued to `embedding.jobs` stream
+- **Worker Pool** - Multiple workers consume from consumer group `embedding-workers`
+- **Target Types** - Documents, DocumentTextVersions, Organizations, Products, etc.
+- **Vector Storage** - Embeddings stored in Neo4j vector indexes and AWS Knowledge Bases for hybrid search
+
+### Real-Time Subscriptions
+
+GraphQL subscriptions powered by Redis pub/sub provide real-time updates:
+
+- **`embeddingJobEvents`** - Track embedding job status (queued, processing, completed, failed)
+- **`documentIngested`** - Notify when documents are created/updated
+- **`documentTextVersionBundleIngested`** - Track text version and chunk creation
+- **`evidenceEdgeUpserted`** - Monitor evidence linking operations
+
+### Graph RAG Architecture
+
+```mermaid
+graph TB
+    subgraph "Research System"
+        RS[Research Agent]
+        RS -->|1. upsertDocument| API[GraphQL API]
+        RS -->|2. upsertDocumentTextVersionBundle| API
+        RS -->|3. upsertEvidenceEdges| API
+    end
+    
+    subgraph "GraphQL API"
+        API -->|Atomic TX| Neo4j[(Neo4j Knowledge Graph)]
+        API -->|Enqueue Job| RS_Stream[Redis Stream: embedding.jobs]
+        API -->|Publish Event| PubSub[Redis Pub/Sub]
+    end
+    
+    subgraph "Neo4j Graph"
+        Neo4j -->|Document| Doc[Document Node]
+        Doc -->|HAS_TEXT_VERSION| TV[DocumentTextVersion]
+        TV -->|HAS_SEGMENTATION| Seg[Segmentation]
+        Seg -->|HAS_CHUNK| Chunk[Chunk Nodes]
+        Doc -->|HAS_CHUNK| Chunk
+        
+        Doc -->|ABOUT/MENTIONS/IS_PRIMARY_SOURCE| Entity[Biotech Entities]
+        Chunk -->|ABOUT/MENTIONS| Entity
+        
+        Entity -->|Relationships| Entity2[Other Entities]
+    end
+    
+    subgraph "Vector Storage"
+        Neo4j_Vec[Neo4j Vector Indexes]
+        AWS_KB[AWS Knowledge Bases]
+    end
+    
+    subgraph "Background Workers"
+        RS_Stream -->|Consume| Worker[Embedding Worker]
+        Worker -->|Generate Embeddings| OpenAI[OpenAI API]
+        Worker -->|Store Vectors| Neo4j_Vec
+        Worker -->|Sync to AWS KB| AWS_KB
+        Worker -->|Publish Status| PubSub
+    end
+    
+    subgraph "Real-Time Clients"
+        PubSub -->|Subscribe| Sub1[Web App]
+        PubSub -->|Subscribe| Sub2[Research Agent]
+    end
+    
+    subgraph "Graph RAG Query"
+        Query[User Query] -->|Vector Search| Neo4j_Vec
+        Query -->|Vector Search| AWS_KB
+        Neo4j_Vec -->|Retrieve Chunks| Chunk
+        AWS_KB -->|Retrieve Chunks| Chunk
+        Chunk -->|Traverse Graph| Entity
+        Entity -->|Context + Evidence| LLM[LLM with Context]
+        LLM -->|Answer| Answer[Biotech Answer]
+    end
+    
+    style Doc fill:#e1f5ff
+    style TV fill:#e1f5ff
+    style Seg fill:#e1f5ff
+    style Chunk fill:#e1f5ff
+    style Entity fill:#fff4e1
+    style Worker fill:#e8f5e9
+    style LLM fill:#f3e5f5
+```
 
 ## Background Processing
 

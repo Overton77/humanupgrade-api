@@ -1,0 +1,28 @@
+# ============================================================================
+# ClaimOccurrence (instance of a claim in episode/segment)
+# ============================================================================
+
+type ClaimOccurrence {
+  claimOccurrenceId: ID!
+  canonicalText: String!
+  normalizedText: String
+  occurrenceKey: String
+  confidence: Float
+  startTimeSec: Int
+  endTimeSec: Int
+  startChar: Int
+  endChar: Int
+  language: String
+  sourceType: ClaimOccurrenceSourceType
+  extractionMethod: ClaimOccurrenceExtractionMethod
+  searchText: String
+  embedding: [Float!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+  occursIn: [ClaimOccurrenceOccursInEdge!]
+  occursInSegment: [ClaimOccurrenceOccursInSegmentEdge!]
+  utteredBy: [ClaimOccurrenceUtteredByEdge!]
+}

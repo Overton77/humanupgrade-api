@@ -45,6 +45,11 @@ input OrganizationInput {
   performsManufacturingProcess: [PerformsManufacturingProcessRelationshipInput!]
   developsPlatform: [DevelopsPlatformRelationshipInput!]
   usesPlatform: [UsesPlatformRelationshipInput!]
+  employs: [EmploysRelationshipInput!]
+  foundedBy: [FoundedByRelationshipInput!]
+  hasBoardMember: [HasBoardMemberRelationshipInput!]
+  hasScientificAdvisor: [HasScientificAdvisorRelationshipInput!]
+  hasExecutiveRole: [HasExecutiveRoleRelationshipInput!]
 }
 
 input UpdateOrganizationInput {
@@ -93,6 +98,11 @@ input UpdateOrganizationInput {
   performsManufacturingProcess: [PerformsManufacturingProcessRelationshipUpdateInput!]
   developsPlatform: [DevelopsPlatformRelationshipUpdateInput!]
   usesPlatform: [UsesPlatformRelationshipUpdateInput!]
+  employs: [EmploysRelationshipUpdateInput!]
+  foundedBy: [FoundedByRelationshipUpdateInput!]
+  hasBoardMember: [HasBoardMemberRelationshipUpdateInput!]
+  hasScientificAdvisor: [HasScientificAdvisorRelationshipUpdateInput!]
+  hasExecutiveRole: [HasExecutiveRoleRelationshipUpdateInput!]
 }  
 
 
@@ -494,6 +504,146 @@ input UsesPlatformRelationshipUpdateInput {
   isPrimary: Boolean
   notes: String
   source: Source
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+# Organization -> Person edge inputs (EMPLOYS, FOUNDED_BY, HAS_SCIENTIFIC_ADVISOR, HAS_BOARD_MEMBER, HAS_EXECUTIVE_ROLE)
+
+input EmploysRelationshipInput {
+  person: PersonRelateInput!
+  roleTitle: String
+  department: String
+  roleFunction: String
+  seniority: String
+  employmentType: String
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input EmploysRelationshipUpdateInput {
+  person: PersonRelateUpdateInput!
+  roleTitle: String
+  department: String
+  roleFunction: String
+  seniority: String
+  employmentType: String
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input FoundedByRelationshipInput {
+  person: PersonRelateInput!
+  founderRole: String
+  foundingDate: DateTime
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input FoundedByRelationshipUpdateInput {
+  person: PersonRelateUpdateInput!
+  founderRole: String
+  foundingDate: DateTime
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input HasBoardMemberRelationshipInput {
+  person: PersonRelateInput!
+  boardRole: String
+  committee: String
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input HasBoardMemberRelationshipUpdateInput {
+  person: PersonRelateUpdateInput!
+  boardRole: String
+  committee: String
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input HasScientificAdvisorRelationshipInput {
+  person: PersonRelateInput!
+  advisorType: String
+  focusAreas: [String!]
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input HasScientificAdvisorRelationshipUpdateInput {
+  person: PersonRelateUpdateInput!
+  advisorType: String
+  focusAreas: [String!]
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input HasExecutiveRoleRelationshipInput {
+  person: PersonRelateInput!
+  executiveRole: String
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input HasExecutiveRoleRelationshipUpdateInput {
+  person: PersonRelateUpdateInput!
+  executiveRole: String
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
   claimIds: [String!]
   validAt: DateTime
   invalidAt: DateTime

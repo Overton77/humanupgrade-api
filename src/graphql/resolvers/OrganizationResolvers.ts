@@ -92,4 +92,29 @@ export const OrganizationResolvers = {
     ctx.loaders.entities.Organization.organizationUsesPlatformEdges.load(
       parent.organizationId
     ),
+
+  employs: (parent: ParentOrg, _args: unknown, ctx: GraphQLContext) =>
+    ctx.loaders.entities.Organization.organizationEmploysEdges.load(
+      parent.organizationId
+    ),
+
+  foundedBy: (parent: ParentOrg, _args: unknown, ctx: GraphQLContext) =>
+    ctx.loaders.entities.Organization.organizationFoundedByEdges.load(
+      parent.organizationId
+    ),
+
+  hasBoardMember: (parent: ParentOrg, _args: unknown, ctx: GraphQLContext) =>
+    ctx.loaders.entities.Organization.organizationHasBoardMemberEdges.load(
+      parent.organizationId
+    ),
+
+  hasScientificAdvisor: (parent: ParentOrg, _args: unknown, ctx: GraphQLContext) =>
+    ctx.loaders.entities.Organization.organizationHasScientificAdvisorEdges.load(
+      parent.organizationId
+    ),
+
+  hasExecutiveRole: (parent: ParentOrg, _args: unknown, ctx: GraphQLContext) =>
+    ctx.loaders.entities.Organization.organizationHasExecutiveRoleEdges.load(
+      parent.organizationId
+    ),
 };

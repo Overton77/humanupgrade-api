@@ -97,7 +97,7 @@ export const ListRoleEnum = z.enum([
   "OTHER",
 ]);
 
-export const ChannelEnum = z.enum([
+export const DistributionChannelEnum = z.enum([
   "ONLINE",
   "IN_PERSON",
   "PHONE",
@@ -529,6 +529,126 @@ export const OrganizationSortFieldEnum = z.enum([
 
 export const SortDirectionEnum = z.enum(["ASC", "DESC"]);
 
+// ============================================================================
+// Media (Platform, Channel, Series, Episode, ClaimOccurrence) enums
+// ============================================================================
+
+export const MediaPlatformTypeEnum = z.enum([
+  "video",
+  "podcast",
+  "blog",
+  "social",
+  "newsletter",
+  "aggregator",
+  "other",
+]);
+
+export const MediaSeriesTypeEnum = z.enum([
+  "podcast_series",
+  "youtube_playlist",
+  "lecture_series",
+  "course_series",
+  "other",
+]);
+
+export const ClaimOccurrenceSourceTypeEnum = z.enum([
+  "transcript",
+  "captions",
+  "description",
+  "show_notes",
+  "webpage",
+  "manual",
+  "other",
+]);
+
+export const ClaimOccurrenceExtractionMethodEnum = z.enum([
+  "llm",
+  "rules",
+  "human",
+  "hybrid",
+  "other",
+]);
+
+export const TranscriptRoleEnum = z.enum([
+  "full_transcript",
+  "captions",
+  "partial",
+  "auto_generated",
+  "human_verified",
+  "other",
+]);
+
+// Person ↔ Media enums
+export const AppearanceRoleEnum = z.enum([
+  "host",
+  "co_host",
+  "guest",
+  "panelist",
+  "interviewer",
+  "interviewee",
+  "narrator",
+  "expert",
+  "caller",
+  "other",
+]);
+
+export const ChannelRoleEnum = z.enum([
+  "host",
+  "co_host",
+  "creator",
+  "producer",
+  "editor",
+  "contributor",
+  "narrator",
+  "guest_host",
+  "other",
+]);
+
+export const TypicalAppearanceEnum = z.enum([
+  "on_camera",
+  "voice",
+  "behind_scenes",
+]);
+
+// Organization ↔ Media enums
+export const SponsorshipChannelTypeEnum = z.enum([
+  "exclusive",
+  "primary",
+  "segment_sponsor",
+  "affiliate",
+  "paid_placement",
+  "owned_media",
+  "unknown",
+]);
+
+export const SponsorshipEpisodeTypeEnum = z.enum([
+  "title_sponsor",
+  "midroll",
+  "preroll",
+  "segment_sponsor",
+  "affiliate",
+  "paid_placement",
+  "unknown",
+]);
+
+export const AdReadByEnum = z.enum(["host", "guest", "announcer", "unknown"]);
+
+export const SponsorshipSourceTypeEnum = z.enum([
+  "dataset",
+  "description_text",
+  "transcript",
+  "manual",
+  "other",
+]);
+
+export const SeriesPublishRoleEnum = z.enum([
+  "publisher",
+  "distributor",
+  "network",
+  "production_company",
+  "other",
+]);
+
 // Embedding enums
 export const EmbeddingTargetTypeEnum = z.enum(["ORGANIZATION", "PRODUCT"]);
 
@@ -549,7 +669,7 @@ export type PriceType = z.infer<typeof PriceTypeEnum>;
 export type CollectionMode = z.infer<typeof CollectionModeEnum>;
 export type ProductDomain = z.infer<typeof ProductDomainEnum>;
 export type ListRole = z.infer<typeof ListRoleEnum>;
-export type Channel = z.infer<typeof ChannelEnum>;
+export type DistributionChannel = z.infer<typeof DistributionChannelEnum>;
 export type ProcessType = z.infer<typeof ProcessTypeEnum>;
 export type ScalabilityLevel = z.infer<typeof ScalabilityLevelEnum>;
 export type PlatformType = z.infer<typeof PlatformTypeEnum>;
@@ -578,6 +698,29 @@ export type OrganizationSortField = z.infer<typeof OrganizationSortFieldEnum>;
 export type SortDirection = z.infer<typeof SortDirectionEnum>;
 export type EmbeddingTargetType = z.infer<typeof EmbeddingTargetTypeEnum>;
 export type EmbeddingJobStatus = z.infer<typeof EmbeddingJobStatusEnum>;
+
+// Media types
+export type MediaPlatformType = z.infer<typeof MediaPlatformTypeEnum>;
+export type MediaSeriesType = z.infer<typeof MediaSeriesTypeEnum>;
+export type ClaimOccurrenceSourceType = z.infer<
+  typeof ClaimOccurrenceSourceTypeEnum
+>;
+export type ClaimOccurrenceExtractionMethod = z.infer<
+  typeof ClaimOccurrenceExtractionMethodEnum
+>;
+export type TranscriptRole = z.infer<typeof TranscriptRoleEnum>;
+export type AppearanceRole = z.infer<typeof AppearanceRoleEnum>;
+export type ChannelRole = z.infer<typeof ChannelRoleEnum>;
+export type TypicalAppearance = z.infer<typeof TypicalAppearanceEnum>;
+export type SponsorshipChannelType = z.infer<
+  typeof SponsorshipChannelTypeEnum
+>;
+export type SponsorshipEpisodeType = z.infer<
+  typeof SponsorshipEpisodeTypeEnum
+>;
+export type AdReadBy = z.infer<typeof AdReadByEnum>;
+export type SponsorshipSourceType = z.infer<typeof SponsorshipSourceTypeEnum>;
+export type SeriesPublishRole = z.infer<typeof SeriesPublishRoleEnum>;
 
 // Study / CaseStudy types
 export type StudyKind = z.infer<typeof StudyKindEnum>;

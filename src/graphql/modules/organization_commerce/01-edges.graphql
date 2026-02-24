@@ -29,7 +29,7 @@ type OwnsOrControlsEdge {
 type ListsEdge {
   listing: Listing!
   listRole: ListRole!
-  channel: Channel
+  channel: DistributionChannel
   regionsOverrides: [String!]
   collectionModesOverrides: [String!]
   availabilityNotes: String
@@ -129,6 +129,77 @@ type UsesPlatformEdge {
   isPrimary: Boolean
   notes: String
   source: Source
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+# Organization -> Person edge types
+
+type EmploysEdge {
+  person: Person!
+  roleTitle: String
+  department: String
+  roleFunction: String
+  seniority: String
+  employmentType: String
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type FoundedByEdge {
+  person: Person!
+  founderRole: String
+  foundingDate: DateTime
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type HasBoardMemberEdge {
+  person: Person!
+  boardRole: String
+  committee: String
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type HasScientificAdvisorEdge {
+  person: Person!
+  advisorType: String
+  focusAreas: [String!]
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
+  claimIds: [String!]!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type HasExecutiveRoleEdge {
+  person: Person!
+  executiveRole: String
+  startDate: DateTime
+  endDate: DateTime
+  isCurrent: Boolean
   claimIds: [String!]!
   validAt: DateTime
   invalidAt: DateTime

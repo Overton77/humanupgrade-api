@@ -1,0 +1,117 @@
+# ============================================================================
+# Platform (Media distribution: YouTube, Spotify, etc.)
+# ============================================================================
+
+type Platform {
+  platformId: ID!
+  canonicalName: String!
+  aliases: [String!]
+  platformType: MediaPlatformType!
+  description: String
+  websiteUrl: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+  hostsChannel: [PlatformHostsChannelEdge!]
+}
+
+# ============================================================================
+# Channel (publisher identity on a platform — e.g. YouTube channel, podcast feed)
+# ============================================================================
+
+type Channel {
+  channelId: ID!
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  channelHandle: String
+  platformChannelId: String
+  webPageUrl: String
+  rssUrl: String
+  imageUrl: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+  onPlatform: [ChannelOnPlatformEdge!]
+  hasSeries: [ChannelHasSeriesEdge!]
+  hasEpisode: [ChannelHasEpisodeEdge!]
+}
+
+# ============================================================================
+# Series (show / playlist / feed grouping under a channel)
+# ============================================================================
+
+type Series {
+  seriesId: ID!
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  seriesType: MediaSeriesType!
+  webPageUrl: String
+  imageUrl: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+  inChannel: [SeriesInChannelEdge!]
+  includesEpisode: [SeriesIncludesEpisodeEdge!]
+}
+
+# ============================================================================
+# Episode (single published media item)
+# ============================================================================
+
+type Episode {
+  episodeId: ID!
+  canonicalName: String!
+  description: String
+  publishedAt: DateTime
+  durationSec: Int
+  language: String
+  s3TranscriptUrl: String
+  transcriptUrl: String
+  webPageUrl: String
+  webPageSummary: String
+  searchText: String
+  embedding: [Float!]
+  youtubeUrl: String
+  youtubeWatchUrl: String
+  youtubeEmbedUrl: String
+  socialUrlsJson: String
+  timestampsJson: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+  hasSegment: [EpisodeHasSegmentEdge!]
+  inChannel: [EpisodeInChannelEdge!]
+  inSeries: [EpisodeInSeriesEdge!]
+  onPlatform: [EpisodeOnPlatformEdge!]
+  hasTranscript: [EpisodeHasTranscriptEdge!]
+}
+
+# ============================================================================
+# EpisodeSegment (timestamp-anchored segment within an episode)
+# ============================================================================
+
+type EpisodeSegment {
+  episodeSegmentId: ID!
+  canonicalName: String!
+  description: String
+  orderIndex: Int
+  startTimeSec: Int
+  endTimeSec: Int
+  timeRangeJson: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+  inEpisode: [EpisodeSegmentInEpisodeEdge!]
+}

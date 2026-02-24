@@ -1,9 +1,40 @@
 type Person {
   personId: ID!
   canonicalName: String!
+  givenName: String
+  familyName: String
+  middleName: String
+  suffix: String
+  honorific: String
   aliases: [String!]
+  bio: String
+  primaryLanguage: String
+  primaryDomain: String
+  specialties: [String!]
+  expertiseTags: [String!]
+  affiliationSummary: String
+  degrees: [String!]
+  credentialIds: [String!]
+  orcid: String
+  npi: String
+  licenseIds: [String!]
+  websiteUrl: String
+  email: String
+  socialProfiles: [String!]
+  linkedinUrl: String
+  twitterUrl: String
+  githubUrl: String
+  scholarUrl: String
+  headshotUrl: String
+  publicFigure: Boolean
+  notabilityNotes: String
+  createdAt: DateTime!
+  updatedAt: DateTime
   validAt: DateTime
   invalidAt: DateTime
   expiredAt: DateTime
-  createdAt: DateTime
+  searchText: String
+  embedding: [Float!]
+  hasRoleOnChannel: [PersonHasRoleOnChannelEdge!]
+  appearsInEpisode: [PersonAppearsInEpisodeEdge!]
 }
