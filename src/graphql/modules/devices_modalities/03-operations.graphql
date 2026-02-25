@@ -1,0 +1,8 @@
+extend type Mutation {
+  upsertFunctionalMetric(input: UpsertFunctionalMetricInput!): FunctionalMetric!
+  upsertDeviceType(input: UpsertDeviceTypeInput!): DeviceType!
+  upsertModalityType(input: UpsertModalityTypeInput!): ModalityType!
+  upsertSensor(input: UpsertSensorInput!): Sensor!
+  upsertModality(input: UpsertModalityInput!): Modality!
+  upsertDevice(input: UpsertDeviceInput!): Device!
+}

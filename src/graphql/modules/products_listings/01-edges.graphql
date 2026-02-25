@@ -83,3 +83,15 @@ type ManufacturedByEdge {
   expiredAt: DateTime
   createdAt: DateTime!
 }
+
+type ProductIsDeviceEdge {
+  device: Device!
+  sku: String
+  region: String
+  startAt: DateTime
+  endAt: DateTime
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}

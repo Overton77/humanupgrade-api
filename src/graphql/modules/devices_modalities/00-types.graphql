@@ -1,0 +1,97 @@
+# ============================================================================
+# Device & Modality types
+# ============================================================================
+
+type DeviceType {
+  deviceTypeId: ID!
+  canonicalName: String!
+  description: String
+  deviceTypeFamily: DeviceTypeFamily
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type FunctionalMetric {
+  functionalMetricId: ID!
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  metricType: FunctionalMetricType
+  unit: String
+  valueType: FunctionalMetricValueType
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type ModalityType {
+  modalityTypeId: ID!
+  canonicalName: String!
+  description: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type ModalityParameter {
+  modalityParameterId: ID!
+  canonicalName: String!
+  description: String
+  parameterKey: String
+  valueType: ModalityParameterValueType
+  defaultValue: String
+  unit: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type Modality {
+  modalityId: ID!
+  canonicalName: String!
+  description: String
+  modalityRole: ModalityRole
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+  instanceOf: [ModalityInstanceOfEdge!]
+  hasParameter: [ModalityHasParameterEdge!]
+}
+
+type Sensor {
+  sensorId: ID!
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  sensorType: SensorType
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+  measuresMetric: [SensorMeasuresMetricEdge!]
+}
+
+type Device {
+  deviceId: ID!
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  deviceClass: DeviceClass
+  intendedUse: String
+  version: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+  ofType: [DeviceOfTypeEdge!]
+  usesModality: [DeviceUsesModalityEdge!]
+  hasSensor: [DeviceHasSensorEdge!]
+  implementsPlatform: [DeviceImplementsPlatformEdge!]
+  measuresMetric: [DeviceMeasuresMetricEdge!]
+}

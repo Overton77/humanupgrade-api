@@ -1,0 +1,94 @@
+# ============================================================================
+# Modality relationship edge types
+# ============================================================================
+
+type ModalityInstanceOfEdge {
+  modalityType: ModalityType!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type ModalityHasParameterEdge {
+  modalityParameter: ModalityParameter!
+  value: String
+  unit: String
+  min: Float
+  max: Float
+  notes: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+# ============================================================================
+# Sensor relationship edge types
+# ============================================================================
+
+type SensorMeasuresMetricEdge {
+  functionalMetric: FunctionalMetric!
+  signalType: String
+  unit: String
+  samplingRateHz: Float
+  notes: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+# ============================================================================
+# Device relationship edge types
+# ============================================================================
+
+type DeviceOfTypeEdge {
+  deviceType: DeviceType!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type DeviceUsesModalityEdge {
+  modality: Modality!
+  purpose: String
+  primary: Boolean
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type DeviceHasSensorEdge {
+  sensor: Sensor!
+  count: Int
+  location: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type DeviceImplementsPlatformEdge {
+  technologyPlatform: TechnologyPlatform!
+  notes: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type DeviceMeasuresMetricEdge {
+  functionalMetric: FunctionalMetric!
+  method: String
+  accuracy: String
+  rangeMin: Float
+  rangeMax: Float
+  unit: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}

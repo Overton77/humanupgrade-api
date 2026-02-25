@@ -1,14 +1,41 @@
 import { z } from "zod";
-import { ProductDomainEnum, LabTestRoleEnum, PanelRoleEnum, CompoundFormRoleEnum } from "../enums/index.js";
+import {
+  ProductDomainEnum,
+  LabTestRoleEnum,
+  PanelRoleEnum,
+  CompoundFormRoleEnum,
+} from "../enums/index.js";
 import { Neo4jDateTimeString } from "../utils/dateTimeUtils.js";
 import { TemporalValidityInputSchema } from "./TemporalValidityInputs.js";
-import { LabTestRelateInputSchema, LabTestRelateUpdateInputSchema } from "./LabTestInputs.js";
-import { PanelDefinitionRelateInputSchema, PanelDefinitionRelateUpdateInputSchema } from "./PanelDefinitionInputs.js";
-import { ProductCategoryRelateInputSchema, ProductCategoryRelateUpdateInputSchema } from "./ProductCategoryInputs.js";
-import { RegulatoryPathwayRelateInputSchema, RegulatoryPathwayRelateUpdateInputSchema } from "./RegulatoryPathwayInputs.js";
-import { RegulatoryStatusRelateInputSchema, RegulatoryStatusRelateUpdateInputSchema } from "./RegulatoryStatusInputs.js";
-import { CompoundFormRelateInputSchema, CompoundFormRelateUpdateInputSchema } from "./CompoundFormInputs.js";
-import { TechnologyPlatformRelateInputSchema, TechnologyPlatformRelateUpdateInputSchema } from "./TechnologyPlatformInputs.js"; 
+import {
+  LabTestRelateInputSchema,
+  LabTestRelateUpdateInputSchema,
+} from "./LabTestInputs.js";
+import {
+  PanelDefinitionRelateInputSchema,
+  PanelDefinitionRelateUpdateInputSchema,
+} from "./PanelDefinitionInputs.js";
+import {
+  ProductCategoryRelateInputSchema,
+  ProductCategoryRelateUpdateInputSchema,
+} from "./ProductCategoryInputs.js";
+import {
+  RegulatoryPathwayRelateInputSchema,
+  RegulatoryPathwayRelateUpdateInputSchema,
+} from "./RegulatoryPathwayInputs.js";
+import {
+  RegulatoryStatusRelateInputSchema,
+  RegulatoryStatusRelateUpdateInputSchema,
+} from "./RegulatoryStatusInputs.js";
+import {
+  CompoundFormRelateInputSchema,
+  CompoundFormRelateUpdateInputSchema,
+} from "./CompoundFormInputs.js";
+import {
+  TechnologyPlatformRelateInputSchema,
+  TechnologyPlatformRelateUpdateInputSchema,
+} from "./TechnologyPlatformInputs.js";
+import { DeviceRelateUpsertInputSchema } from "./DevicesAndModalitiesInputs.js";
 import {
   OrganizationRelateInputSchema,
   OrganizationRelateUpdateInputSchema,
@@ -87,7 +114,7 @@ export const ProductRelateUpdateInputSchema = z
     {
       message:
         "Exactly one of 'create', 'connect', or 'update' must be provided",
-    }
+    },
   );
 
 // ============================================================================
@@ -239,51 +266,36 @@ export type HasRegulatoryStatusRelationshipInput = z.infer<
   typeof HasRegulatoryStatusRelationshipInputSchema
 >;
 
-// // ManufacturedByRelationshipInput (Create/Connect) - incoming relationship exposed as outgoing
-// // Use lazy schema definition to avoid circular dependency with OrganizationInputs
-// let OrganizationRelateInputSchemaLazy: z.ZodType<any>;
-// let OrganizationRelateUpdateInputSchemaLazy: z.ZodType<any>;
+export const ManufacturedByRelationshipInputSchema =
+  TemporalValidityInputSchema.extend({
+    organization: z.lazy(() => OrganizationRelateInputSchema),
+    claimIds: z.array(z.string()).optional(),
+  });
 
-// export const ManufacturedByRelationshipInputSchema: z.ZodType<any> =
-//   TemporalValidityInputSchema.extend({
-//     organization: z.lazy(() => {
-//       if (!OrganizationRelateInputSchemaLazy) {
-//         // Dynamic import to break circular dependency
-//         const orgInputs = require("./OrganizationInputs.js");
-//         OrganizationRelateInputSchemaLazy = orgInputs.OrganizationRelateInputSchema;
-//       }
-//       return OrganizationRelateInputSchemaLazy;
-//     }),
-//     claimIds: z.array(z.string()).optional(),
-//   });
-
-// export const ManufacturedByRelationshipUpdateInputSchema: z.ZodType<any> =
-//   TemporalValidityInputSchema.extend({
-//     organization: z.lazy(() => {
-//       if (!OrganizationRelateUpdateInputSchemaLazy) {
-//         // Dynamic import to break circular dependency
-//         const orgInputs = require("./OrganizationInputs.js");
-//         OrganizationRelateUpdateInputSchemaLazy = orgInputs.OrganizationRelateUpdateInputSchema;
-//       }
-//       return OrganizationRelateUpdateInputSchemaLazy;
-//     }),
-//     claimIds: z.array(z.string()).optional(),
-//   });
-
-
-export const ManufacturedByRelationshipInputSchema = TemporalValidityInputSchema.extend({
-  organization: z.lazy(() => OrganizationRelateInputSchema),
-  claimIds: z.array(z.string()).optional(),
-});
-
-export const ManufacturedByRelationshipUpdateInputSchema = TemporalValidityInputSchema.extend({
-  organization: z.lazy(() => OrganizationRelateUpdateInputSchema),
-  claimIds: z.array(z.string()).optional(),
-});
-
+export const ManufacturedByRelationshipUpdateInputSchema =
+  TemporalValidityInputSchema.extend({
+    organization: z.lazy(() => OrganizationRelateUpdateInputSchema),
+    claimIds: z.array(z.string()).optional(),
+  });
 
 export type ManufacturedByRelationshipInput = z.infer<
   typeof ManufacturedByRelationshipInputSchema
+>;
+
+// IsDeviceRelationshipInput (Product -[:IS_A_DEVICE]-> Device); connect | connectByKey | upsert
+// TODO: Incrementally we are going to re-model create, update and the create,connect, + create,connect, update
+// TODO: To Upsert + connect, connectByKey and upsert. This will greatly reduce amount of mutations and inputs.
+export const ProductIsDeviceRelationshipInputSchema =
+  TemporalValidityInputSchema.extend({
+    device: DeviceRelateUpsertInputSchema,
+    sku: z.string().nullable().optional(),
+    region: z.string().nullable().optional(),
+    startAt: Neo4jDateTimeString.nullable().optional(),
+    endAt: Neo4jDateTimeString.nullable().optional(),
+  });
+
+export type ProductIsDeviceRelationshipInput = z.infer<
+  typeof ProductIsDeviceRelationshipInputSchema
 >;
 
 // ============================================================================
@@ -304,6 +316,7 @@ export const ProductInputSchema = ProductBaseInputSchema.extend({
     .array(HasRegulatoryStatusRelationshipInputSchema)
     .optional(),
   manufacturedBy: z.array(ManufacturedByRelationshipInputSchema).optional(),
+  isDevice: z.array(ProductIsDeviceRelationshipInputSchema).optional(),
 });
 
 export type ProductInput = z.infer<typeof ProductInputSchema>;
@@ -336,6 +349,7 @@ export const UpdateProductInputSchema = ProductBaseUpdateInputSchema.extend({
   manufacturedBy: z
     .array(ManufacturedByRelationshipUpdateInputSchema)
     .optional(),
+  isDevice: z.array(ProductIsDeviceRelationshipInputSchema).optional(),
 });
 
 export type UpdateProductInput = z.infer<typeof UpdateProductInputSchema>;

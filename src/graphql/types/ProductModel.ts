@@ -11,6 +11,7 @@ import { CompoundFormSchema } from "./CompoundFormModel.js";
 import { TechnologyPlatformSchema } from "./TechnologyPlatformModel.js";
 import { OrganizationSchema } from "./OrganizationModel.js";
 import { ResearchRunRefSchema } from "./ResearchRunRefModel.js";
+import { DeviceSchema } from "./DeviceModel.js";
 
 // ============================================================================
 // Edge Type Schemas (Relationship + Node)
@@ -105,6 +106,17 @@ export const GeneratedByEdgeSchema = TemporalValiditySchema.extend({
 
 export type GeneratedByEdge = z.infer<typeof GeneratedByEdgeSchema>;
 
+// IsDeviceEdge (Product -[:IS_A_DEVICE]-> Device) — commercial product is a device model
+export const ProductIsDeviceEdgeSchema = TemporalValiditySchema.extend({
+  device: DeviceSchema,
+  sku: z.string().nullable(),
+  region: z.string().nullable(),
+  startAt: Neo4jDateTimeString.nullable(),
+  endAt: Neo4jDateTimeString.nullable(),
+});
+
+export type ProductIsDeviceEdge = z.infer<typeof ProductIsDeviceEdgeSchema>;
+
 // ============================================================================
 // Product Schema
 // ============================================================================
@@ -143,6 +155,7 @@ export const ProductSchema = z.object({
   hasRegulatoryStatus: z.array(HasRegulatoryStatusEdgeSchema).nullable(),
   manufacturedBy: z.array(ManufacturedByEdgeSchema).nullable(),
   generatedBy: z.array(GeneratedByEdgeSchema).nullable(),
+  isDevice: z.array(ProductIsDeviceEdgeSchema).nullable(),
 });
 
 export type Product = z.infer<typeof ProductSchema>;

@@ -649,6 +649,80 @@ export const SeriesPublishRoleEnum = z.enum([
   "other",
 ]);
 
+// ============================================================================
+// Device & Modality enums
+// ============================================================================
+
+export const DeviceClassEnum = z.enum([
+  "diagnostic",
+  "monitoring",
+  "therapeutic",
+  "analytical_instrument",
+  "surgical",
+  "implantable",
+  "software_enabled",
+  "other",
+]);
+
+export const DeviceTypeFamilyEnum = z.enum([
+  "wearable",
+  "benchtop",
+  "handheld",
+  "implant",
+  "consumable",
+  "accessory",
+  "other",
+]);
+
+export const ModalityRoleEnum = z.enum([
+  "sensing",
+  "actuation",
+  "delivery",
+  "imaging",
+  "analysis",
+  "other",
+]);
+
+export const SensorTypeEnum = z.enum([
+  "optical",
+  "electrochemical",
+  "electrical",
+  "mechanical",
+  "inertial",
+  "thermal",
+  "pressure",
+  "acoustic",
+  "imaging",
+  "other",
+]);
+
+export const FunctionalMetricTypeEnum = z.enum([
+  "physiological",
+  "analytical",
+  "device_performance",
+  "quality",
+  "other",
+]);
+
+export const FunctionalMetricValueTypeEnum = z.enum([
+  "float",
+  "int",
+  "boolean",
+  "categorical",
+  "string",
+  "other",
+]);
+
+export const ModalityParameterValueTypeEnum = z.enum([
+  "float",
+  "int",
+  "string",
+  "boolean",
+  "enum",
+  "range",
+  "other",
+]);
+
 // Embedding enums
 export const EmbeddingTargetTypeEnum = z.enum(["ORGANIZATION", "PRODUCT"]);
 
@@ -659,6 +733,19 @@ export const EmbeddingJobStatusEnum = z.enum([
   "SKIPPED",
   "FAILED",
 ]);
+
+// Export TypeScript types (Device & Modality)
+export type DeviceClass = z.infer<typeof DeviceClassEnum>;
+export type DeviceTypeFamily = z.infer<typeof DeviceTypeFamilyEnum>;
+export type ModalityRole = z.infer<typeof ModalityRoleEnum>;
+export type SensorType = z.infer<typeof SensorTypeEnum>;
+export type FunctionalMetricType = z.infer<typeof FunctionalMetricTypeEnum>;
+export type FunctionalMetricValueType = z.infer<
+  typeof FunctionalMetricValueTypeEnum
+>;
+export type ModalityParameterValueType = z.infer<
+  typeof ModalityParameterValueTypeEnum
+>;
 
 // Export TypeScript types
 export type OrgType = z.infer<typeof OrgTypeEnum>;

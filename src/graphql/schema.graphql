@@ -697,6 +697,80 @@ enum SeriesPublishRole {
   production_company
   other
 }
+
+# ============================================================================
+# Device & Modality Enums
+# ============================================================================
+
+enum DeviceClass {
+  diagnostic
+  monitoring
+  therapeutic
+  analytical_instrument
+  surgical
+  implantable
+  software_enabled
+  other
+}
+
+enum DeviceTypeFamily {
+  wearable
+  benchtop
+  handheld
+  implant
+  consumable
+  accessory
+  other
+}
+
+enum ModalityRole {
+  sensing
+  actuation
+  delivery
+  imaging
+  analysis
+  other
+}
+
+enum SensorType {
+  optical
+  electrochemical
+  electrical
+  mechanical
+  inertial
+  thermal
+  pressure
+  acoustic
+  imaging
+  other
+}
+
+enum FunctionalMetricType {
+  physiological
+  analytical
+  device_performance
+  quality
+  other
+}
+
+enum FunctionalMetricValueType {
+  float
+  int
+  boolean
+  categorical
+  string
+  other
+}
+
+enum ModalityParameterValueType {
+  float
+  int
+  string
+  boolean
+  enum
+  range
+  other
+}
 # ===== END: _shared/01-enums.graphql =====
 
 # ===== BEGIN: _shared/02-directives.graphql =====
@@ -821,6 +895,626 @@ type ClaimOccurrenceUtteredByEdge {
 # ===== BEGIN: claims/03-operations.graphql =====
 
 # ===== END: claims/03-operations.graphql =====
+
+# ===== BEGIN: devices_modalities/00-types.graphql =====
+# ============================================================================
+# Device & Modality types
+# ============================================================================
+
+type DeviceType {
+  deviceTypeId: ID!
+  canonicalName: String!
+  description: String
+  deviceTypeFamily: DeviceTypeFamily
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type FunctionalMetric {
+  functionalMetricId: ID!
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  metricType: FunctionalMetricType
+  unit: String
+  valueType: FunctionalMetricValueType
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type ModalityType {
+  modalityTypeId: ID!
+  canonicalName: String!
+  description: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type ModalityParameter {
+  modalityParameterId: ID!
+  canonicalName: String!
+  description: String
+  parameterKey: String
+  valueType: ModalityParameterValueType
+  defaultValue: String
+  unit: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type Modality {
+  modalityId: ID!
+  canonicalName: String!
+  description: String
+  modalityRole: ModalityRole
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+  instanceOf: [ModalityInstanceOfEdge!]
+  hasParameter: [ModalityHasParameterEdge!]
+}
+
+type Sensor {
+  sensorId: ID!
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  sensorType: SensorType
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+  measuresMetric: [SensorMeasuresMetricEdge!]
+}
+
+type Device {
+  deviceId: ID!
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  deviceClass: DeviceClass
+  intendedUse: String
+  version: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+  ofType: [DeviceOfTypeEdge!]
+  usesModality: [DeviceUsesModalityEdge!]
+  hasSensor: [DeviceHasSensorEdge!]
+  implementsPlatform: [DeviceImplementsPlatformEdge!]
+  measuresMetric: [DeviceMeasuresMetricEdge!]
+}
+# ===== END: devices_modalities/00-types.graphql =====
+
+# ===== BEGIN: devices_modalities/01-edges.graphql =====
+# ============================================================================
+# Modality relationship edge types
+# ============================================================================
+
+type ModalityInstanceOfEdge {
+  modalityType: ModalityType!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type ModalityHasParameterEdge {
+  modalityParameter: ModalityParameter!
+  value: String
+  unit: String
+  min: Float
+  max: Float
+  notes: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+# ============================================================================
+# Sensor relationship edge types
+# ============================================================================
+
+type SensorMeasuresMetricEdge {
+  functionalMetric: FunctionalMetric!
+  signalType: String
+  unit: String
+  samplingRateHz: Float
+  notes: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+# ============================================================================
+# Device relationship edge types
+# ============================================================================
+
+type DeviceOfTypeEdge {
+  deviceType: DeviceType!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type DeviceUsesModalityEdge {
+  modality: Modality!
+  purpose: String
+  primary: Boolean
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type DeviceHasSensorEdge {
+  sensor: Sensor!
+  count: Int
+  location: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type DeviceImplementsPlatformEdge {
+  technologyPlatform: TechnologyPlatform!
+  notes: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+
+type DeviceMeasuresMetricEdge {
+  functionalMetric: FunctionalMetric!
+  method: String
+  accuracy: String
+  rangeMin: Float
+  rangeMax: Float
+  unit: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
+# ===== END: devices_modalities/01-edges.graphql =====
+
+# ===== BEGIN: devices_modalities/02-inputs.graphql =====
+# ============================================================================
+# Device & Modality Inputs — biotech devices and modalities
+# ============================================================================
+# References: TemporalValidityInput (_shared), TechnologyPlatformInput (composed)
+# Enums: DeviceClass, DeviceTypeFamily, ModalityRole, SensorType,
+#        FunctionalMetricType, FunctionalMetricValueType, ModalityParameterValueType
+# ============================================================================
+
+# ============================================================================
+# FunctionalMetric
+# ============================================================================
+
+input FunctionalMetricInput {
+  functionalMetricId: String
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  metricType: FunctionalMetricType
+  unit: String
+  valueType: FunctionalMetricValueType
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+}
+
+input FunctionalMetricConnectInput {
+  functionalMetricId: ID!
+}
+
+input FunctionalMetricConnectByKeyInput {
+  canonicalName: String!
+}
+
+input FunctionalMetricRelateUpsertInput {
+  connect: FunctionalMetricConnectInput
+  connectByKey: FunctionalMetricConnectByKeyInput
+  upsert: FunctionalMetricInput
+}
+
+# ============================================================================
+# DeviceType
+# ============================================================================
+
+input DeviceTypeInput {
+  deviceTypeId: String
+  canonicalName: String!
+  description: String
+  deviceTypeFamily: DeviceTypeFamily
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+}
+
+input DeviceTypeConnectInput {
+  deviceTypeId: ID!
+}
+
+input DeviceTypeConnectByKeyInput {
+  canonicalName: String!
+}
+
+input DeviceTypeRelateUpsertInput {
+  connect: DeviceTypeConnectInput
+  connectByKey: DeviceTypeConnectByKeyInput
+  upsert: DeviceTypeInput
+}
+
+# ============================================================================
+# ModalityType
+# ============================================================================
+
+input ModalityTypeInput {
+  modalityTypeId: String
+  canonicalName: String!
+  description: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+}
+
+input ModalityTypeConnectInput {
+  modalityTypeId: ID!
+}
+
+input ModalityTypeConnectByKeyInput {
+  canonicalName: String!
+}
+
+input ModalityTypeRelateUpsertInput {
+  connect: ModalityTypeConnectInput
+  connectByKey: ModalityTypeConnectByKeyInput
+  upsert: ModalityTypeInput
+}
+
+# ============================================================================
+# ModalityParameter
+# ============================================================================
+
+input ModalityParameterInput {
+  modalityParameterId: String
+  canonicalName: String!
+  description: String
+  parameterKey: String
+  valueType: ModalityParameterValueType
+  defaultValue: String
+  unit: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+}
+
+input ModalityParameterConnectInput {
+  modalityParameterId: ID!
+}
+
+input ModalityParameterConnectByKeyInput {
+  canonicalName: String!
+}
+
+input ModalityParameterRelateUpsertInput {
+  connect: ModalityParameterConnectInput
+  connectByKey: ModalityParameterConnectByKeyInput
+  upsert: ModalityParameterInput
+}
+
+# ============================================================================
+# TechnologyPlatform (RelateUpsert for Device.implementsPlatform)
+# TechnologyPlatformInput, TechnologyPlatformConnectInput from composed schema
+# ============================================================================
+
+input TechnologyPlatformConnectByKeyInput {
+  canonicalName: String!
+}
+
+input TechnologyPlatformRelateUpsertInput {
+  connect: TechnologyPlatformConnectInput
+  connectByKey: TechnologyPlatformConnectByKeyInput
+  upsert: TechnologyPlatformInput
+}
+
+# ============================================================================
+# Sensor — edge input then input + RelateUpsert
+# ============================================================================
+
+input SensorMeasuresMetricEdgeInput {
+  functionalMetric: FunctionalMetricRelateUpsertInput!
+  signalType: String
+  unit: String
+  samplingRateHz: Float
+  notes: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input SensorInput {
+  sensorId: String
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  sensorType: SensorType
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  measuresMetric: [SensorMeasuresMetricEdgeInput!]
+}
+
+input SensorConnectInput {
+  sensorId: ID!
+}
+
+input SensorConnectByKeyInput {
+  canonicalName: String!
+}
+
+input SensorRelateUpsertInput {
+  connect: SensorConnectInput
+  connectByKey: SensorConnectByKeyInput
+  upsert: SensorInput
+}
+
+# ============================================================================
+# Modality — edge inputs then input + RelateUpsert
+# ============================================================================
+
+input ModalityInstanceOfEdgeInput {
+  modalityType: ModalityTypeRelateUpsertInput!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ModalityHasParameterEdgeInput {
+  modalityParameter: ModalityParameterRelateUpsertInput!
+  value: String
+  unit: String
+  min: Float
+  max: Float
+  notes: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input ModalityInput {
+  modalityId: String
+  canonicalName: String!
+  description: String
+  modalityRole: ModalityRole
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  instanceOf: [ModalityInstanceOfEdgeInput!]
+  hasParameter: [ModalityHasParameterEdgeInput!]
+}
+
+input ModalityConnectInput {
+  modalityId: ID!
+}
+
+input ModalityConnectByKeyInput {
+  canonicalName: String!
+}
+
+input ModalityRelateUpsertInput {
+  connect: ModalityConnectInput
+  connectByKey: ModalityConnectByKeyInput
+  upsert: ModalityInput
+}
+
+# ============================================================================
+# Device — edge inputs then input + RelateUpsert
+# ============================================================================
+
+input DeviceOfTypeEdgeInput {
+  deviceType: DeviceTypeRelateUpsertInput!
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input DeviceUsesModalityEdgeInput {
+  modality: ModalityRelateUpsertInput!
+  purpose: String
+  primary: Boolean
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input DeviceHasSensorEdgeInput {
+  sensor: SensorRelateUpsertInput!
+  count: Int
+  location: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input DeviceImplementsPlatformEdgeInput {
+  technologyPlatform: TechnologyPlatformRelateUpsertInput!
+  notes: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input DeviceMeasuresMetricEdgeInput {
+  functionalMetric: FunctionalMetricRelateUpsertInput!
+  method: String
+  accuracy: String
+  rangeMin: Float
+  rangeMax: Float
+  unit: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+input DeviceInput {
+  deviceId: String
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  deviceClass: DeviceClass
+  intendedUse: String
+  version: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  ofType: [DeviceOfTypeEdgeInput!]
+  usesModality: [DeviceUsesModalityEdgeInput!]
+  hasSensor: [DeviceHasSensorEdgeInput!]
+  implementsPlatform: [DeviceImplementsPlatformEdgeInput!]
+  measuresMetric: [DeviceMeasuresMetricEdgeInput!]
+}
+
+input DeviceConnectInput {
+  deviceId: ID!
+}
+
+input DeviceConnectByKeyInput {
+  canonicalName: String!
+}
+
+input DeviceRelateUpsertInput {
+  connect: DeviceConnectInput
+  connectByKey: DeviceConnectByKeyInput
+  upsert: DeviceInput
+}
+
+# ============================================================================
+# Upsert Inputs (for mutations)
+# ============================================================================
+
+input UpsertFunctionalMetricInput {
+  functionalMetricId: String
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  metricType: FunctionalMetricType
+  unit: String
+  valueType: FunctionalMetricValueType
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+}
+
+input UpsertDeviceTypeInput {
+  deviceTypeId: String
+  canonicalName: String!
+  description: String
+  deviceTypeFamily: DeviceTypeFamily
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+}
+
+input UpsertModalityTypeInput {
+  modalityTypeId: String
+  canonicalName: String!
+  description: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+}
+
+input UpsertModalityParameterInput {
+  modalityParameterId: String
+  canonicalName: String!
+  description: String
+  parameterKey: String
+  valueType: ModalityParameterValueType
+  defaultValue: String
+  unit: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+}
+
+input UpsertSensorInput {
+  sensorId: String
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  sensorType: SensorType
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  measuresMetric: [SensorMeasuresMetricEdgeInput!]
+}
+
+input UpsertModalityInput {
+  modalityId: String
+  canonicalName: String!
+  description: String
+  modalityRole: ModalityRole
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  instanceOf: [ModalityInstanceOfEdgeInput!]
+  hasParameter: [ModalityHasParameterEdgeInput!]
+}
+
+input UpsertDeviceInput {
+  deviceId: String
+  canonicalName: String!
+  aliases: [String!]
+  description: String
+  deviceClass: DeviceClass
+  intendedUse: String
+  version: String
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  ofType: [DeviceOfTypeEdgeInput!]
+  usesModality: [DeviceUsesModalityEdgeInput!]
+  hasSensor: [DeviceHasSensorEdgeInput!]
+  implementsPlatform: [DeviceImplementsPlatformEdgeInput!]
+  measuresMetric: [DeviceMeasuresMetricEdgeInput!]
+}
+# ===== END: devices_modalities/02-inputs.graphql =====
+
+# ===== BEGIN: devices_modalities/03-operations.graphql =====
+extend type Mutation {
+  upsertFunctionalMetric(input: UpsertFunctionalMetricInput!): FunctionalMetric!
+  upsertDeviceType(input: UpsertDeviceTypeInput!): DeviceType!
+  upsertModalityType(input: UpsertModalityTypeInput!): ModalityType!
+  upsertSensor(input: UpsertSensorInput!): Sensor!
+  upsertModality(input: UpsertModalityInput!): Modality!
+  upsertDevice(input: UpsertDeviceInput!): Device!
+}
+# ===== END: devices_modalities/03-operations.graphql =====
 
 # ===== BEGIN: ingestion/00-types.graphql =====
 type ResearchPlanRef {
@@ -3975,6 +4669,7 @@ type Product {
   usesPlatform: [ProductUsesPlatformEdge!]
   hasRegulatoryStatus: [HasRegulatoryStatusEdge!]
   manufacturedBy: [ManufacturedByEdge!]
+  isDevice: [ProductIsDeviceEdge!]
 } 
 
 type RegulatoryStatus {
@@ -4099,6 +4794,18 @@ type ManufacturedByEdge {
   expiredAt: DateTime
   createdAt: DateTime!
 }
+
+type ProductIsDeviceEdge {
+  device: Device!
+  sku: String
+  region: String
+  startAt: DateTime
+  endAt: DateTime
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime!
+}
 # ===== END: products_listings/01-edges.graphql =====
 
 # ===== BEGIN: products_listings/02-inputs.graphql =====
@@ -4151,6 +4858,7 @@ input ProductInput {
   usesPlatform: [ProductUsesPlatformRelationshipInput!]
   hasRegulatoryStatus: [HasRegulatoryStatusRelationshipInput!]
   manufacturedBy: [ManufacturedByRelationshipInput!]
+  isDevice: [ProductIsDeviceRelationshipInput!]
 } 
 
 
@@ -4233,6 +4941,7 @@ input ProductUpdateInput {
   usesPlatform: [ProductUsesPlatformRelationshipUpdateInput!]
   hasRegulatoryStatus: [HasRegulatoryStatusRelationshipUpdateInput!]
   manufacturedBy: [ManufacturedByRelationshipUpdateInput!]
+  isDevice: [ProductIsDeviceRelationshipInput!]
 }
 
 input ListsRelationshipUpdateInput {
@@ -4465,6 +5174,19 @@ input ManufacturedByRelationshipInput {
 input ManufacturedByRelationshipUpdateInput {
   organization: OrganizationRelateUpdateInput!
   claimIds: [String!]
+  validAt: DateTime
+  invalidAt: DateTime
+  expiredAt: DateTime
+  createdAt: DateTime
+}
+
+# Product -[:IS_A_DEVICE]-> Device (uses DeviceRelateUpsertInput from devices_modalities)
+input ProductIsDeviceRelationshipInput {
+  device: DeviceRelateUpsertInput!
+  sku: String
+  region: String
+  startAt: DateTime
+  endAt: DateTime
   validAt: DateTime
   invalidAt: DateTime
   expiredAt: DateTime

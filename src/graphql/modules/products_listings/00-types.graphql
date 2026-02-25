@@ -52,6 +52,7 @@ type Product {
   usesPlatform: [ProductUsesPlatformEdge!]
   hasRegulatoryStatus: [HasRegulatoryStatusEdge!]
   manufacturedBy: [ManufacturedByEdge!]
+  isDevice: [ProductIsDeviceEdge!]
 } 
 
 type RegulatoryStatus {

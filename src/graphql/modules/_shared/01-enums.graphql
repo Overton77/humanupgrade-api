@@ -684,4 +684,77 @@ enum SeriesPublishRole {
   production_company
   other
 }
- 
+
+# ============================================================================
+# Device & Modality Enums
+# ============================================================================
+
+enum DeviceClass {
+  diagnostic
+  monitoring
+  therapeutic
+  analytical_instrument
+  surgical
+  implantable
+  software_enabled
+  other
+}
+
+enum DeviceTypeFamily {
+  wearable
+  benchtop
+  handheld
+  implant
+  consumable
+  accessory
+  other
+}
+
+enum ModalityRole {
+  sensing
+  actuation
+  delivery
+  imaging
+  analysis
+  other
+}
+
+enum SensorType {
+  optical
+  electrochemical
+  electrical
+  mechanical
+  inertial
+  thermal
+  pressure
+  acoustic
+  imaging
+  other
+}
+
+enum FunctionalMetricType {
+  physiological
+  analytical
+  device_performance
+  quality
+  other
+}
+
+enum FunctionalMetricValueType {
+  float
+  int
+  boolean
+  categorical
+  string
+  other
+}
+
+enum ModalityParameterValueType {
+  float
+  int
+  string
+  boolean
+  enum
+  range
+  other
+}
